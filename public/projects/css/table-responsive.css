@@ -1,0 +1,50 @@
+@media (max-width: 1024px){
+.w-md-100{
+	width:100% !important;
+}
+.project-text a{
+	border-right: 0 !important;
+	padding: 8px 12px !important;
+}
+.header-bg{
+	height:65px !important;
+}
+.project-table{
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow-y: hidden;
+    overflow-x: auto;
+    display: flex !important;
+}
+#sidebar {
+  position: fixed;
+  top: 60px;
+  right: -250px;
+  width: 250px;
+  height: 100%;
+  background-color: #000;
+  z-index: 999;
+  transition: all 0.3s;
+}
+.close-text {
+    color: #FFF;
+    font-size: 22px;
+    padding-left: 15px;
+}
+.logo {
+    margin-top: 8px;
+}
+
+
+
+}
+
+
+
+@media (max-width: 576px){
+
+.header-bg{
+	height:55px !important;
+}
+
+}

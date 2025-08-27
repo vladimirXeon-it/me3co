@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="/tinymce/tinymce.min.js"></script>
+  <title>Vite + TS</title>
+  <script type="module" crossorigin src="/assets/index-e5f2d6cd.js"></script>
+  <link rel="stylesheet" href="/assets/index-cb41e1c8.css">
+</head>
+
+<body>
+  <button type="button" class="btn-pdf">
+    <img src="/images/pdf-file.png" />
+  </button>
+  <button type="button" class="btn-email">
+    <img src="/images/mail.svg" />
+  </button>
+  <main>
+    <div class="page-wrapper printing" contenteditable="true">
+      <div class="page cover-page">
+        <h2 class="text-primary fw-light">Project Proposal</h2>
+        <h1 class="text-primary text-xl mt-2">Architecture Quote</h1>
+      </div>
+      <div class="page p-4">
+        <h2 class="text-primary fw-light">Material Costing</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Material Id</th>
+              <th>Description</th>
+              <th>Quantity</th>
+              <th>Unitary Cost</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Class</td>
+              <td>Material Id</td>
+              <td>Description</td>
+              <td>Quantity</td>
+              <td>Unitary Cost</td>
+              <td>Cost</td>
+            </tr>
+          </tbody>
+        </table>
+        <h2 class="text-primary fw-light">Crew Costing</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Total Days</th>
+              <th>Cost per day</th>
+              <th>Fringe and burden benefits</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Name</td>
+              <td>Total Days</td>
+              <td>Cost per day</td>
+              <td>Fringe and burden benefits</td>
+              <td>Cost</td>
+            </tr>
+          </tbody>
+        </table>
+        <h2 class="text-primary fw-light">Equipments Costing</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Name</th>
+              <th>Cost per day</th>
+              <th>Total Days</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Id</td>
+              <td>Name</td>
+              <td>Cost per day</td>
+              <td>Total days</td>
+              <td>Cost</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+      <div class="page p-4">
+        <h2 class="text-primary fw-light">TOTALS</h2>
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Material</th>
+              <th>Labor</th>
+              <th>Equipment</th>
+              <th>Project Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Total</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Tax</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Subtotal</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>OH</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Profit%</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>TOTALS</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="page p-4">
+        <h2 class="text-primary fw-light">Quantitytakeoff</h2>
+        <p class="mt-2 w-100 letter-section">
+          <script>document.write(new Date().toLocaleDateString())</script>
+          <b class="text-primary">Proposal submitted to:</b> [General contractor name]
+          Work to be Performed at. [PROJECT NAME]
+          We Hereby [COMPANY NAME] propose to furnish all Materials, Equipment and perform all labor necessary for the
+          completion of the[ TRADES AUTO GENERATED] and concrete work at the above project
+
+          Following list generated from all materials used in the project and display it below:
+          • [Material1 – Class1]
+          •
+          •
+          •
+          •
+          • [Material N – Class N]
+
+          General contractor shall Provide at no cost to [COMPANY NAME] Electric hook up and power consumption,
+          Temporary
+          light Sanitary Facilities, and water hook up.
+          Any alterations or deviations from the above specifications involving extra cost will be executed only upon
+          written change orders and will become extra charge over and above the original estimate. All agreements
+          contingent upon strikes, accidents, or delays beyond our control. Owner is to carry fire and tornado
+          insurance.
+          EXCLUDES: Winter conditions and requirements, Builder’s Risk insurance) and USER TO LIST ANY EXCLUSIONS
+          All work is to be guaranteed and performed in accordance with the drawings and specifications submitted for
+          the
+          above project. All work to be completed in a substantial and workman like manner, all for the sum of. $
+          [Project
+          total cost base on the final report]
+
+          Name
+          Company
+          Phone
+          Email
+
+        </p>
+      </div>
+    </div>
+  </main>
+  <script src="https://cdn.ckeditor.com/ckeditor5/36.0.1/balloon/ckeditor.js"></script>
+  
+</body>
+
+</html>

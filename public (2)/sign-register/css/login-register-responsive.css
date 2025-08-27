@@ -1,0 +1,72 @@
+@media (max-width: 1024px){
+.w-ipad-100{
+	width: 100% !important;
+}
+.google-btn a {
+    padding: 8px 30px !important;
+}
+
+
+}
+
+@media (max-width: 991px){
+.w-md-100{
+	width: 100% !important;
+}
+.w-md-35{
+	width: 35% !important;
+}
+
+.login-btn p:after {
+    left: 0px !important;
+}
+.login-btn p:before {
+    right: 0px !important;
+}
+
+
+
+}
+
+@media (max-width: 767px){
+
+.login-btn p:after {
+    left: 20% !important;
+}
+.login-btn p:before {
+    right: 20% !important;
+}
+
+
+
+}
+
+
+
+@media (max-width: 576px){
+
+.w-xs-100{
+	width: 100% !important;
+}
+.w-xs-30{
+	width: 30% !important;
+}
+.w-xs-25{
+	width: 25% !important;
+}
+.google-btn a {
+    padding: 10px 10px !important;
+}
+.login-btn p:after {
+    width: 75px !important;
+    left: 0px !important;
+}
+.login-btn p:before {
+    width: 75px !important;
+    right: 0px !important;
+}
+
+
+
+
+}

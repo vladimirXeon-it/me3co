@@ -1,0 +1,220 @@
+@font-face {
+    font-family: 'robotoregular';
+    src: url('../fonts/roboto-regular-webfont.woff2') format('woff2'),
+    url('../fonts/roboto-regular-webfont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+
+}
+#editProjectId {
+	border: 0;
+    background: 0;
+}
+ul{
+	padding:0
+}
+
+ul li{
+	list-style: none;
+}
+img{
+	max-width: 100%;height:auto;outline: none;
+}
+a{
+	text-decoration: none;
+}
+a:hover{
+	text-decoration: none !important;
+}
+body{
+	margin: 0px !important;
+	font-family: 'robotoregular' !important;
+	background-color: #F7FAFC;
+}
+:focus{
+	outline: none !important;
+}
+
+.text-12{
+	font-size:12px;
+}
+.text-13{
+	font-size:13px;
+}
+.text-14{
+	font-size:14px;
+}
+.text-15{
+	font-size:15px;
+}
+.text-16{
+	font-size:16px;
+}
+.header-bg{
+	background-color: #083F4E;
+	height: 55px;
+}
+.project-text a{
+	padding: 17px 12px;
+	border-right: 1px solid #fff;
+}
+.project-text:hover{
+	background-color: #00A5B6;
+}
+.logo{
+	margin-top: 15px;
+}
+.folder-icon{
+	padding: 18px 20px;
+	border-right: 1px solid #fff;
+}
+.web-text{
+	color:#8d8d8d;
+}
+.project-search input{
+	background-color: #F4F4F4;
+	border-radius: 7px;
+}
+.project-search input::placeholder{
+	color:#8d8d8d;
+	font-size: 14px;
+}
+.project-search a img{
+	top: 12px;
+    left: 12px;
+}
+.search-btn{
+	background-color: #00A5B6;
+    border-radius: 7px;
+    top: 1px;
+    right: 2px;
+    padding: 8px 20px;
+}
+.creat-project-btn a{
+	background-color: #F7FAFC;
+	border-radius: 7px;
+	border:1px solid #00A5B6;
+	color:#00A5B6;
+	padding: 4px 10px;
+}
+.creat-project-btn button{
+	background-color: #F7FAFC;
+	border-radius: 7px;
+	border:1px solid #00A5B6;
+	color:#00A5B6;
+	padding: 4px 10px;
+}
+.project-table .dataTables_wrapper{
+	background: white;
+}
+.project-table .dataTables_wrapper .dataTables_length label{
+	padding:8px;
+	font-size: 14px;
+	font-weight: normal;
+}
+.project-table .dataTables_wrapper .dataTables_length label select{
+	border: none;
+    background: #f4f4f4;
+    border-radius: 6px;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button.current{
+	padding: 4px 10px;
+    font-size: 14px;
+    background: #00A5B6;
+    border-radius: 5px;
+    color: white !important;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button{
+    padding: 4px 10px;
+    font-size: 14px;
+    background: #f4f4f4;
+	border:1px solid #f4f4f4 !important;
+    border-radius: 5px;
+    color: #494545 !important;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button.previous{
+    font-size: 14px;
+	background:0 !important;
+	border: 0 !important;
+	color:#00A5B6 !important;
+}
+project-table .dataTables_wrapper .dataTables_paginate .paginate_button.disabled{
+	color: #494545 !important;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button.next{
+    font-size: 14px;
+	background:0 !important;
+	border: 0 !important;
+	color:#00A5B6 !important;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button.disabled{
+	color: #494545 !important;
+}
+.project-table .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover{
+	color: #494545 !important;
+ }
+.project-table .dataTables_wrapper .dataTables_filter label{
+	padding:8px;
+	font-size: 14px;
+	font-weight: normal;
+}
+.project-table .dataTables_info{
+	padding: 7px 5px;
+    font-size: 14px;
+}
+.project-table .dataTables_wrapper .dataTables_filter label input{
+	border: none;
+    background: #f4f4f4;
+    border-radius: 6px;
+}
+.project-table table{
+	background-color: #F7FAFC;
+}
+.project-table table th, .project-table table td{
+	font-size:14px;
+}
+.project-table table td{
+	vertical-align: middle;
+}
+.project-table .edit-icon{
+	height: 20px;
+}
+.project-table .btn-teke-off{
+	background-color: #D6FBFF;
+	border-radius: 7px;
+	border: 1px solid #00A5B6;
+	padding: 6px 17px;
+}
+.project-table .btn-teke-off:hover{
+	background-color: #00A5B6;
+	color: #fff !important;
+}
+.input-project input, .input-project textarea, .input-project select{
+	background: #f4f4f4;
+    border-radius: 6px;
+    border: 1px solid #f4f4f4;
+	font-size:14px;
+}
+.form-control:focus {
+	background:white !important;
+	box-shadow:none !important;
+}
+.back-btn{
+	background-color: #D6FBFF;
+    border-radius: 7px;
+    border: 1px solid #00A5B6;
+    padding: 6px 17px;
+}
+.save-btn {
+	background-color: #00A5B6;
+    border: 1px solid #00A5B6;
+}
+#create-project .modal-content .modal-header,#editProjectModal .modal-content .modal-header{
+	background-color: #fff;
+}
+
+
+
+
+
+

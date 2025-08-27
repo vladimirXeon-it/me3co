@@ -1,0 +1,3 @@
+permisos
+
+chmod -Rf 0777 storage
