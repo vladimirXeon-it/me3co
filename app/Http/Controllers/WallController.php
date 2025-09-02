@@ -19,13 +19,14 @@ class WallController extends Controller
         $json->wall_length = 721.72;
  */
         $wall = Wall::find($wall_id);
+        
+        //dd($wall);
 
         if ($wall->type == "length") {
 
             $result = $this->processWallCalculations($wall);
         }
         if ($wall->type == "area") {
-
             $result = $this->processArea($wall);
         }
         if ($wall->type == "perimeter") {
@@ -243,7 +244,6 @@ class WallController extends Controller
             $additionalDatasFinal[] = $additionalData;
         }
         $data->additionalMaterials = $additionalDatasFinal;
-
 
         $material_per_sq_ft = (object)$data->material_per_sq_ft;
 
@@ -1129,7 +1129,7 @@ class WallController extends Controller
     {
         // echo "calculateBandTotalRebarLfs<br>";
         $rebarQuantity = floatval($course->rebar_quantity);
-        $totalRebarLf = round($totalRebarLength * $rebarQuantity * $rebarCourse, 3);
+        $totalRebarLf = round(floatval($totalRebarLength) * $rebarQuantity * $rebarCourse, 3);
         return $totalRebarLf;
     }
 

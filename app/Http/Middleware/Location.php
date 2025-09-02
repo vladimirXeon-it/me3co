@@ -18,7 +18,7 @@ class Location
      */
     public function handle(Request $request, Closure $next)
     {
-        $clientIp = $request->ip();
+        /*$clientIp = $request->ip();
         $details = file_get_contents("http://www.geoplugin.net/json.gp?ip=$clientIp");
         $obj = json_decode($details);
         if(Setting::where('user_id', Auth::id())->get()->count() == 0) {
@@ -29,11 +29,11 @@ class Location
             ]);
             }
         else {
-                Setting::where('user_id', Auth::id())->update([
-                'measurement_system' => 1
-            ]);
-        }
-        }
+            Setting::where('user_id', Auth::id())->update([
+            'measurement_system' => 1
+            //]);
+        //}
+        //}*/
         return $next($request);
     }
 }
