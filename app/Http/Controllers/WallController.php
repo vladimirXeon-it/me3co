@@ -27,6 +27,7 @@ class WallController extends Controller
             $result = $this->processWallCalculations($wall);
         }
         if ($wall->type == "area") {
+            //var_dump($wall);
             $result = $this->processArea($wall);
         }
         if ($wall->type == "perimeter") {
@@ -109,7 +110,7 @@ class WallController extends Controller
             "totalUnits"=> "" 
          )];
        
-        $perimeterFields = (object)$data->perimeterFields;
+        $perimeterFields = $data->perimeterFields ?? [];
         
         if(isset($data->perimeterFields))
         {
@@ -132,7 +133,12 @@ class WallController extends Controller
                  
 
                     $additionalData->totalLf=$additionalData->perimeter;
-                    $additionalData->totalUnits= round(($additionalData->perimeter*$additionalData->materialQty)/$selectedMaterial->unit_measure_value,2);
+                    //$additionalData->totalUnits= round(($additionalData->perimeter*$additionalData->materialQty)/$selectedMaterial->unit_measure_value,2);
+                    if (!empty($selectedMaterial->unit_measure_value)) {
+                        $additionalData->totalUnits = round(((float)$additionalData->perimeter * (float)$additionalData->materialQty) / $selectedMaterial->unit_measure_value, 2);
+                    } else {
+                        $additionalData->totalUnits = 0;
+}
                      
 
 
@@ -147,6 +153,7 @@ class WallController extends Controller
 
                 $perimeterFieldsFinal[] = $additionalData;
              } catch (Exception $ex) {
+                log_message('error', 'processPerimeter error: ' . $ex->getMessage());
              }
         }
         $data->perimeterFields = $perimeterFieldsFinal;
@@ -170,12 +177,16 @@ class WallController extends Controller
     
     function processArea($data)
     {
-        $data = json_decode($data->formData);
+        //var_dump($data->formData);
+        $data = isset($data->formData) ? json_decode($data->formData) : (object)[];
+        //var_dump($data);
 
         $data->area_cubic_ft = $data->Area_thickness * $data->wall_total_area;
+        
+        $data->underlay_sq_ft = $data->wall_total_area;
 
         //rise_drop
-        $selectedMaterial = json_decode($data->wall_material);
+        $selectedMaterial = json_decode($data->wall_material ?? 'null');
         if ($selectedMaterial != null) {
 
             $data->Total_units = round($data->area_cubic_ft / $selectedMaterial->unit_measure_value, 2);
@@ -209,7 +220,8 @@ class WallController extends Controller
         }
 
 
-        $additionalMaterials = (object)$data->additionalMaterials;
+        //$additionalMaterials = (object)$data->additionalMaterials;
+        $additionalMaterials = $data->additionalMaterials ?? [];
 
         $additionalDatasFinal = [];
 
@@ -227,10 +239,15 @@ class WallController extends Controller
             if ($selectedMaterial != null) {
 
 
-                $thickness = $additionalData->thickness;
+                $thickness   = (float) $additionalData->thickness;
+                $cubicFt     = (float) $data->wall_total_area; // o lo que defina tu cubicFt
+                $unitMeasure = (float) $selectedMaterial->unit_measure_value;
 
-                $additionalData->cubicFt = $data->wall_total_area * $thickness;
-                $total_measuring = $additionalData->totalUnits = round($additionalData->cubicFt / $selectedMaterial->unit_measure_value, 2);
+                $additionalData->cubicFt = $cubicFt;
+
+                //$additionalData->cubicFt = $data->wall_total_area * $thickness;
+                $total_measuring = ($cubicFt * $thickness) / ($unitMeasure > 0 ? $unitMeasure : 1);
+                $additionalData->totalUnits = round($total_measuring, 2);
 
 
 
@@ -245,7 +262,8 @@ class WallController extends Controller
         }
         $data->additionalMaterials = $additionalDatasFinal;
 
-        $material_per_sq_ft = (object)$data->material_per_sq_ft;
+        //$material_per_sq_ft = (object)$data->material_per_sq_ft;
+        $material_per_sq_ft  = $data->material_per_sq_ft ?? [];
 
 
         foreach ($material_per_sq_ft as $index  =>  $additionalData) {
@@ -256,11 +274,15 @@ class WallController extends Controller
 
             try {
                 $additional_material = $additionalData;
-                $selectedMaterial = json_decode($additional_material);
+                $selectedMaterial = $additional_material;
+                if (is_string($selectedMaterial)) {
+                    $selectedMaterial = json_decode($selectedMaterial);
+                }
                 if ($selectedMaterial != null) {
 
 
-                    $qty = $data->{"quantity_per_sq_ft[" . $index . "]"};
+                    //$qty = $data->{"quantity_per_sq_ft[" . $index . "]"};
+                    $qty = $data->{"quantity_per_sq_ft[" . $index . "]"} ?? 0;
 
                     $total = $data->wall_total_area * $qty;
                     $total_measuring = round($total, 2);

@@ -70,6 +70,7 @@ Route::middleware('auth.token')->group(function() {
     Route::post('ObtenData', [ApiController::class, "ObtenData"]);
     Route::get('get-line-template', [ApiController::class, "getLineTemplate"]);
     Route::get('logout', [ApiController::class, "logout"]);
-    
+    Route::post('sync/{table}', [ApiController::class, "syncTable"]);
+    Route::post('pullUpdates/{table}', [ApiController::class, 'pullUpdates']);
 
 });

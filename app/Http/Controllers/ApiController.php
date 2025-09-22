@@ -1518,6 +1518,7 @@ class ApiController extends Controller
         $type = ($data['type'] !== null) ? $data['type'] : "length";
         // $formData =  $request->json()->all();
         $formData = json_encode($data['formData']);
+        //var_dump($formData);
         // dd($formData);
         $user = auth()->user();
         $userId = $user->id;
@@ -1646,4 +1647,61 @@ class ApiController extends Controller
             'status' => 200,
         ]);
     }
+
+    public function syncTable(Request $request, $table)
+    {
+        $data = $request->all();
+
+        if (empty($data['id'])) {
+            return response()->json(['error' => 'Falta el ID'], 400);
+        }
+
+        // convertir arrays a JSON
+        foreach ($data as $key => $value) {
+            if (is_array($value) || is_object($value)) {
+                $data[$key] = json_encode($value);
+            }
+        }
+
+        // 🔹 Asegurar formato de fecha
+        if (isset($data['updated_at'])) {
+            $data['updated_at'] = date('Y-m-d H:i:s', strtotime($data['updated_at']));
+        } else {
+            $data['updated_at'] = now();
+        }
+
+        $id = $data['id'];
+        $row = \DB::table($table)->where('id', $id)->first();
+
+        if ($row) {
+            if (strtotime($data['updated_at']) > strtotime($row->updated_at)) {
+                \DB::table($table)->where('id', $id)->update($data);
+                return response()->json(['status' => 'updated']);
+            } else {
+                return response()->json(['status' => 'skipped', 'reason' => 'Registro más reciente en servidor']);
+            }
+        } else {
+            \DB::table($table)->insert($data);
+            return response()->json(['status' => 'inserted']);
+        }
+    }
+
+    public function pullUpdates(Request $request, $table)
+    {
+        $lastUpdated = $request->input('last_updated_at');
+
+        if ($lastUpdated) {
+            $lastUpdated = date('Y-m-d H:i:s', strtotime($lastUpdated));
+            $records = \DB::table($table)
+                ->where('updated_at', '>', $lastUpdated)
+                ->get();
+        } else {
+            $records = \DB::table($table)->get();
+        }
+
+        return response()->json([
+            'records' => $records,
+        ]);
+    }
+
 }
