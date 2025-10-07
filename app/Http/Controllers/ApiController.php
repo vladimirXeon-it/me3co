@@ -1470,6 +1470,7 @@ class ApiController extends Controller
         $data =  $request->all();
         $templateName = $data['template_name'];
         $tradeName = json_decode($data['trade_name'])->name;
+        $templateType = $data['template_type'];
         // $formData =  $request->json()->all();
         $formData = json_encode($data['formData']);
         // dd($formData);
@@ -1494,6 +1495,7 @@ class ApiController extends Controller
             $lineTemplate->template_name = $templateName;
             $lineTemplate->trade_name = $tradeName;
             $lineTemplate->local_db = $formData;
+            $lineTemplate->template_type = $templateType;
             $lineTemplate->save();
 
 
@@ -1628,12 +1630,16 @@ class ApiController extends Controller
             'userId' => $userId,
         ]);
     }
-    public function getLineTemplate()
+    public function getLineTemplate(Request $request)
     {
+        $type = $request->query('type_template');
         $user = auth()->user();
         $userId = $user->id;
-        $checkTemplate = LineTemplate::where('user_id', $userId)
-            ->get();
+        $query = LineTemplate::where('user_id', $userId);
+        if (!empty($type)) {
+            $query->where('template_type', $type);
+        }
+        $checkTemplate = $query->get();
         return json_encode([
             'status' => 200,
             'template' => $checkTemplate,

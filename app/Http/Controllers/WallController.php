@@ -1019,15 +1019,10 @@ class WallController extends Controller
                 3
             );
 
-            $selectedCourseData->material_sq_ft =  round(
-                2 + 2,
-                3
-            );
-
 
 
             $selectedCourseData->total_material_units = $this->calculateTotalMaterialUnits($formData, $selectedCourseData);
-            $selectedCourseData->Material_sq_ft = $formData->wall_length * $selectedCourseData->band_height;
+            $selectedCourseData->material_sq_ft = floatval($formData->wall_length * $selectedCourseData->band_height);
             //Agregar material a la cuenta
 
 
@@ -1037,7 +1032,7 @@ class WallController extends Controller
 
                 $Agregarmaterial->id_material = $band_material->id;
                 $Agregarmaterial->material = $band_material;
-                $Agregarmaterial->measuring = $selectedCourseData->Material_sq_ft;
+                $Agregarmaterial->measuring = $selectedCourseData->material_sq_ft;
                 $Agregarmaterial->principal = true;
                 $this->addtotalDatas($Agregarmaterial, $formData);
 
@@ -1052,7 +1047,7 @@ class WallController extends Controller
 
                 $Agregarmaterial->id_material = $rebar_material->id;
                 $Agregarmaterial->material = $rebar_material;
-                $Agregarmaterial->measuring = $selectedCourseData->Material_sq_ft;
+                $Agregarmaterial->measuring = $selectedCourseData->material_sq_ft;
                 $Agregarmaterial->principal = true;
                 $this->addtotalDatas($Agregarmaterial, $formData);
 
@@ -1521,11 +1516,6 @@ class WallController extends Controller
         $total_units = round($wallLength / ($materialLength / 12), 2);
         return $total_units;
     }
-
-
-
-
-
 
 
     public function calculateLinealTotalOverlaps($index, $data, $additionalDatas)

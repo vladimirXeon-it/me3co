@@ -9,5 +9,5 @@ class LineTemplate extends Model
 {
     use HasFactory;
     protected $table = 'line_templates';
-    protected $fillable = ['user_id', 'template_name', 'trade_name', 'local_db'];
+    protected $fillable = ['user_id', 'template_name', 'trade_name', 'local_db', 'template_type'];
 }
