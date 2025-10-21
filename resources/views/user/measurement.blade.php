@@ -12,8 +12,8 @@
     <link rel="apple-touch-icon" href="{{ asset('qto-app') }}/logo192.png" />
     <link rel="manifest" href="{{ asset('qto-app') }}/manifest.json" />
     <title>{{ env('APP_NAME') }}</title>
-    <script defer="defer" src="{{ asset('qto-app') }}/static/js/main.c5d80fd2.js"></script>
-    <link href="{{ asset('qto-app') }}/static/css/main.2fa1b825.css" rel="stylesheet">
+    <script defer="defer" src="{{ asset('qto-app') }}/static/js/main.5d8ed93b.js"></script>
+    <link href="{{ asset('qto-app') }}/static/css/main.6899457b.css" rel="stylesheet">
 </head>
 
 <body>

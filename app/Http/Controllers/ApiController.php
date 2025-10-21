@@ -1012,6 +1012,16 @@ class ApiController extends Controller
     //working code for uploading svg files in local storage
     public function plan_upload(Request $request)
     {
+
+        if (!$request->hasFile('file')) {
+            return response()->json([
+                'error' => 'No file detected',
+                'headers' => $request->header('Content-Type'),
+                'all' => $request->all(),
+                'php_upload_limit' => ini_get('upload_max_filesize'),
+                'post_max_size' => ini_get('post_max_size')
+            ], 400);
+        }
         $request->validate([
             'file' => 'mimes:pdf'
         ]);
