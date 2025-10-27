@@ -35,6 +35,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Smalot\PdfParser\Parser;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfReader\PdfReader;
 
 class ApiController extends Controller
 {
@@ -1029,6 +1032,7 @@ class ApiController extends Controller
         try {
 
             $project_id = $request->post('project_id');
+            $pages = json_decode($request->post('pages', '[]'), true);
             $file = $request->file('file');
             $directory = public_path('uploads');
 
@@ -1041,7 +1045,34 @@ class ApiController extends Controller
             //echo  "fileName ". $fileName."<br>";
             $filePath = $file->storeAs('uploads', $fileName);
 
+            $absolutePath = Storage::path($filePath);
 
+            try {
+                if (!empty($pages) && is_array($pages)) {
+                    \Log::info("🧩 Filtrando páginas: " . json_encode($pages));
+
+                    $pdf = new \setasign\Fpdi\Fpdi();
+                    $pageCount = $pdf->setSourceFile($absolutePath);
+
+                    foreach ($pages as $pageNum) {
+                        if ($pageNum <= $pageCount && $pageNum > 0) {
+                            $tplId = $pdf->importPage($pageNum);
+                            $size = $pdf->getTemplateSize($tplId);
+                            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                            $pdf->useTemplate($tplId);
+                        }
+                    }
+
+                    // ✅ Sobrescribir el archivo original con las páginas seleccionadas
+                    $pdf->Output($absolutePath, 'F');
+
+                    \Log::info("✅ PDF filtrado y reemplazado correctamente: $absolutePath");
+                } else {
+                    \Log::info("ℹ️ No se seleccionaron páginas, se mantiene el PDF completo");
+                }
+            } catch (\Throwable $e) {
+                \Log::error("🚨 Error al generar PDF filtrado: " . $e->getMessage());
+            }
 
             $folder = "projects/project$project_id/";
             $directorio_proyecto = public_path('uploads/projects/project' . $project_id);
@@ -1068,7 +1099,7 @@ class ApiController extends Controller
 
             $uploadTask = $job->getTasks()->whereName($nombre)[0];
 
-            $inputStream = fopen(Storage::path($filePath), 'r');
+            $inputStream = fopen($absolutePath, 'r');
 
             CloudConvert::tasks()->upload($uploadTask, $inputStream);
 
