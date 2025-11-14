@@ -23,6 +23,13 @@ class EquipmentCrudController extends Controller
 
             $crud->setSubject('Equipment', 'Equipments');
 
+            $crud->unsetAdd();
+            $crud->unsetExport();
+            $crud->unsetPrint();
+            $crud->unsetColumnsButton();
+            $crud->unsetSettings();
+            $crud->unsetFilters();
+
             // columnas que EXISTEN en esa tabla
             $crud->columns(['unique_id','name','description','cost_per_day','created_at']);
             $crud->fields(['name','description','cost_per_day']);

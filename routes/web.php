@@ -13,8 +13,16 @@ use App\Http\Controllers\Admin\CrewsCrudController;
 use App\Http\Controllers\Admin\ContactsCrudController;
 use App\Http\Controllers\Admin\CompaniesCrudController;
 use App\Http\Controllers\Admin\OpeningShapesCrudController;
-use App\Http\Controllers\Admin\OpeningCrudController;
+use App\Http\Controllers\Admin\OpeningsCrudController;
 use App\Http\Controllers\Admin\GcTestController;
+use App\Http\Controllers\Admin\LaborClassesCrudController;
+use App\Http\Controllers\Admin\LaborTypesCrudController;
+use App\Http\Controllers\Admin\MaterialDivisionsCrudController;
+use App\Http\Controllers\Admin\MaterialClassesCrudController;
+use App\Http\Controllers\Admin\UnitsCrudController;
+use App\Http\Controllers\Admin\MaterialsCrudController;
+use App\Http\Controllers\Admin\PlansCrudController;
+use App\Http\Controllers\Admin\UsersCrudController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,69 +67,104 @@ Route::prefix("admin")->group(function () {
     Route::get('static/delete/{id}', [AdminController::class, 'delete_static'])->name('admin.static.delete');
     Route::post('static/update/{id}', [AdminController::class, 'update_static'])->name('admin.static.update');
 
-    Route::get("/equipments", [EquipmentCrudController::class, "index"])->name("admin.equipments")->middleware('auth');;
-    Route::get('/equipments/add', [AdminController::class, 'add_equipments'])->name('admin.equipments.add');
-    Route::post('/equipments/create', [AdminController::class, 'create_equipments'])->name('admin.equipments.create');
-    Route::get("/equipments/delete/{id}", [AdminController::class, "delete_equipments"])->name("admin.equipments.delete");
-    Route::get("/equipments/edit/{id}", [AdminController::class, "edit_equipments"])->name("admin.equipments.edit");
-    Route::post("/equipments/update/{id}", [AdminController::class, "update_equipments"])->name("admin.equipments.update");
+    Route::match(['get','post'], "/equipments", [EquipmentCrudController::class, "index"])
+    ->name("admin.equipments")
+    ->middleware('auth');
+    //Route::get('/equipments/add', [AdminController::class, 'add_equipments'])->name('admin.equipments.add');
+    //Route::post('/equipments/create', [AdminController::class, 'create_equipments'])->name('admin.equipments.create');
+    //Route::get("/equipments/delete/{id}", [AdminController::class, "delete_equipments"])->name("admin.equipments.delete");
+    //Route::get("/equipments/edit/{id}", [AdminController::class, "edit_equipments"])->name("admin.equipments.edit");
+    //Route::post("/equipments/update/{id}", [AdminController::class, "update_equipments"])->name("admin.equipments.update");
 
 
-    Route::get("/labor", [AdminController::class, "labor"])->name("admin.labor");
-    Route::get('/labor/add', [AdminController::class, 'add_labor'])->name("admin.labor.add");
+    Route::match(['get', 'post'], '/labor', [LaborTypesCrudController::class, 'index'])
+    ->name('admin.labor')
+    ->middleware('auth');
+    /*Route::get('/labor/add', [AdminController::class, 'add_labor'])->name("admin.labor.add");
     Route::post('/labor/create', [AdminController::class, 'create_labor'])->name('admin.labor.create');
     Route::get("/labor/delete/{id}", [AdminController::class, "delete_labor"])->name("admin.labor.delete");
     Route::get("/labor/edit/{id}", [AdminController::class, "edit_labor"])->name("admin.labor.edit");
-    Route::post("/labor/update/{id}", [AdminController::class, "update_labor"])->name("admin.labor.update");
+    Route::post("/labor/update/{id}", [AdminController::class, "update_labor"])->name("admin.labor.update");*/
 
-    Route::get('/users', [AdminController::class, 'user'])->name('admin.users');
-    Route::get('/users/{id}', [AdminController::class, 'get_user'])->name('admin.users.get');
+    Route::match(['get', 'post'], '/users', [UsersCrudController::class, 'index'])
+    ->name('admin.users')
+    ->middleware('auth');
+    Route::get('/users/{id}/view', [UsersCrudController::class, 'view'])
+    ->name('admin.users.view')
+    ->middleware('auth');
+    /*Route::get('/users', [AdminController::class, 'user'])->name('admin.users');
+    Route::get('/users/{id}', [AdminController::class, 'get_user'])->name('admin.users.get');*/
     Route::post('/user/update/{id}', [AdminController::class, 'update_user'])->name('admin.users.update');
     Route::post('/user/settings/update/{id}', [AdminController::class, 'update_user_settings'])->name('admin.users.setting');
 
-    Route::get("/labor/class", [AdminController::class, "labor_class"])->name("admin.labor.class");
-    Route::post("/labor/class/create", [AdminController::class, "create_labor_class"])->name("admin.labor.class.create");
+    Route::match(['get', 'post'], '/labor/class', [LaborClassesCrudController::class, 'index'])
+    ->name('admin.labor.class')
+    ->middleware('auth');
+    /*Route::post("/labor/class/create", [AdminController::class, "create_labor_class"])->name("admin.labor.class.create");
     Route::post("/labor/class/update/{id}", [AdminController::class, "update_labor_class"])->name("admin.labor.class.update");
-    Route::get("/labor/class/delete/{id}", [AdminController::class, "delete_labor_class"])->name("admin.labor.class.delete");
+    Route::get("/labor/class/delete/{id}", [AdminController::class, "delete_labor_class"])->name("admin.labor.class.delete");*/
 
     Route::get("/labor/type", [AdminController::class, "labor_type"])->name("admin.labor.type");
     Route::post("/labor/type/create", [AdminController::class, "create_labor_type"])->name("admin.labor.type.create");
     Route::get("/labor/type/delete/{id}", [AdminController::class, "delete_labor_type"])->name("admin.labor.type.delete");
 
-    Route::get("/crews", [AdminController::class, "crews"])->name("admin.crews");
-    Route::get("/crews/delete/{id}", [AdminController::class, "delete_crews"])->name("admin.crews.delete");
+    Route::match(['get', 'post'], '/crews', [CrewsCrudController::class, 'index'])
+    ->name('admin.crews')
+    ->middleware('auth');
+    /*Route::get("/crews/delete/{id}", [AdminController::class, "delete_crews"])->name("admin.crews.delete");
     Route::get("/crews/edit/{id}", [AdminController::class, "edit_crews"])->name("admin.crews.edit");
-    Route::post("/crews/update/{id}", [AdminController::class, "update_crews"])->name("admin.crews.update");
+    Route::post("/crews/update/{id}", [AdminController::class, "update_crews"])->name("admin.crews.update");*/
 
-    Route::get("/contacts", [AdminController::class, "contacts"])->name("admin.contacts");
-    Route::get("/contacts/delete/{id}", [AdminController::class, "delete_contacts"])->name("admin.contacts.delete");
+    Route::match(['get', 'post'], '/contacts', [ContactsCrudController::class, 'index'])
+    ->name('admin.contacts')
+    ->middleware('auth');
+    /*Route::get("/contacts/delete/{id}", [AdminController::class, "delete_contacts"])->name("admin.contacts.delete");
     Route::get("/contacts/edit/{id}", [AdminController::class, "edit_contacts"])->name("admin.contacts.edit");
-    Route::post("/contacts/update/{id}", [AdminController::class, "update_contacts"])->name("admin.contacts.update");
+    Route::post("/contacts/update/{id}", [AdminController::class, "update_contacts"])->name("admin.contacts.update");*/
 
-    Route::get("/company", [AdminController::class, "company"])->name("admin.company");
-    Route::get("/company/delete/{id}", [AdminController::class, "delete_company"])->name("admin.company.delete");
+    Route::match(['get', 'post'], '/companies', [CompaniesCrudController::class, 'index'])
+    ->name('admin.company')
+    ->middleware('auth');
+    /*Route::get("/company/delete/{id}", [AdminController::class, "delete_company"])->name("admin.company.delete");
     Route::get("/company/edit/{id}", [AdminController::class, "edit_company"])->name("admin.company.edit");
-    Route::post("/company/update/{id}", [AdminController::class, "update_company"])->name("admin.company.update");
+    Route::post("/company/update/{id}", [AdminController::class, "update_company"])->name("admin.company.update");*/
 
-    Route::get("/opening", [AdminController::class, "opening"])->name("admin.opening");
-    Route::get("/opening/delete/{id}", [AdminController::class, "delete_opening"])->name("admin.opening.delete");
+    Route::match(['get', 'post'], '/opening', [OpeningsCrudController::class, 'index'])
+    ->name('admin.opening')
+    ->middleware('auth');
+    /*Route::get("/opening/delete/{id}", [AdminController::class, "delete_opening"])->name("admin.opening.delete");
     Route::get("/opening/edit/{id}", [AdminController::class, "edit_opening"])->name("admin.opening.edit");
-    Route::post("/opening/update/{id}", [AdminController::class, "update_opening"])->name("admin.opening.update");
+    Route::post("/opening/update/{id}", [AdminController::class, "update_opening"])->name("admin.opening.update");*/
 
-    Route::get('opening/shapes', [AdminController::class, 'opening_shape'])->name('admin.opening.shape');
-    Route::post('opening/shapes/create', [AdminController::class, 'create_opening_shape'])->name('admin.opening.shape.create');
-    Route::get('opening/shapes/delete/{id}', [AdminController::class, 'delete_opening_shape'])->name('admin.opening.shape.delete');
+    Route::match(['get', 'post'], '/opening/shapes', [OpeningShapesCrudController::class, 'index'])
+    ->name('admin.opening.shape')
+    ->middleware('auth');
+    //Route::post('opening/shapes/create', [AdminController::class, 'create_opening_shape'])->name('admin.opening.shape.create');
+    //Route::get('opening/shapes/delete/{id}', [AdminController::class, 'delete_opening_shape'])->name('admin.opening.shape.delete');
 
-    Route::get("/material/division", [AdminController::class, "material_division"])->name("admin.material.division");
-    Route::post("/material/division/create", [AdminController::class, "material_division_create"])->name("admin.material.division.create");
+    Route::match(['get', 'post'], '/material/division', [MaterialDivisionsCrudController::class, 'index'])
+    ->name('admin.material.division')
+    ->middleware('auth');
+    /*Route::post("/material/division/create", [AdminController::class, "material_division_create"])->name("admin.material.division.create");
     Route::post("/material/division/update/{id}", [AdminController::class, "material_division_update"])->name("admin.material.division.update");
     Route::get("/material/division/delete/{id}", [AdminController::class, "material_division_delete"])->name("admin.material.division.delete");
-    Route::get('material/division/class/{id?}', [AdminController::class, 'get_material_class'])->name('admin.material_class');
-    Route::get("/material/class", [AdminController::class, "material_class"])->name("admin.material.class");
-    Route::post("/material/class/create", [AdminController::class, "material_class_create"])->name("admin.material.class.create");
+    Route::get('material/division/class/{id?}', [AdminController::class, 'get_material_class'])->name('admin.material_class');*/
+    Route::match(['get', 'post'], '/material/class', [MaterialClassesCrudController::class, 'index'])
+    ->name('admin.material.class')
+    ->middleware('auth');
+   /* Route::post("/material/class/create", [AdminController::class, "material_class_create"])->name("admin.material.class.create");
     Route::post("/material/class/update/{id}", [AdminController::class, "material_class_update"])->name("admin.material.class.update");
-    Route::get("/material/class/delete/{id}", [AdminController::class, "material_class_delete"])->name("admin.material.class.delete");
+    Route::get("/material/class/delete/{id}", [AdminController::class, "material_class_delete"])->name("admin.material.class.delete");*/
 
+    Route::match(['get', 'post'], '/material', [MaterialsCrudController::class, 'index'])
+    ->name('admin.material')
+    ->middleware('auth');
+    Route::get ('admin/material/form',        [MaterialsCrudController::class, 'form'])->name('admin.material.form.create');
+    Route::get ('admin/material/form/{id}',   [MaterialsCrudController::class, 'form'])->name('admin.material.form.edit');
+
+    // Guardar / Actualizar (AJAX)
+    /*Route::post('admin/material',             [MaterialsCrudController::class, 'create_material'])->name('admin.material.store');
+    Route::put ('admin/material/{id}',        [MaterialsCrudController::class, 'update_material'])->name('admin.material.update');*/
     Route::get("/material", [AdminController::class, "material"])->name("admin.material");
     Route::get('/material/add', [AdminController::class, 'add_material'])->name('admin.material.add');
     Route::post('/material/create', [AdminController::class, 'create_material'])->name('admin.material.create');
@@ -129,10 +172,15 @@ Route::prefix("admin")->group(function () {
     Route::get("/material/edit/{id}", [AdminController::class, "edit_material"])->name("admin.material.edit");
     Route::post("/material/update/{id}", [AdminController::class, "update_material"])->name("admin.material.update");
 
-    Route::get("/material/unit", [AdminController::class, 'default_units'])->name('admin.material.units');
-    Route::get("/material/unit/delete/{id}", [AdminController::class, 'delete_default_unit'])->name('admin.material.unit.delete');
+    Route::match(['get', 'post'], '/material/unit', [UnitsCrudController::class, 'index'])
+    ->name('admin.material.unit')
+    ->middleware('auth');
+    Route::match(['get','post'], '/material/units', [UnitsCrudController::class, 'index'])
+    ->name('admin.material.units')
+    ->middleware('auth');
+    /*Route::get("/material/unit/delete/{id}", [AdminController::class, 'delete_default_unit'])->name('admin.material.unit.delete');
     Route::post("/material/unit/update/{id}", [AdminController::class, 'update_default_unit'])->name('admin.material.unit.update');
-    Route::post("/material/unit/create", [AdminController::class, 'create_default_unit'])->name('admin.material.unit.create');
+    Route::post("/material/unit/create", [AdminController::class, 'create_default_unit'])->name('admin.material.unit.create');*/
     Route::get("/logout", [AdminController::class, "logout"])->name("admin.logout");
 
     Route::post('settings/update', [AdminController::class, 'setting_update'])->name('admin.settings.update');
@@ -140,11 +188,14 @@ Route::prefix("admin")->group(function () {
     Route::get('security/password', [AdminController::class, 'change'])->name('admin.security.change');
     Route::post('security/password', [AdminController::class, 'change_password'])->name('admin.security.change');
 
-    Route::get('subscriptions', [AdminController::class, 'subscriptions'])->name('admin.subscriptions');
+    Route::match(['get', 'post'], '/subscriptions', [PlansCrudController::class, 'index'])
+    ->name('admin.subscriptions')
+    ->middleware('auth');
+    /*Route::get('subscriptions', [AdminController::class, 'subscriptions'])->name('admin.subscriptions');
     Route::post('subscriptions', [AdminController::class, 'create_subscriptions'])->name('admin.subscriptions');
     Route::get('subscriptions/delete/{id}', [AdminController::class, 'delete_subscriptions'])->name('admin.subscriptions.delete');
     Route::get('subscriptions/edit/{id}', [AdminController::class, 'edit_subscriptions'])->name('admin.subscriptions.edit');
-    Route::post('subscriptions/update/{id}', [AdminController::class, 'update_subscriptions'])->name('admin.subscriptions.update');
+    Route::post('subscriptions/update/{id}', [AdminController::class, 'update_subscriptions'])->name('admin.subscriptions.update');*/
 });
 
 Route::get("/login", [AuthController::class, "login"])->name("login");

@@ -73,4 +73,8 @@ Route::middleware('auth.token')->group(function() {
     Route::post('sync/{table}', [ApiController::class, "syncTable"]);
     Route::post('pullUpdates/{table}', [ApiController::class, 'pullUpdates']);
 
+    Route::get('/course-bands',  [ApiController::class, 'api_course_bands_index']);
+    Route::post('/course-bands',        [ApiController::class, 'api_course_bands_upsert']);   // crea/actualiza por (id_user,id_local)
+    Route::put ('/course-bands/{id}',   [ApiController::class, 'api_course_bands_update']);
+
 });

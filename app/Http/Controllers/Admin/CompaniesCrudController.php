@@ -23,14 +23,24 @@ class CompaniesCrudController extends Controller
 
             $crud->setSubject('Companies', 'Companies');
 
+            $crud->setRelation('user_id', 'users', 'name');
+
+            $crud->unsetAdd();
+            $crud->unsetExport();
+            $crud->unsetPrint();
+            $crud->unsetColumnsButton();
+            $crud->unsetSettings();
+            $crud->unsetFilters();
+
             // columnas que EXISTEN en esa tabla
-            /*$crud->columns(['name','description','created_at']);
-            $crud->fields(['name','description']);
-            $crud->displayAs('name','Crew');
-            $crud->displayAs('description','Description');
-            $crud->displayAs('cost_per_day','Cost Per day');
+            $crud->columns(['user_id','name','estimator','phone','email','address','city','state','country','zip','created_at']);
+            $crud->fields(['name','estimator', 'phone', 'email', 'address','city','state', 'country','zip']);
+            $crud->displayAs('user_id','User');
+            $crud->displayAs('name','Company Name');
+            $crud->displayAs('estimator','Estimator Name');
+            $crud->displayAs('zip','Zip Code');
             $crud->displayAs('created_at','Created At');
-            $crud->requiredFields(['name','Description']);*/
+            //$crud->requiredFields(['name','Description']);
 
             // 6) CSRF (no excluimos el middleware)
             $crud->setCsrfTokenName('_token');

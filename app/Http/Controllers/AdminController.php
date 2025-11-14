@@ -22,6 +22,10 @@ use App\Models\DefaultUnit;
 use App\Models\StaticPage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Hash;
 class AdminController extends Controller
 {

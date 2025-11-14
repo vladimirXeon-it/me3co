@@ -14,3 +14,88 @@ CREATE TABLE drawings (
     counts JSON DEFAULT NULL,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+//course band
+
+SET @db := DATABASE();
+
+-- id_local
+SELECT COUNT(*) INTO @c
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND COLUMN_NAME='id_local';
+SET @sql := IF(@c=0,
+  'ALTER TABLE course_band ADD COLUMN id_local VARCHAR(191) NULL AFTER id',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- id_user
+SELECT COUNT(*) INTO @c
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND COLUMN_NAME='id_user';
+SET @sql := IF(@c=0,
+  'ALTER TABLE course_band ADD COLUMN id_user BIGINT UNSIGNED NULL AFTER id_local',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- data (JSON)
+SELECT COUNT(*) INTO @c
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND COLUMN_NAME='data';
+SET @sql := IF(@c=0,
+  'ALTER TABLE course_band ADD COLUMN data JSON NULL AFTER id_user',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- created_at
+SELECT COUNT(*) INTO @c
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND COLUMN_NAME='created_at';
+SET @sql := IF(@c=0,
+  'ALTER TABLE course_band ADD COLUMN created_at TIMESTAMP NULL AFTER data',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- Asegurar updated_at permite NULL (por si está NOT NULL)
+SELECT DATA_TYPE, IS_NULLABLE INTO @t, @n
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND COLUMN_NAME='updated_at';
+SET @sql := IF(@t='timestamp' AND @n='NO',
+  'ALTER TABLE course_band MODIFY COLUMN updated_at TIMESTAMP NULL',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SELECT COUNT(*) INTO @c FROM INFORMATION_SCHEMA.STATISTICS
+ WHERE TABLE_SCHEMA=@db AND TABLE_NAME='course_band' AND INDEX_NAME='course_band_user_local_unique';
+SET @sql := IF(@c=0,
+  'ALTER TABLE course_band ADD UNIQUE KEY course_band_user_local_unique (id_user, id_local)',
+  'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @OLD_SAFE := @@SQL_SAFE_UPDATES; SET SQL_SAFE_UPDATES = 0;
+
+UPDATE course_band
+   SET data = COALESCE(
+         data,
+         JSON_OBJECT(
+           'name',           name,
+           'band_material',  band_material,
+           'band_elevation', band_elevation,
+           'fill_material',  fill_material,
+           'rebar_material', rebar_material,
+           'rebar_overlap',  rebar_overlap
+         )
+       ),
+       created_at = COALESCE(created_at, NOW()),
+       updated_at = COALESCE(updated_at, NOW())
+ WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = @OLD_SAFE;
+
+ALTER TABLE course_band
+  DROP COLUMN name,
+  DROP COLUMN band_material,
+  DROP COLUMN band_elevation,
+  DROP COLUMN fill_material,
+  DROP COLUMN rebar_material,
+  DROP COLUMN rebar_overlap;

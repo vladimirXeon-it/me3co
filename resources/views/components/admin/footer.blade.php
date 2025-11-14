@@ -4,7 +4,7 @@
         &copy; Copyright <strong><span>Quantity Take Off</span></strong>. All Rights Reserved
     </div>
     <div class="credits">
-        Designed by GOIGI
+        Designed by Xeon - it
     </div>
 </footer><!-- End Footer -->
 

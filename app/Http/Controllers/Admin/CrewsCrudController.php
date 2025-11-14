@@ -23,9 +23,17 @@ class CrewsCrudController extends Controller
 
             $crud->setSubject('Crews', 'Crews');
 
+            $crud->unsetAdd();
+            $crud->unsetExport();
+            $crud->unsetPrint();
+            $crud->unsetColumnsButton();
+            $crud->unsetSettings();
+            $crud->unsetFilters();
+
             // columnas que EXISTEN en esa tabla
-            $crud->columns(['name','description','created_at']);
+            $crud->columns(['id','name','description','created_at']);
             $crud->fields(['name','description']);
+            $crud->displayAs('id','#');
             $crud->displayAs('name','Crew');
             $crud->displayAs('description','Description');
             $crud->displayAs('cost_per_day','Cost Per day');

@@ -23,14 +23,23 @@ class ContactsCrudController extends Controller
 
             $crud->setSubject('Contacts', 'Contacts');
 
+            $crud->setRelation('user_id', 'users', 'name');
+
+            $crud->unsetAdd();
+            $crud->unsetExport();
+            $crud->unsetPrint();
+            $crud->unsetColumnsButton();
+            $crud->unsetSettings();
+            $crud->unsetFilters();
+
             // columnas que EXISTEN en esa tabla
-            /*$crud->columns(['name','description','created_at']);
-            $crud->fields(['name','description']);
-            $crud->displayAs('name','Crew');
+            $crud->columns(['id','user_id','name','company', 'phone', 'email', 'address','city','state', 'country','zip', 'created_at']);
+            $crud->fields(['name','company', 'phone', 'email', 'address','city','state', 'country','zip']);
+            /*$crud->requiredFields(['name','Description']);*/
+            $crud->displayAs('user_id','User');
             $crud->displayAs('description','Description');
-            $crud->displayAs('cost_per_day','Cost Per day');
+            $crud->displayAs('zip','Zip Code');
             $crud->displayAs('created_at','Created At');
-            $crud->requiredFields(['name','Description']);*/
 
             // 6) CSRF (no excluimos el middleware)
             $crud->setCsrfTokenName('_token');

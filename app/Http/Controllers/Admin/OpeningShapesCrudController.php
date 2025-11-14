@@ -23,11 +23,17 @@ class OpeningShapesCrudController extends Controller
 
             $crud->setSubject('Opening shapes', 'Opening shapes');
 
+            $crud->unsetExport();
+            $crud->unsetPrint();
+            $crud->unsetColumnsButton();
+            $crud->unsetSettings();
+            $crud->unsetFilters();
+
             // columnas que EXISTEN en esa tabla
-            /*$crud->columns(['name','description','created_at']);
-            $crud->fields(['name','description']);
-            $crud->displayAs('name','Crew');
-            $crud->displayAs('description','Description');
+            $crud->columns(['name','created_at']);
+            $crud->fields(['name']);
+            $crud->displayAs('name','Shape');
+            /*$crud->displayAs('description','Description');
             $crud->displayAs('cost_per_day','Cost Per day');
             $crud->displayAs('created_at','Created At');
             $crud->requiredFields(['name','Description']);*/

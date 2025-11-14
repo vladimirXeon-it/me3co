@@ -1,412 +1,232 @@
-@extends('admin.layouts.app')
+{{-- resources/views/admin/material/add.blade.php --}}
+@php
+  // Si viene desde el modal o por AJAX, solo renderiza el <form> sin layout
+  $isModal = $isModal ?? request()->ajax();
 
-@section('title', 'Materials')
+  $isEdit  = isset($material) && $material;
+  $action  = $isEdit ? route('admin.material.update', $material->id) : route('admin.material.store');
 
-@section('content')
-    <main id="main" class="main">
+  // Normaliza catálogos por si vienen nulos
+  $divisions = $divisions ?? [];
+  $classes   = $classes ?? [];
+  $types     = $types ?? [];
+  $units     = $units ?? [];
+  $products  = $products ?? [];
 
-        <div class="pagetitle">
-            <h1>Material</h1>
-            <nav>
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Home</a></li>
-                    <li class="breadcrumb-item">Material</li>
-                </ol>
-            </nav>
-        </div><!-- End Page Title -->
+  // Associated products (array)
+  $assoc = old('associated_products', isset($material) ? (json_decode($material->associated_products ?? '[]', true) ?: []) : []);
+@endphp
 
-        <section class="section">
-            <div class="row">
-                <div class="col-md-12 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="pt-3 new-project">
-                                <div class="text-center card-title">
-                                    Create Material
-                                </div>
-                                <form method="post" action="{{ route('admin.material.create') }}">
-                                    @csrf()
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Division: <span class="text-danger">*</span></label>
-                                                <select class="form-control" name="material_division_id"
-                                                    id="material_division_id" required>
-                                                    <option value="" hidden selected>Choose Division</option>
-                                                    @php
-                                                        $material_divisions = get_material_divisions();
-                                                    @endphp
-                                                    @foreach ($material_divisions as $material_division)
-                                                        <option value="{{ $material_division->id }}">
-                                                            {{ $material_division->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Class: <span class="text-danger">*</span></label>
-                                                @php
-                                                    $material_classes = get_material_classes();
-                                                @endphp
-                                                <select class="form-control" name="material_class_id" id="material_class_id"
-                                                    required>
-                                                    <option value="">Choose Class</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Name: <span class="text-danger">*</span></label>
-                                                <input class="form-control material_name" placeholder="Material 1" name="name"
-                                                    required />
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Description:</label>
-                                                <textarea class="form-control" rows="5" placeholder="Description" name="description"></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Default Unit Count: <span class="text-danger">*</span></label>
-                                                <input class="form-control default_unit" type="text" name="default_unit"
-                                                    id="default_unit" list="default_unit-count" placeholder="Unit"
-                                                    autocomplete="off" required>
-                                                <data-list id="default_unit-count">
-                                                    @php
-                                                        $default_units = get_default_units();
-                                                    @endphp
-                                                    @foreach ($default_units as $default_unit)
-                                                        <option>{{ $default_unit->unit }}</option>
-                                                    @endforeach()
-                                                </data-list>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            @php
-                                                $units = get_length_units();
-                                            @endphp
-                                            <input type="hidden" name="measurement_unit" value="{{ $units->symbol }}">
-                                        </div>
-                                        <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Length ({{ $units->symbol }}):</label>
-                                                <input type="hidden" id="length" value="0" name="length">
-                                                <div class="input-group mb-2 mr-sm-2 mb-sm-0">
-                                                    <div class="form-control fraction-input" data-target="length"
-                                                        tabindex="-1">
-                                                        <div class="whole" contenteditable="true">0</div>
-                                                        <div class="fraction">
-                                                            <div class="sup" contenteditable="true">0</div>
-                                                            <hr>
-                                                            <div class="sub" contenteditable="true">0</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Width ({{ $units->symbol }}):</label>
-                                                <div class="input-group mb-2 mr-sm-2 mb-sm-0">
-                                                    <input type="hidden" id="width" value="0" name="width">
-                                                    <div class="form-control fraction-input" data-target="width"
-                                                        tabindex="-1">
-                                                        <div class="whole" contenteditable="true">0</div>
-                                                        <div class="fraction">
-                                                            <div class="sup" contenteditable="true">0</div>
-                                                            <hr>
-                                                            <div class="sub" contenteditable="true">0</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Height ({{ $units->symbol }}):</label>
-                                                <div class="input-group mb-2 mr-sm-2 mb-sm-0">
-                                                    <input type="hidden" id="height" name="height" value="0">
-                                                    <div class="form-control fraction-input" data-target="height"
-                                                        tabindex="-1">
-                                                        <div class="whole" contenteditable="true">0</div>
-                                                        <div class="fraction">
-                                                            <div class="sup" contenteditable="true">0</div>
-                                                            <hr>
-                                                            <div class="sub" contenteditable="true">0</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+@if(!$isModal)
+  {{-- Página completa (no modal) --}}
+  @extends('admin.layouts.app')
+  @section('title', $isEdit ? 'Edit Material' : 'Create Material')
+  @section('content')
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="mb-0">{{ $isEdit ? 'Edit Material' : 'Create Material' }}</h3>
+      <a href="{{ route('admin.material.index') }}" class="btn btn-outline-secondary">Volver</a>
+    </div>
 
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label>Price:</label>
-                                                <div class="input-group mb-2 mr-sm-2 mb-sm-0">
-                                                    <input type="number" step="0.001"
-                                                        class="form-control currency-amount" placeholder="$ / "
-                                                        size="8" name="prices" id="prices">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group">
-                                                <label>Waste(%):</label>
-                                                <input type="number" step="0.001" class="form-control"
-                                                    placeholder="Waste" name="waste">
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label>Production Rate:</label>
-                                                <div class="form-control production_rate">
-                                                    <input type="number" step="0.001" min="0"
-                                                        class="optional_field production_field"
-                                                        data-option="production_subbed_out" placeholder="Unit"
-                                                        name="production_rate">
-                                                    <span id="production_unit">Piece</span>&nbsp;
-                                                    Per
-                                                    <select>
-                                                        <option value="day">Day</option>
-                                                        <option value="week">Week</option>
-                                                        <option value="month">Month</option>
-                                                    </select>
-                                                    /
-                                                    <select name="" id="">
-                                                        @php
-                                                            $labors = get_master_labors();
-                                                        @endphp
-                                                        @foreach ($labors as $labor)
-                                                            <option value="{{ $labor->id }}">{{ $labor->labor_type }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <h6 class="text-center">OR</h6>
-                                        <div class="col-12n">
-                                            <div class="form-group">
-                                                <label>Subed Out cost:</label>
-                                                <input type="number" step="0.001" min="0"
-                                                    class="form-control production_subbed_out optional_field"
-                                                    data-option="production_field" placeholder="$"
-                                                    name="production_subed_out_cost">
-                                                <b>Note- this overrides cost associated with production</b>
-                                            </div>
-                                        </div>
+    @if ($errors->any())
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          @foreach ($errors->all() as $error)
+            <li>{{ $error }}</li>
+          @endforeach
+        </ul>
+      </div>
+    @endif
 
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label>Cleaning Cost Inhouse:</label>
-                                                <input type="number" step="0.001" min="0"
-                                                    class="form-control cleaning_cost optional_field"
-                                                    data-option="cleaning_subbed" placeholder="$" name="cleaning_cost">
-                                            </div>
-                                        </div>
-                                        <h6 class="text-center">OR</h6>
-                                        <div class="col-12">
-                                            <div class="form-group">
-                                                <label>Cleaning Subbed out:</label>
-                                                <input type="number" step="0.001" min="0"
-                                                    class="form-control optional_field cleaning_subbed"
-                                                    data-option="cleaning_cost" placeholder="$"
-                                                    name="cleaning_subed_out">
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <h3 class="fringe_area text-center">Other Material Associated</h3>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 mat_field_container">
-                                            <div class="col-3">
-                                                <label>Material</label>
-                                                <select class="form-control other_material"
-                                                    name="associated_products[0][material_id]">
-                                                    <option value="">Material</option>
-                                                    @php
-                                                        $other_materials = get_materials();
-                                                    @endphp
-                                                    @foreach ($other_materials as $other_material)
-                                                        <option value="{{ $other_material->id }}"
-                                                            data-unit="{{ $other_material->default_unit }}">
-                                                            {{ $other_material->name }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            <div class="col-1">
-                                                <label>Count</label>
-                                                <input type="number" class="form-control" name="associated_products[0][required]"
-                                                    placeholder="0" >
-                                            </div>
-                                            <div class="col-1">
-                                                <label>Unit</label>
-                                                <input class="form-control other_material_unit" name="associated_products[0][unit]"
-                                                    placeholder="Unit" readonly>
-                                            </div>
-                                            
-                                            <b>For every</b>
-                                            <div class="col-1">
-                                                <label>Count</label>
-                                                <input type="number" class="form-control" name="associated_products[0][for]"
-                                                    placeholder="0" >
-                                            </div>
-                                            <div class="col-1">
-                                                <label>Unit</label>
-                                                <input class="form-control default_unit"
-                                                    placeholder="Unit" readonly>
-                                            </div>
-                                            <div class="col-2">
-                                                <label>Material</label>
-                                                <input class="form-control material_name"
-                                                    placeholder="Material Name" readonly>
-                                            </div>
-                                        </div>
-                                        <div class="more-material"></div>
-                                        <div class="col-md-3 mt-2">
-                                            <button type="button" class="btn btn-sm btn-warning add-more">Add
-                                                More</button>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <a href="#" onclick="history.back()"
-                                                    class="btn btn-warning">Back</a>
-                                                <button class="btn btn-primary">Save Changes</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        <!--end card-body-->
-                    </div>
-                </div>
-            </div>
-        </section>
+    <div class="card">
+      <div class="card-header bg-transparent border-bottom text-uppercase">
+        {{ $isEdit ? 'Editar' : 'Nuevo' }} material
+      </div>
+      <div class="card-body">
+@endif
 
-    </main>
+<form id="material-form" method="POST" action="{{ $action }}">
+  @csrf
+  @if($isEdit)
+    @method('PUT')
+  @endif
 
+  <div class="row g-3">
 
-@endsection()
+    {{-- Name --}}
+    <div class="col-md-6">
+      <label class="form-label">Name <span class="text-danger">*</span></label>
+      <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+             value="{{ old('name', $material->name ?? '') }}" required>
+      @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-@section('script')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script>
-        let oldValue = ''
-        let MaterialName = '';
-        let DefaultUnit = '';
-        const updateDefaultUnit = (unit) => {
-            DefaultUnit = unit;
-            let elems = document.querySelectorAll('.default_unit');
-            elems.forEach((elem) => {
-                elem.value = DefaultUnit;
-            })
-        }
-        $('.material_name').on('input', function() {
-            MaterialName = $(this).val();
-            $('.material_name').val(MaterialName);
+    {{-- Default Unit --}}
+    <div class="col-md-6">
+      <label class="form-label">Default Unit <span class="text-danger">*</span></label>
+      <input type="text" name="default_unit" class="form-control @error('default_unit') is-invalid @enderror"
+             value="{{ old('default_unit', $material->default_unit ?? '') }}" required>
+      @error('default_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-        })
-        $(document).ready(function() {
-            $('.optional_field').on('input', function() {
-                let field = $(this).attr('data-option');
-                $(`.${field}`).val(0)
-            })
-        })
-        $('.unit-field').on('click', function() {
-            let value = $(this).val();
-            $(this).attr('data-oldValue', value);
-        })
-        $('.unit-field').on('change', function() {
-            let value = $(this).val();
-            let oldValue = $(this).attr('data-oldValue');
-            $(`[data-value1="${oldValue}"]`).removeAttr('hidden');
-            $(`[data-value1="${value}"]`).attr('hidden', "hidden");
-        });
-        const materialDivision = document.querySelector('#material_division_id');
-        const materialClass = document.querySelector('#material_class_id');
-        materialDivision.addEventListener('change', async (e) => {
-            let value = e.target.value;
-            let url = `{{ route('material_class') }}/${value}`;
+    {{-- Division --}}
+    <div class="col-md-4">
+      <label class="form-label">Division <span class="text-danger">*</span></label>
+      <select name="material_division_id" class="form-select @error('material_division_id') is-invalid @enderror" required>
+        <option value="">-- Select --</option>
+        @foreach($divisions as $id => $text)
+          <option value="{{ $id }}" @selected(old('material_division_id', $material->material_division_id ?? null) == $id)>{{ $text }}</option>
+        @endforeach
+      </select>
+      @error('material_division_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-            let response = await fetch(url);
-            let data = await response.json();
+    {{-- Class --}}
+    <div class="col-md-4">
+      <label class="form-label">Class <span class="text-danger">*</span></label>
+      <select name="material_class_id" class="form-select @error('material_class_id') is-invalid @enderror" required>
+        <option value="">-- Select --</option>
+        @foreach($classes as $id => $text)
+          <option value="{{ $id }}" @selected(old('material_class_id', $material->material_class_id ?? null) == $id)>{{ $text }}</option>
+        @endforeach
+      </select>
+      @error('material_class_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-            materialClass.innerHTML = '<option value="" selected hidden>Choose Class</option>';
-            data.forEach((material_class) => {
-                materialClass.innerHTML +=
-                    `<option value="${material_class.id}">${material_class.name}</option>`
-            })
-        })
+    {{-- Type --}}
+    <div class="col-md-4">
+      <label class="form-label">Type</label>
+      <select name="material_type_id" class="form-select @error('material_type_id') is-invalid @enderror">
+        <option value="">-- Select --</option>
+        @foreach($types as $id => $text)
+          <option value="{{ $id }}" @selected(old('material_type_id', $material->material_type_id ?? null) == $id)>{{ $text }}</option>
+        @endforeach
+      </select>
+      @error('material_type_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-        const fractions = document.querySelectorAll('.fraction-input');
-        fractions.forEach(frac => {
-            let target = frac.dataset.target;
-            frac.addEventListener('keydown', (e) => {
-                let isNumber = isFinite(e.key);
+    {{-- Measurement Unit --}}
+    <div class="col-md-4">
+      <label class="form-label">Measurement Unit <span class="text-danger">*</span></label>
+      <select name="measurement_unit" class="form-select @error('measurement_unit') is-invalid @enderror" required>
+        @foreach($units as $u => $label)
+          <option value="{{ $u }}" @selected(old('measurement_unit', $material->measurement_unit ?? '') == $u)>{{ $label }}</option>
+        @endforeach
+      </select>
+      @error('measurement_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-                if (!isNumber && e.key !== 'Backspace') {
-                    e.preventDefault();
-                }
-            })
-            frac.addEventListener('input', (e) => {
-                let whole = parseInt(frac.querySelector('.whole').textContent || 0);
-                let sup = parseInt(frac.querySelector('.sup').textContent || 0);
-                let sub = parseInt(frac.querySelector('.sub').textContent || 0);
+    {{-- Unit Measure Value --}}
+    <div class="col-md-4">
+      <label class="form-label">Unit Measure Value</label>
+      <input type="number" step="any" name="unit_measure_value" class="form-control @error('unit_measure_value') is-invalid @enderror"
+             value="{{ old('unit_measure_value', $material->unit_measure_value ?? '') }}">
+      @error('unit_measure_value') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-                if (sub == 0) {
-                    document.querySelector(`#${target}`).value = whole;
-                    return false;
+    {{-- Description --}}
+    <div class="col-md-12">
+      <label class="form-label">Description</label>
+      <textarea name="description" rows="2" class="form-control @error('description') is-invalid @enderror">{{ old('description', $material->description ?? '') }}</textarea>
+      @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-                }
-                if (sub < sup) {
-                    frac.dataset.error = 'Denominator should be non zero and greater than Numerator';
-                    document.querySelector(`#${target}`).value = '';
-                    return false;
-                }
+    {{-- Height --}}
+    <div class="col-md-4">
+      <label class="form-label">Height</label>
+      <input type="number" step="any" name="height" class="form-control @error('height') is-invalid @enderror"
+             value="{{ old('height', $material->height ?? '') }}">
+      @error('height') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-                let value = ((sub * whole) + sup) / sub;
-                frac.dataset.error = '';
-                document.querySelector(`#${target}`).value = value.toFixed(3);
-            })
-        })
+    {{-- Width --}}
+    <div class="col-md-4">
+      <label class="form-label">Width</label>
+      <input type="number" step="any" name="width" class="form-control @error('width') is-invalid @enderror"
+             value="{{ old('width', $material->width ?? '') }}">
+      @error('width') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-        document.querySelector('#default_unit').addEventListener('blur', (e) => {
-            let unit = e.target.value;
-            console.log(unit);
-            updateDefaultUnit(unit);
-            document.querySelector('#prices').placeholder = `$ / ${unit}`;
-            document.querySelector('#production_unit').textContent = unit;
-        });
-        let x = 1;
-        $('.add-more').click(function() {
-            $('.more-material').append(`@include('components.user.matfield')`);
-            x++;
-            document.dispatchEvent(new Event('DOMContentLoaded'))
-        });
-        $('.more-material').on('click', '.remove', function() {
-            $(this).parents('.mat-field').remove();
-            x--;
-        });
+    {{-- Length --}}
+    <div class="col-md-4">
+      <label class="form-label">Length</label>
+      <input type="number" step="any" name="length" class="form-control @error('length') is-invalid @enderror"
+             value="{{ old('length', $material->length ?? '') }}">
+      @error('length') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            let otherMaterials = document.querySelectorAll('.other_material');
-            let otherMaterialUnits = document.querySelectorAll('.other_material_unit');
+    {{-- Waste --}}
+    <div class="col-md-4">
+      <label class="form-label">Waste</label>
+      <input type="number" step="any" name="waste" class="form-control @error('waste') is-invalid @enderror"
+             value="{{ old('waste', $material->waste ?? '') }}">
+      @error('waste') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 
-            otherMaterials.forEach((elem, index) => {
-                elem.addEventListener('change', (e) => {
-                    let options = e.target.querySelectorAll('option');
-                    options.forEach((option) => {
-                        if(option.selected) {
-                            otherMaterialUnits[index].value = option.dataset.unit || '';
-                            return
-                        }
-                    })
-                })
-            })
-        })
-    </script>
-@endsection()
+    {{-- Production Rate --}}
+    <div class="col-md-4">
+      <label class="form-label">Production Rate</label>
+      <input type="number" step="any" name="production_rate" class="form-control @error('production_rate') is-invalid @enderror"
+             value="{{ old('production_rate', $material->production_rate ?? '') }}">
+      @error('production_rate') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    {{-- Subed Out Cost --}}
+    <div class="col-md-4">
+      <label class="form-label">Subed Out Cost</label>
+      <input type="number" step="any" name="production_subed_out_cost" class="form-control @error('production_subed_out_cost') is-invalid @enderror"
+             value="{{ old('production_subed_out_cost', $material->production_subed_out_cost ?? '') }}">
+      @error('production_subed_out_cost') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    {{-- Cleaning Cost --}}
+    <div class="col-md-4">
+      <label class="form-label">Cleaning Cost</label>
+      <input type="number" step="any" name="cleaning_cost" class="form-control @error('cleaning_cost') is-invalid @enderror"
+             value="{{ old('cleaning_cost', $material->cleaning_cost ?? '') }}">
+      @error('cleaning_cost') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    {{-- Cleaning Subed Out --}}
+    <div class="col-md-4">
+      <label class="form-label">Cleaning Subed Out</label>
+      <input type="number" step="any" name="cleaning_subed_out" class="form-control @error('cleaning_subed_out') is-invalid @enderror"
+             value="{{ old('cleaning_subed_out', $material->cleaning_subed_out ?? '') }}">
+      @error('cleaning_subed_out') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    {{-- Prices --}}
+    <div class="col-md-12">
+      <label class="form-label">Prices (JSON o texto)</label>
+      <input type="text" name="prices" class="form-control @error('prices') is-invalid @enderror"
+             value="{{ old('prices', $material->prices ?? '') }}">
+      @error('prices') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    {{-- Associated Products (multiple) --}}
+    <div class="col-md-12">
+      <label class="form-label">Associated Products</label>
+      <select name="associated_products[]" multiple class="form-select @error('associated_products') is-invalid @enderror">
+        @foreach($products as $pid => $pname)
+          <option value="{{ $pid }}" @selected(in_array($pid, $assoc))>{{ $pname }}</option>
+        @endforeach
+      </select>
+      @error('associated_products') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+  </div>
+
+  @if(!$isModal)
+    <div class="mt-4">
+      <button type="submit" class="btn btn-primary">{{ $isEdit ? 'Update' : 'Create' }}</button>
+      <a href="{{ route('admin.material.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  @endif
+</form>
+
+@if(!$isModal)
+      </div>
+    </div>
+  </div>
+  @endsection
+@endif

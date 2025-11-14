@@ -38,6 +38,12 @@ use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfReader\PdfReader;
+use Illuminate\Support\Facades\DB;   
+use Illuminate\Support\Facades\Validator;   // si validas
+use App\Models\CourseBand;   
+use Illuminate\Support\Arr; 
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class ApiController extends Controller
 {
@@ -1748,6 +1754,174 @@ class ApiController extends Controller
 
         return response()->json([
             'records' => $records,
+        ]);
+    }
+
+    public function api_course_bands_index(Request $request)
+    {
+        $q = DB::table('course_band')
+            ->select('id', 'id_local', 'id_user', 'data', 'created_at', 'updated_at');
+
+        if ($request->filled('id_user')) {
+            $q->where('id_user', (int) $request->query('id_user'));
+        }
+
+        if ($request->filled('updated_after')) {
+            $dt = Carbon::parse($request->query('updated_after'));
+            $q->where('updated_at', '>', $dt);
+        }
+
+        $perPage = (int) $request->query('per_page', 100);
+
+        if ($perPage > 0) {
+            $rows = $q->orderByDesc('id')->paginate($perPage);
+            return response()->json($rows);
+        }
+
+        $rows = $q->orderByDesc('id')->limit(1000)->get();
+        return response()->json($rows);
+    }
+
+    /**
+     * POST /api/course-bands
+     * Upsert por (id_user, id_local).
+     * Acepta:
+     *  - Objeto plano: { id_user, id_local, data, created_at?, updated_at? }
+     *  - o { items: [ {...}, {...} ] }
+     */
+    public function api_course_bands_upsert(Request $request)
+    {
+        $payload = $request->all();
+        $items   = Arr::get($payload, 'items');
+        $userId  = auth()->id();
+        $now     = Carbon::now();
+
+        if (is_null($items)) {
+            $items = [$payload]; // normaliza objeto plano -> arreglo
+        }
+        if (!is_array($items) || empty($items)) {
+            throw ValidationException::withMessages([
+                'items' => ['Debes enviar un objeto {id_local,data} o {items:[...]}']
+            ]);
+        }
+
+        $results = ['inserted' => 0, 'updated' => 0, 'items' => []];
+
+        foreach ($items as $row) {
+            // id_local opcional; si no llega, generamos uno (UUID)
+            $idLocal = (string) Arr::get($row, 'id_local', Str::uuid()->toString());
+            $data    = Arr::get($row, 'data', []);
+
+            // si data llega como string JSON, decodifica; si es array, lo dejamos
+            if (is_string($data)) {
+                $decoded = json_decode($data, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $data = $decoded;
+                }
+            }
+
+            // serializa data a JSON para guardarlo
+            $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE);
+
+            // ¿ya existe por (id_user, id_local)?
+            $existing = DB::table('course_band')
+                ->select('id')
+                ->where('id_user', $userId)
+                ->where('id_local', $idLocal)
+                ->first();
+
+            if ($existing) {
+                // UPDATE (con CAST a JSON para columnas JSON)
+                DB::statement(
+                    "UPDATE course_band
+                    SET data = CAST(? AS JSON), updated_at = ?
+                    WHERE id = ? AND id_user = ?",
+                    [$dataJson, $now, $existing->id, $userId]
+                );
+
+                $results['updated']++;
+                $results['items'][] = [
+                    'id'       => $existing->id,
+                    'id_user'  => $userId,
+                    'id_local' => $idLocal,
+                ];
+            } else {
+                // INSERT
+                DB::statement(
+                    "INSERT INTO course_band (id_user, id_local, data, created_at, updated_at)
+                    VALUES (?, ?, CAST(? AS JSON), ?, ?)",
+                    [$userId, $idLocal, $dataJson, $now, $now]
+                );
+
+                // recupera el id insertado
+                $newId = DB::getPdo()->lastInsertId();
+
+                $results['inserted']++;
+                $results['items'][] = [
+                    'id'       => (int)$newId,
+                    'id_user'  => $userId,
+                    'id_local' => $idLocal,
+                ];
+            }
+        }
+
+        return response()->json([
+            'ok'      => true,
+            'message' => 'Upsert completado',
+            'result'  => $results
+        ]);
+    }
+
+    /**
+     * PUT /api/course-bands/{id}
+     * Update directo por ID real de DB (útil si ya lo tienes en el front).
+     */
+    public function api_course_bands_update(Request $request, $id)
+    {
+        $userId = auth()->id();
+        $now    = Carbon::now();
+
+        // validar existencia y propiedad del registro
+        $row = DB::table('course_band')
+            ->select('id', 'id_local')
+            ->where('id', $id)
+            ->where('id_user', $userId)
+            ->first();
+
+        if (!$row) {
+            return response()->json(['ok' => false, 'message' => 'No encontrado'], 404);
+        }
+
+        $data    = Arr::get($request->all(), 'data', []);
+        $idLocal = Arr::get($request->all(), 'id_local'); // opcional
+
+        if (is_string($data)) {
+            $decoded = json_decode($data, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $data = $decoded;
+            }
+        }
+        $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE);
+
+        // si mandan id_local nuevo, úsalo; si no, conserva el actual
+        $idLocalNew = $idLocal ? (string)$idLocal : $row->id_local;
+
+        // OJO: si cambias id_local, asegúrate de no romper el UNIQUE (id_user,id_local)
+        DB::statement(
+            "UPDATE course_band
+            SET id_local = ?, data = CAST(? AS JSON), updated_at = ?
+            WHERE id = ? AND id_user = ?",
+            [$idLocalNew, $dataJson, $now, $row->id, $userId]
+        );
+
+        return response()->json([
+            'ok'      => true,
+            'message' => 'Actualizado',
+            'item'    => [
+                'id'       => (int)$row->id,
+                'id_user'  => $userId,
+                'id_local' => $idLocalNew,
+            ]
         ]);
     }
 

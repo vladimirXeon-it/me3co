@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'default_language'  => 'Spanish',
+    'default_language'  => 'English',
     'assets_folder'     => env('APP_URL').'/vendor/grocery-crud/', // asegúrate APP_URL en .env
     'default_per_page'  => 20,
     'paging_options'    => ['10','25','50','100'],
