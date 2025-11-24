@@ -181,6 +181,29 @@ class WallController extends Controller
         $data = isset($data->formData) ? json_decode($data->formData) : (object)[];
         //var_dump($data);
 
+        // Si está guardada el área original, la preservamos en la variable
+        if (isset($data->wall_total_area_original)) {
+            $area_original = (float)$data->wall_total_area_original;
+        }
+
+        // 1) Si existe pitch válido → aplicar
+        if (isset($data->pitch) && (float)$data->pitch > 0) {
+
+            // Si no se ha guardado aún el área original, la guardamos
+            if (!isset($data->wall_total_area_original)) {
+                $data->wall_total_area_original = $data->wall_total_area;
+            }
+
+            $data->wall_total_area = $data->wall_total_area * (float)$data->pitch;
+        }
+
+        // 2) Si NO hay pitch pero SÍ hay original → restaurar
+        if ((!isset($data->pitch) || $data->pitch == "" || $data->pitch == 0)
+            && isset($data->wall_total_area_original)) {
+
+            $data->wall_total_area = $data->wall_total_area_original;
+        }
+
         $data->area_cubic_ft = $data->Area_thickness * $data->wall_total_area;
         
         $data->underlay_sq_ft = $data->wall_total_area;
@@ -1381,8 +1404,12 @@ class WallController extends Controller
                 $calculateTotalUnitSqft = $this->calculateTotalUnitSqfts($additionalData, $updatedFormData->total_square_area);
                 $calculateTotalquantity = $this->calculateTotalquantity1($index, $updatedFormData);
 
+                $calculateTotalTopBottom = $this->calculateTotalTopBottom($index, $updatedFormData, $additionalData);
+                $calculatePerArea = $this->calculatePerArea($index, $updatedFormData, $additionalData);
+
                 $additionalData->total_unit_per_sq_ft = $calculateTotalUnitSqft;
                 $additionalData->total_unit_quantity = $calculateTotalquantity;
+                //$additionalDatas->top_bottom_total_units = $calculateTotalTopBottom;
 
 
                 //nuevos campos
@@ -1586,6 +1613,32 @@ class WallController extends Controller
         return $total_unit_quantity;
     }
 
+    public function calculateTotalTopBottom($index, $updatedFormData, $additionalDatas)
+    {
+        // echo "calculateTotalTopBottom<br>";
+
+        $top_bottom_spaces = (float) ($additionalDatas->top_bottom_spaces ?? 0);
+        $top_bottom_total_spaces = $updatedFormData->wall_length * $top_bottom_spaces;
+        $additionalDatas->top_bottom_total_spaces = $top_bottom_total_spaces;
+        $top_bottom_total_units = round(($top_bottom_total_spaces /$updatedFormData->wall_material_unit), 3);
+        $additionalDatas->top_bottom_total_units = $top_bottom_total_units;
+    
+        return $top_bottom_total_units;
+    }
+
+    public function calculatePerArea($index, $updatedFormData, $additionalDatas)
+    {
+        // echo "calculatePerArea<br>";
+
+        $pr_area_sides = (float) ($additionalDatas->pr_area_sides ?? 0);
+        $total_lineal_pr_area = $updatedFormData->total_square_area * $pr_area_sides;
+        $additionalDatas->total_lineal_pr_area = $total_lineal_pr_area;
+        $total_unit_pr_area = round(($total_lineal_pr_area /$updatedFormData->wall_material_unit), 3);
+        $additionalDatas->total_unit_pr_area = $total_unit_pr_area;
+    
+        return $total_unit_pr_area;
+    }
+
 
     #endregion additional datas
 
@@ -1680,7 +1733,7 @@ class WallController extends Controller
             $html .= '<tr>';
             $html .= '<td>' . htmlspecialchars($idMaterial) . '</td>';
             $html .= '<td>' . htmlspecialchars($datos['material']->name) . " " . htmlspecialchars($datos['material']->unique_id) . '</td>';
-            $html .= '<td>' . number_format($datos['measuring'], 2) . '</td>';
+            $html .= '<td>' . number_format($datos['measuring'], 2) . " " . htmlspecialchars($datos['material']->measurement_unit) . '</td>';
             $html .= '<td>' . number_format($datos['quantity'], 2) . '</td>';
             $html .= '<td>' . number_format($datos['total'], 2) . '</td>';
             $html .= '</tr>';

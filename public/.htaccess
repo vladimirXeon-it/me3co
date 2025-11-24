@@ -1,6 +1,24 @@
+# ===============================
+# ✔ FIX para archivos .mjs (React PDF worker)
+# ===============================
+<IfModule mod_mime.c>
+    AddType text/javascript .mjs
+</IfModule>
+
+<FilesMatch "\.(mjs)$">
+    ForceType text/javascript
+</FilesMatch>
+
+# ===============================
+# ✔ CORS si lo necesitas
+# ===============================
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
 </IfModule>
+
+# ===============================
+# ✔ Reglas de Laravel
+# ===============================
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -11,8 +29,6 @@
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} ^(.*)
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
-
-
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d

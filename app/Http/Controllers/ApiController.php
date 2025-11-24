@@ -1925,4 +1925,17 @@ class ApiController extends Controller
         ]);
     }
 
+    public function searchPitch()
+    {
+        $pitches = DB::table('pitch')
+            ->select('id', 'name', 'value')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'status' => 200,
+            'data' => $pitches
+        ]);
+    }
+
 }

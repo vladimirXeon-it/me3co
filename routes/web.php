@@ -23,6 +23,9 @@ use App\Http\Controllers\Admin\UnitsCrudController;
 use App\Http\Controllers\Admin\MaterialsCrudController;
 use App\Http\Controllers\Admin\PlansCrudController;
 use App\Http\Controllers\Admin\UsersCrudController;
+use App\Http\Controllers\Admin\PitchCrudController;
+use App\Http\Controllers\Admin\RebarMenuCrudController;
+use App\Http\Controllers\Admin\GroutBlockCrudController;
 
 /*
 |--------------------------------------------------------------------------
@@ -196,6 +199,17 @@ Route::prefix("admin")->group(function () {
     Route::get('subscriptions/delete/{id}', [AdminController::class, 'delete_subscriptions'])->name('admin.subscriptions.delete');
     Route::get('subscriptions/edit/{id}', [AdminController::class, 'edit_subscriptions'])->name('admin.subscriptions.edit');
     Route::post('subscriptions/update/{id}', [AdminController::class, 'update_subscriptions'])->name('admin.subscriptions.update');*/
+    Route::match(['get', 'post'],'/pitch', [PitchCrudController::class, 'index'])
+    ->name('admin.pitch')
+    ->middleware('auth');
+
+    Route::match(['get', 'post'],'/rebarMenu', [RebarMenuCrudController::class, 'index'])
+    ->name('admin.rebarMenu')
+    ->middleware('auth');
+
+    Route::match(['get', 'post'],'/groutBlock', [GroutBlockCrudController::class, 'index'])
+    ->name('admin.groutBlock')
+    ->middleware('auth');
 });
 
 Route::get("/login", [AuthController::class, "login"])->name("login");

@@ -33,6 +33,24 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link collapsed" href="{{ route('admin.pitch') }}">
+                <i class="bi bi-building"></i>
+                <span>Pitch</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="{{ route('admin.rebarMenu') }}">
+                <i class="bi bi-building"></i>
+                <span>Rebar Menu</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="{{ route('admin.groutBlock') }}">
+                <i class="bi bi-building"></i>
+                <span>Grout Block</span>
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link collapsed" data-bs-target="#opening-nav" data-bs-toggle="collapse" href="#">
                 <i class="bi bi-square"></i><span>Openings</span><i class="bi bi-chevron-down ms-auto"></i>
             </a>
