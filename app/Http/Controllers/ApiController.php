@@ -1018,141 +1018,97 @@ class ApiController extends Controller
         return $pagecount;
     }
 
-    //working code for uploading svg files in local storage
+    private function extractSelectedPages($sourcePdf, $selectedPages, $outputPdf)
+    {
+        $pdf = new Fpdi();
+
+        // Cargar PDF original
+        $pageCount = $pdf->setSourceFile($sourcePdf);
+
+        foreach ($selectedPages as $pageNum) {
+
+            if ($pageNum > 0 && $pageNum <= $pageCount) {
+
+                // Importar página
+                $tpl = $pdf->importPage($pageNum);
+
+                // Obtener tamaño de página
+                $size = $pdf->getTemplateSize($tpl);
+
+                // Crear página nueva con el tamaño correspondiente
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+
+                // Añadir contenido
+                $pdf->useTemplate($tpl);
+            }
+        }
+
+        // Guardar PDF recortado
+        $pdf->Output($outputPdf, 'F');
+
+        return $outputPdf;
+    }
+
+
+
+    // ============================
+    //   PLAN UPLOAD (PDF RECORTADO)
+    // ============================
     public function plan_upload(Request $request)
     {
-
         if (!$request->hasFile('file')) {
             return response()->json([
-                'error' => 'No file detected',
-                'headers' => $request->header('Content-Type'),
-                'all' => $request->all(),
-                'php_upload_limit' => ini_get('upload_max_filesize'),
-                'post_max_size' => ini_get('post_max_size')
+                'error' => 'No file detected'
             ], 400);
         }
+
         $request->validate([
             'file' => 'mimes:pdf'
         ]);
 
         try {
-
             $project_id = $request->post('project_id');
             $pages = json_decode($request->post('pages', '[]'), true);
             $file = $request->file('file');
-            $directory = public_path('uploads');
+
+            // Carpeta destino
+            $directory = public_path("uploads/projects/project{$project_id}/");
 
             if (!File::isDirectory($directory)) {
                 File::makeDirectory($directory, 0777, true, true);
             }
 
-            $fileName = $file->getClientOriginalName();
-            // echo  "directory ". $directory."<br>";
-            //echo  "fileName ". $fileName."<br>";
-            $filePath = $file->storeAs('uploads', $fileName);
+            // Nombre temporal para el PDF original
+            $tempPdfName = "temp_" . time() . "_" . $file->getClientOriginalName();
+            $tempPdfPath = $directory . $tempPdfName;
 
-            $absolutePath = Storage::path($filePath);
+            // Guardarlo temporalmente SOLO para recortar
+            $file->move($directory, $tempPdfName);
 
-            try {
-                if (!empty($pages) && is_array($pages)) {
-                    \Log::info("🧩 Filtrando páginas: " . json_encode($pages));
+            // PDF final
+            $finalPdfName = "recortado_" . time() . ".pdf";
+            $finalPdfPath = $directory . $finalPdfName;
 
-                    $pdf = new \setasign\Fpdi\Fpdi();
-                    $pageCount = $pdf->setSourceFile($absolutePath);
+            // Recortar PDF (solo páginas seleccionadas)
+            $this->extractSelectedPages($tempPdfPath, $pages, $finalPdfPath);
 
-                    foreach ($pages as $pageNum) {
-                        if ($pageNum <= $pageCount && $pageNum > 0) {
-                            $tplId = $pdf->importPage($pageNum);
-                            $size = $pdf->getTemplateSize($tplId);
-                            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                            $pdf->useTemplate($tplId);
-                        }
-                    }
-
-                    // ✅ Sobrescribir el archivo original con las páginas seleccionadas
-                    $pdf->Output($absolutePath, 'F');
-
-                    \Log::info("✅ PDF filtrado y reemplazado correctamente: $absolutePath");
-                } else {
-                    \Log::info("ℹ️ No se seleccionaron páginas, se mantiene el PDF completo");
-                }
-            } catch (\Throwable $e) {
-                \Log::error("🚨 Error al generar PDF filtrado: " . $e->getMessage());
+            // Borrar PDF original inmediatamente
+            if (file_exists($tempPdfPath)) {
+                unlink($tempPdfPath);
             }
 
-            $folder = "projects/project$project_id/";
-            $directorio_proyecto = public_path('uploads/projects/project' . $project_id);
-            if (!File::isDirectory($directorio_proyecto)) {
-                File::makeDirectory($directorio_proyecto, 0777, true, true);
-            }
-
-            $nombre = 'upload-my-file';
-
-            $job = (new Job())
-                ->addTask(new Task('import/upload', $nombre))
-                ->addTask(
-                    (new Task('convert', 'convert-my-file'))
-                        ->set('input', 'upload-my-file')
-                        ->set('output_format', 'svg')
-                )
-                ->addTask(
-                    (new Task('export/url', 'export-my-file'))
-                        ->set('input', 'convert-my-file')
-                );
-
-            $cloudconvert = new \CloudConvert\Laravel\Facades\CloudConvert;
-            CloudConvert::jobs()->create($job);
-
-            $uploadTask = $job->getTasks()->whereName($nombre)[0];
-
-            $inputStream = fopen($absolutePath, 'r');
-
-            CloudConvert::tasks()->upload($uploadTask, $inputStream);
-
-            CloudConvert::jobs()->wait($job); // Wait for job completion
-
-            foreach ($job->getExportUrls() as $file) {
-
-                $source = CloudConvert::getHttpTransport()->download($file->url)->detach();
-
-                $dest = fopen(Storage::path($folder . $file->filename), 'w');
-
-                stream_copy_to_stream($source, $dest);
-            }
-
-
-            //   // $api = new \App\Http\Controllers\Api(env('CLOUDCONVERT_API_KEY'));
-            //     $cloudconvert = new Api(env('CLOUDCONVERT_API_KEY'));
-            //     // Create a new job
-            //     $job = (new Job())
-            //     ->addTask(
-            //         (new Task('import/url', 'import-my-file'))
-            //             ->set('url', 'https://my.url/your-file.pdf')
-            //     )
-            //     ->addTask(
-            //         (new Task('convert', 'convert-my-file'))
-            //             ->set('input', 'import-my-file')
-            //             ->set('input_format', 'pdf')
-            //             ->set('output_format', 'svg')
-            //     )
-            //     ->addTask(
-            //         (new Task('export/url', 'export-my-file'))
-            //             ->set('input', 'convert-my-file')
-            //     );
-
-            //     // Create the job using the CloudConvert API
-            //     $cloudconvert->jobs()->create($job);
-
-
-
+            return response()->json([
+                'status' => 200,
+                'message' => "PDF recortado correctamente",
+                'pdf_path' => "uploads/projects/project{$project_id}/{$finalPdfName}",
+                'selected_pages' => $pages
+            ]);
 
         } catch (\Exception $e) {
-            dd($e->getMessage());
-            return response()->json($e->getMessage());
-            // Log the exception for debugging
 
-            // Return an error response
-            return response()->json(['error' => 'An error occurred during the conversion.'], 500);
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -1298,33 +1254,55 @@ class ApiController extends Controller
     public function project_plans($id)
     {
         $project = Project::find($id);
+
         if (!$project) {
             return [];
         }
-        $directory = $project->id;
-        $folder = "projects/project$directory/";
-        $files = Storage::allFiles($folder);
 
-        return $files;
+        // Ruta en public/
+        $path = public_path("uploads/projects/project{$id}");
+
+        if (!is_dir($path)) {
+            return [];
+        }
+
+        // Leer archivos reales
+        $files = array_values(array_diff(scandir($path), ['.', '..']));
+
+        // Convertir a rutas accesibles desde frontend
+        $response = array_map(function($file) use ($id) {
+            return "uploads/projects/project{$id}/{$file}";
+        }, $files);
+
+        return $response;
     }
+
     public function delete_all_files($id)
     {
-        $document = Project::find($id)->document;
-        if (!$document) {
-            return \json_encode([
+        $project = Project::find($id);
+
+        if (!$project || !$project->document) {
+            return response()->json([
                 'status' => 500,
                 'message' => 'No files to delete'
             ]);
         }
-        $directory = $document->directory;
-        $relativePath = "uploads/projects/$directory";
-        File::cleanDirectory(public_path($relativePath));
 
-        return json_encode([
+        // Asegurar que la ruta SIEMPRE sea: uploads/projects/project{id}
+        $directory = "project" . $project->id;
+
+        $relativePath = public_path("uploads/projects/$directory");
+
+        if (File::exists($relativePath)) {
+            File::cleanDirectory($relativePath);
+        }
+
+        return response()->json([
             'status' => 200,
             'message' => 'All Files Deleted!'
         ]);
     }
+
     public function serialize_form(Request $request)
     {
         $id = $request->post('trade');
@@ -1935,6 +1913,81 @@ class ApiController extends Controller
         return response()->json([
             'status' => 200,
             'data' => $pitches
+        ]);
+    }
+
+    public function savePlanImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|file|mimes:png',
+            'project_id' => 'required|integer',
+            'file_name' => 'required|string'
+        ]);
+
+        $projectId = $request->project_id;
+        $fileName  = $request->file_name;
+
+        $directory = public_path("uploads/projects/project{$projectId}/");
+
+        if (!File::isDirectory($directory)) {
+            File::makeDirectory($directory, 0777, true, true);
+        }
+
+        // Guardar PNG final
+        $request->file('image')->move($directory, $fileName);
+
+        return response()->json([
+            "status" => 200,
+            "message" => "PNG guardada correctamente",
+            "path" => "uploads/projects/project{$projectId}/{$fileName}"
+        ]);
+    }
+
+    public function convert(Request $request)
+    {
+        $pdfRelative = $request->input('pdf');   // ejemplo: projects/myproject/file.pdf
+        $outputDir   = dirname($pdfRelative);    // carpeta donde dejaremos los PNG
+        $pdfPath     = public_path('uploads/' . $pdfRelative);
+
+        if (!file_exists($pdfPath)) {
+            return response()->json(['error' => 'PDF not found'], 404);
+        }
+
+        $outputPath = public_path('uploads/' . $outputDir);
+
+        // Crear directorio si no existe
+        if (!file_exists($outputPath)) {
+            mkdir($outputPath, 0777, true);
+        }
+
+        // Cargar PDF completo
+        $imagick = new Imagick();
+        $imagick->setResolution(200, 200);
+        $imagick->readImage($pdfPath);
+
+        $pages = $imagick->getNumberImages();
+        $pageIndex = 0;
+        $generated = [];
+
+        foreach ($imagick as $index => $page) {
+
+            $page->setImageFormat('png');
+
+            // Nombre del PNG
+            $pngName = pathinfo($pdfRelative, PATHINFO_FILENAME) . "-page-$index.png";
+            $pngFullPath = $outputPath . '/' . $pngName;
+
+            // Guardar PNG
+            $page->writeImage($pngFullPath);
+
+            $generated[] = $outputDir . '/' . $pngName;
+            $pageIndex++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'pages' => $generated,
+            'total_pages' => count($generated)
         ]);
     }
 

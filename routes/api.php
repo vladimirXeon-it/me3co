@@ -79,4 +79,7 @@ Route::middleware('auth.token')->group(function() {
 
     Route::get('/pitch', [ApiController::class, 'searchPitch']);
 
+    Route::post('/save-plan-image', [ApiController::class, 'savePlanImage']);
+    Route::post('/pdf-to-png', [ApiController::class, 'convert']);
+
 });
