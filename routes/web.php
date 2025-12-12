@@ -162,18 +162,33 @@ Route::prefix("admin")->group(function () {
     Route::match(['get', 'post'], '/material', [MaterialsCrudController::class, 'index'])
     ->name('admin.material')
     ->middleware('auth');
-    Route::get ('admin/material/form',        [MaterialsCrudController::class, 'form'])->name('admin.material.form.create');
-    Route::get ('admin/material/form/{id}',   [MaterialsCrudController::class, 'form'])->name('admin.material.form.edit');
+    Route::get('/material/form', [MaterialsCrudController::class, 'form'])
+    ->name('admin.material.form.create')
+    ->middleware('auth');
+
+    Route::get('/material/form/{id}', [MaterialsCrudController::class, 'form'])
+        ->name('admin.material.form.edit')
+        ->middleware('auth');
+
+    // Guardar (modal)
+    Route::post('/material/save', [MaterialsCrudController::class, 'create_material'])
+        ->name('admin.material.store')
+        ->middleware('auth');
+
+    // Actualizar (modal)
+    Route::post('/material/update/{id}', [MaterialsCrudController::class, 'update_material'])
+        ->name('admin.material.update')
+        ->middleware('auth');
 
     // Guardar / Actualizar (AJAX)
     /*Route::post('admin/material',             [MaterialsCrudController::class, 'create_material'])->name('admin.material.store');
     Route::put ('admin/material/{id}',        [MaterialsCrudController::class, 'update_material'])->name('admin.material.update');*/
-    Route::get("/material", [AdminController::class, "material"])->name("admin.material");
+    /*Route::get("/material", [AdminController::class, "material"])->name("admin.material");
     Route::get('/material/add', [AdminController::class, 'add_material'])->name('admin.material.add');
     Route::post('/material/create', [AdminController::class, 'create_material'])->name('admin.material.create');
     Route::get("/material/delete/{id}", [AdminController::class, "delete_material"])->name("admin.material.delete");
     Route::get("/material/edit/{id}", [AdminController::class, "edit_material"])->name("admin.material.edit");
-    Route::post("/material/update/{id}", [AdminController::class, "update_material"])->name("admin.material.update");
+    Route::post("/material/update/{id}", [AdminController::class, "update_material"])->name("admin.material.update");*/
 
     Route::match(['get', 'post'], '/material/unit', [UnitsCrudController::class, 'index'])
     ->name('admin.material.unit')

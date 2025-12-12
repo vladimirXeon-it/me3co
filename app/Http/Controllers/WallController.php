@@ -540,7 +540,7 @@ class WallController extends Controller
         $updatedFormData->remaining_area = $calculateRemainingArea;
         $updatedFormData->total_grout_mat = $calculateGroutMaterial;
         $updatedFormData->total_remaining_mat = $calculateRemainingMaterial;
-        $updatedFormData->sq_fill_mat_per_cy = $calculateFillMatPerCy;
+        $updatedFormData->sq_fill_mat_per_cy = ((float)$updatedFormData->sq_fill_mat_per_cy_manuality > 0) ? (float)$updatedFormData->sq_fill_mat_per_cy_manuality : $calculateFillMatPerCy;
 
         $selectedMaterial = json_decode($updatedFormData->vertical_fill_remaining);
         if ($selectedMaterial != null) {
@@ -1111,6 +1111,9 @@ class WallController extends Controller
                 $Agregarmaterial->measuring = $selectedCourseData->total_sq_fill_materials;
                 $Agregarmaterial->principal = true;
                 $this->addtotalDatas($Agregarmaterial, $formData);
+            }
+            if (isset($selectedCourseData->sq_grouted_per_cy_manuality)) {
+                $selectedCourseData->sq_grouted_per_cy = ((float)$selectedCourseData->sq_grouted_per_cy_manuality > 0) ? (float)$selectedCourseData->sq_grouted_per_cy_manuality : $selectedCourseData->sq_grouted_per_cy;
             }
             $selectedCourseData->area_grouted_sq = $this->calculateGroutedSqs($formData, $selectedCourseData);
             $selectedCourseData->total_grout_cy =  $this->calculateGroutedCys($selectedCourseData, $selectedCourseData->area_grouted_sq);

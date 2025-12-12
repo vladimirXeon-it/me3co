@@ -81,5 +81,7 @@ Route::middleware('auth.token')->group(function() {
 
     Route::post('/save-plan-image', [ApiController::class, 'savePlanImage']);
     Route::post('/pdf-to-png', [ApiController::class, 'convert']);
+    Route::get('/groutBlock', [ApiController::class, 'searchGroutBlock']);
+    Route::get('/list-plan-images', [ApiController::class, 'listPlanImages']);
 
 });

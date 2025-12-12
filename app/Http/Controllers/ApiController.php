@@ -1991,4 +1991,47 @@ class ApiController extends Controller
         ]);
     }
 
+    public function searchGroutBlock()
+    {
+        $groutBlock = DB::table('grout_block')
+            ->select('id', 'name', 'grout')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'status' => 200,
+            'data' => $groutBlock
+        ]);
+    }
+
+    public function listPlanImages(Request $request)
+    {
+        $projectId = $request->query('project');
+        $prefix = $request->query('prefix');
+
+        if (!$projectId || !$prefix) {
+            return response()->json([
+                'error' => 'Missing parameters: project or prefix'
+            ], 400);
+        }
+
+        // Carpeta donde guardas tus imágenes
+        $folderPath = public_path("uploads/projects/project{$projectId}");
+
+        if (!File::exists($folderPath)) {
+            return response()->json([]);
+        }
+
+        // Buscar archivos: A1-page-1.png, A1-page-2.png...
+        $pattern = $folderPath . '/' . $prefix . '-page-*.png';
+        $files = glob($pattern);
+
+        // Convertir a rutas relativas para React
+        $result = array_map(function ($path) {
+            return str_replace(public_path(), '', $path);
+        }, $files);
+
+        return response()->json($result);
+    }
+
 }

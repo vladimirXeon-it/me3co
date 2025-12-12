@@ -73,6 +73,7 @@ class Wall extends Model
         'remaining_area',
         'vertical_fill_remaining',
         'sq_fill_mat_per_cy',
+        'sq_fill_mat_per_cy_manuality',
         'total_grout_mat',
         'total_remaining_mat',
         'control_material',
