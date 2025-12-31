@@ -51,6 +51,18 @@
                                 <label class="form-label text-14">Bid Date</label>
                                 <input type="date" class="form-control" id="bid_date" name="bid_date">
                             </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Tax(%)</label>
+                                <input type="text" step="0.01" class="form-control" id="tax" name="tax" placeholder="0">
+                            </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Oh(%)</label>
+                                <input type="text" step="0.01" class="form-control" id="oh" name="oh" placeholder="0">
+                            </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Profit(%)</label>
+                                <input type="text" step="0.01" class="form-control" id="profit" name="profit" placeholder="0">
+                            </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -80,6 +92,18 @@
                             <div class="mb-2 input-project">
                                 <label class="form-label text-14">Bid Date</label>
                                  <input type="date" class="form-control" id="bidDate" name="bid_date">
+                            </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Tax(%)</label>
+                                <input type="number" step="0.01" class="form-control" id="tax_edit" name="tax" placeholder="0">
+                            </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Oh(%)</label>
+                                <input type="number" step="0.01" class="form-control" id="oh_edit" name="oh" placeholder="0">
+                            </div>
+                            <div class="mb-2 input-project">
+                                <label class="form-label text-14">Profit(%)</label>
+                                <input type="number" step="0.01" class="form-control" id="profit_edit" name="profit" placeholder="0">
                             </div>
                     </div>
                     <div class="modal-footer">
@@ -296,6 +320,10 @@ $(document).ready(function () {
                     $('#name').val(response.project.name);
                     $('#bidDate').val(response.project.bid_date);
                     $('#project_id').val(project_id);
+
+                    $('#tax_edit').val(response.project.tax ?? '');
+                    $('#oh_edit').val(response.project.oh ?? '');
+                    $('#profit_edit').val(response.project.profit ?? '');
                 }
             });
 

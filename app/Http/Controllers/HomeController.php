@@ -103,6 +103,9 @@ class HomeController extends Controller
         $project->name = $name;
         $project->bid_date = $validatedData['bid_date'];
         $project->user_id = $user_id;
+        $project->tax = $request->input('tax');
+        $project->oh = $request->input('oh');
+        $project->profit = $request->input('profit');
         $project->save();
         return back()->with("message", "Project Created Successfully!");
     }
@@ -118,6 +121,9 @@ class HomeController extends Controller
         $project = Project::find($projectId);
         $project->name = $request->input('name');
         $project->bid_date = $request->input('bid_date');
+        $project->tax = $request->input('tax');
+        $project->oh = $request->input('oh');
+        $project->profit = $request->input('profit');
         $project->update();
         return back()->with("message", "Project Updated Successfully!");
     }

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\LineTemplate;
 use App\Models\Wall;
+use App\Models\Project;
 use Exception;
 use PhpParser\node\Expr\Cast\Object_;
+use Illuminate\Support\Facades\DB;
 
 class WallController extends Controller
 {
@@ -20,6 +22,8 @@ class WallController extends Controller
  */
         $wall = Wall::find($wall_id);
         
+        $project = Project::where('id', $wall->project_id)->select('tax', 'oh', 'profit', 'weather')->first();
+        $wall->project = $project;
         //dd($wall);
 
         if ($wall->type == "length") {
@@ -148,6 +152,7 @@ class WallController extends Controller
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $additionalData->totalUnits;
+
                     $this->addtotalDatas($Agregarmaterial, $data);
                 }
 
@@ -317,6 +322,7 @@ class WallController extends Controller
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $total_measuring;
+
                     $this->addtotalDatas($Agregarmaterial, $data);
                 }
 
@@ -353,7 +359,11 @@ class WallController extends Controller
         $this->handleChangeAdditionalDatas($data);
         $this->handleChangeadjustmentDatas($data);
         $this->Calcula_totalDatas($data);
+        //dd($data);
         $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
+
+        $crew = $this->addCrew($data->project_id);
+        $materialesAgrupados = $this->Calcula_totalDatas1($materialesAgrupados, $data->project, $crew);
 
         //print_r($data->totalsDatas);
         //print_r($materialesAgrupados);
@@ -1674,6 +1684,7 @@ class WallController extends Controller
         foreach ($totalsDatas as $index  =>  $additionalData) {
 
             $additionalData = (object)$additionalData;
+            //dd($additionalData);
             // $additionalDatas->additionalDatas[$index]=$additionalData;
             // echo "index " . $index . "<br>";
             // echo "additionalData " . json_encode($additionalData) . "<br>";
@@ -1685,6 +1696,183 @@ class WallController extends Controller
         }
         $updatedFormData->totalsDatas = $totalsDatasFinal;
         return $updatedFormData;
+    }
+    public function Calcula_totalDatas1(&$updatedFormData, $project, $crew)
+    {
+        $laborInfoArray = $crew[0]['labor_info'] ?? [];
+        if (!is_array($laborInfoArray)) {
+            $laborInfoArray = [];
+        }
+
+        $crew_hours_total = 0;
+        $crew_cost_total = 0;
+        $percentage_total = 0;
+        $price_total = 0;
+        $quantity = 0;
+        $hours_per_day = 0;
+
+        foreach ($laborInfoArray as $li) {
+            //dd($li);
+            $quantity = isset($li['quantity']) ? (float)$li['quantity'] : 0;
+            $hours_per_day = isset($li['hours_per_day']) ? (float)$li['hours_per_day'] : 0;
+
+            $crew_cost_total   += isset($li['crew_cost']) ? (float)$li['crew_cost'] : 0;
+            $percentage_total  += isset($li['percentage_total']) ? (float)$li['percentage_total'] : 0;
+            $price_total       += isset($li['price_total']) ? (float)$li['price_total'] : 0;
+        }
+
+        //dd($quantity);
+
+        foreach ($updatedFormData as $index  =>  $additionalData) {
+
+            //$additionalData = (object)$additionalData;
+            //dd($additionalData['material']);
+            $fraction_sq_ft = ($additionalData['material']['height']/12); 
+            $additionalData['quantity'] = round(($additionalData['measuring']/$fraction_sq_ft), 2);
+            $additionalData['waste'] = round(($additionalData['quantity'] * ($additionalData['material']['waste']/100)), 2);
+            $additionalData['sq_ft'] = round(($additionalData['quantity'] + $additionalData['waste']), 2);
+            $additionalData['units'] = round(($additionalData['sq_ft']*($additionalData['quantity']/$additionalData['measuring'])), 2);
+            $additionalData['cost_ea'] = round(($additionalData['material']['prices']), 2);
+            $additionalData['cost'] = round(($additionalData['units'] * $additionalData['cost_ea']), 2);
+            $additionalData['tax'] = round(($additionalData['cost'] * ($project['tax']/100)), 2);
+            $additionalData['cost1'] = round(($additionalData['cost'] + $additionalData['tax']), 2);
+            $additionalData['days'] = ($additionalData['units'] > 0 && $quantity > 0 && $additionalData['material']['production_rate'] > 0)  ? ($additionalData['units']/$quantity)/$additionalData['material']['production_rate'] : 0;
+            $additionalData['cost_day'] = $crew_cost_total * $additionalData['days'];
+            $additionalData['burden'] = $percentage_total * $additionalData['days'];
+            $additionalData['lab_cost'] = $additionalData['cost_day'] + $additionalData['burden'];
+            $additionalData['sub_total'] = $additionalData['cost'] + $additionalData['cost1'] + $additionalData['lab_cost'] + $additionalData['cost2'];
+            $additionalData['oh'] = round(($additionalData['sub_total'] * ($project['oh']/100)), 2);
+            $additionalData['profit'] = round(($additionalData['sub_total'] * ($project['profit']/100)), 2);
+            $additionalData['weather'] = round(($additionalData['sub_total'] * ($project['weather']/100)), 2);
+            $additionalData['total'] = $additionalData['sub_total'] + $additionalData['oh'] + $additionalData['profit'];
+
+
+           $totalsDatasFinal[] = $additionalData;
+        }
+        $updatedFormData = $totalsDatasFinal;
+        //dd($updatedFormData);
+        return $updatedFormData;
+    }
+
+    public function addCrew($project_id)
+    {
+        $projectId = $project_id;
+        $laborClassId = 4;
+
+        // 1) Traer crews del proyecto
+        $crews = DB::table('crews')
+            ->where('project_id', $projectId)
+            ->select(['id', 'name', 'labor_info'])
+            ->get();
+
+        // 2) Recolectar labor_type_id desde todos los labor_info
+        $laborIds = [];
+
+        foreach ($crews as $crew) {
+            $laborInfoArray = json_decode($crew->labor_info ?? '[]', true);
+
+            if (!is_array($laborInfoArray)) {
+                $laborInfoArray = [];
+            }
+
+            foreach ($laborInfoArray as $item) {
+                $laborTypeId = isset($item['labor_type_id']) ? (int)$item['labor_type_id'] : 0;
+
+                if ($laborTypeId > 0) {
+                    $laborIds[] = $laborTypeId;
+                }
+            }
+        }
+
+        $laborIds = array_values(array_unique($laborIds));
+
+        // 3) Consultar labors (una sola vez) + filtro labor_class_id = 4
+        $laborsById = collect();
+
+        if (!empty($laborIds)) {
+            $labors = DB::table('labors')
+                ->where('labor_class_id', $laborClassId)
+                ->whereIn('id', $laborIds)
+                ->select(['id', 'cost_per_hour', 'burdens', 'total_cost'])
+                ->get();
+
+            $laborsById = $labors->keyBy('id');
+        }
+
+        // 4) Enriquecer labor_info por cada crew
+        $crewsEnriquecidas = [];
+
+        foreach ($crews as $crew) {
+            $laborInfoArray = json_decode($crew->labor_info ?? '[]', true);
+
+            if (!is_array($laborInfoArray)) {
+                $laborInfoArray = [];
+            }
+
+            $laborInfoEnriquecido = [];
+
+            foreach ($laborInfoArray as $item) {
+                $laborTypeId = isset($item['labor_type_id']) ? (int)$item['labor_type_id'] : 0;
+                $labor = $laborsById->get($laborTypeId);
+
+                $costPerHour  = $labor ? (float)$labor->cost_per_hour : 0;
+                $hoursPerDay  = isset($item['hours_per_day']) ? (float)$item['hours_per_day'] : 0;
+                $quantity     = isset($item['quantity']) ? (float)$item['quantity'] : 0;
+
+                $payPerDayPerPerson = $costPerHour * $hoursPerDay;
+
+                // Costo del crew para ese labor_type (por día)
+                $crewCost = $payPerDayPerPerson * $quantity;
+
+                // Agrega datos del labor (si existe)
+                $burdensArray = [];
+
+                if ($labor && !empty($labor->burdens)) {
+                    $decoded = json_decode($labor->burdens, true);
+                    $burdensArray = is_array($decoded) ? $decoded : [];
+                }
+
+                // Totales de burdens para este crewCost
+                $percentageTotal = 0;
+                $priceTotal = 0;
+
+                foreach ($burdensArray as $b) {
+                    $percentage = isset($b['percentage']) ? (float)$b['percentage'] : 0;
+                    $price      = isset($b['price']) ? (float)$b['price'] : 0;
+
+                    if ($percentage > 0) {
+                        $percentageTotal += $crewCost * ($percentage / 100);
+                    }
+
+                    if ($price > 0) {
+                        // Caso A: price es fijo por crew (por día)
+                        $priceTotal += $price;
+
+                        // Caso B (si price fuera por persona), usa esto en vez de lo de arriba:
+                        // $priceTotal += $price * $quantity;
+                    }
+                }
+
+                $item['cost_per_hour'] = $labor ? (float)$labor->cost_per_hour : 0;
+                $item['burdens']       = $burdensArray; // <-- ahora es array
+                $item['total_cost']    = $labor ? (float)$labor->total_cost : 0;
+                $item['pay_per_day']   = round($payPerDayPerPerson, 2);
+                $item['crew_cost']     = round($crewCost, 2);
+                $item['percentage_total']   = round($percentageTotal, 2);
+                $item['price_total']        = round($priceTotal, 2);
+
+
+                $laborInfoEnriquecido[] = $item;
+            }
+
+            $crewsEnriquecidas[] = [
+                'crew_id'    => $crew->id,
+                'crew_name'  => $crew->name,
+                'labor_info' => $laborInfoEnriquecido,
+            ];
+        }
+
+        return $crewsEnriquecidas;
     }
     function agruparMaterialesPorId($materiales)
     {
@@ -1703,6 +1891,24 @@ class WallController extends Controller
                         'total' => 0,
                         'measuring' => 0,
                         'quantity' => 0,
+
+                        'waste'      => 0,
+                        'sq_ft'      => 0,
+                        'units'      => 0,
+                        'cost_ea'    => 0,
+                        'cost'       => 0,
+                        'tax'        => 0,
+                        'cost1'      => 0,
+                        'cost_day'   => 0,
+                        'burden'     => 0,
+                        'lab_cost'   => 0,
+                        'days'       => 0,
+                        'cost2'      => 0,
+                        'sub_total'  => 0,
+                        'oh'         => 0,
+                        'profit'     => 0,
+                        'weather'     => 0,
+                        'total'      => 0,
                     ];
                 }
 
@@ -1710,6 +1916,25 @@ class WallController extends Controller
                 $resultadosAgrupados[$id]['total'] += isset($material->total) ? $material->total : 0;
                 $resultadosAgrupados[$id]['measuring'] += isset($material->measuring) ? $material->measuring : 0;
                 $resultadosAgrupados[$id]['quantity'] += isset($material->quantity) ? $material->quantity : 0;
+
+                $resultadosAgrupados[$id]['waste']     += (float) ($material->waste ?? 0);
+                $resultadosAgrupados[$id]['sq_ft']     += (float) ($material->sq_ft ?? 0);
+                $resultadosAgrupados[$id]['units']     += (float) ($material->units ?? 0);
+
+                $resultadosAgrupados[$id]['cost_ea']   += (float) ($material->cost_ea ?? 0);
+                $resultadosAgrupados[$id]['cost']      += (float) ($material->cost ?? 0);
+                $resultadosAgrupados[$id]['tax']       += (float) ($material->tax ?? 0);
+                $resultadosAgrupados[$id]['cost1']     += (float) ($material->cost1 ?? 0);
+                $resultadosAgrupados[$id]['cost_day']  += (float) ($material->cost_day ?? 0);
+                $resultadosAgrupados[$id]['burden']    += (float) ($material->burden ?? 0);
+                $resultadosAgrupados[$id]['lab_cost']  += (float) ($material->lab_cost ?? 0);
+                $resultadosAgrupados[$id]['days']      += (float) ($material->days ?? 0);
+                $resultadosAgrupados[$id]['cost2']     += (float) ($material->cost2 ?? 0);
+                $resultadosAgrupados[$id]['sub_total'] += (float) ($material->sub_total ?? 0);
+                $resultadosAgrupados[$id]['oh']        += (float) ($material->oh ?? 0);
+                $resultadosAgrupados[$id]['profit']    += (float) ($material->profit ?? 0);
+                $resultadosAgrupados[$id]['weather']    += (float) ($material->profit ?? 0);
+                $resultadosAgrupados[$id]['total']     += (float) ($material->total ?? 0);
             }
         }
 
@@ -1717,35 +1942,176 @@ class WallController extends Controller
     }
     function generarTablaHtml($materialesAgrupados)
     {
-        // Comienzo de la tabla
-        $html = '<table border="1" cellpadding="5" cellspacing="0">';
-        $html .= '<thead>
-                <tr>
-                    <th>ID Material</th>
-                    <th>Material</th>
-                    <th>Measuring</th>
-                    <th>Quantity</th>
-                    <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>';
+        // Helpers locales
+        $num = function ($v) {
+            return is_numeric($v) ? (float)$v : 0.0;
+        };
 
-        // Generar filas para cada material
+        // Columnas a sumar (todas las numéricas que imprimes)
+        $sumCols = [
+            'measuring', 'quantity', 'waste', 'sq_ft', 'units',
+            'cost_ea', 'cost', 'tax', 'cost1',
+            'cost_day', 'burden', 'lab_cost', 'days',
+            'cost2', 'sub_total', 'oh', 'profit', 'weather', 'total'
+        ];
+
+        // Inicializa totales
+        $totals = array_fill_keys($sumCols, 0.0);
+
+        // Estilos (sin depender de tu layout; si ya tienes Bootstrap, se verá mejor)
+        $html = '
+        <style>
+            .xeon-table-wrap { width: 100%; overflow: auto; border: 1px solid #e9ecef; border-radius: 10px; }
+            .xeon-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1400px; }
+            .xeon-table thead th {
+                position: sticky; top: 0; z-index: 2;
+                background: #f8f9fa; border-bottom: 1px solid #e9ecef;
+                padding: 10px 12px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: .02em;
+                white-space: nowrap;
+            }
+            .xeon-table tbody td, .xeon-table tfoot td {
+                padding: 10px 12px; border-bottom: 1px solid #f1f3f5; vertical-align: middle;
+                background: #fff;
+            }
+            .xeon-table tbody tr:nth-child(odd) td { background: #fcfcfd; }
+            .xeon-table td.text-end, .xeon-table th.text-end { text-align: right; }
+            .xeon-table td.text-center, .xeon-table th.text-center { text-align: center; }
+            .xeon-table .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+            .xeon-table .material-cell { max-width: 320px; }
+            .xeon-table .material-name { font-weight: 700; display: block; }
+            .xeon-table .material-id { color: #6c757d; font-size: 12px; display: block; margin-top: 2px; }
+            .xeon-table tfoot td {
+                position: sticky; bottom: 0; z-index: 1;
+                background: #eef2ff;
+                border-top: 2px solid #dbe4ff;
+                font-weight: 800;
+                white-space: nowrap;
+            }
+            .xeon-badge {
+                display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px;
+                background:#e7f5ff; color:#1c7ed6; border:1px solid #d0ebff;
+            }
+            .xeon-table th.col-id,
+            .xeon-table td.col-id{
+            width: 60px;
+            max-width: 60px;
+            min-width: 60px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 8px;
+            white-space: nowrap;
+            }
+
+            /* Aún más chico en pantallas grandes */
+            @media (min-width: 992px){
+            .xeon-table th.col-id,
+            .xeon-table td.col-id{
+                width: 50px;
+                max-width: 50px;
+                min-width: 50px;
+                font-size: 11px;
+            }
+            }
+        </style>';
+
+        $html .= '<div class="xeon-table-wrap">';
+        $html .= '<table class="xeon-table">';
+        $html .= '<thead>
+            <tr>
+                <th class="col-id">ID Material</th>
+                <th>Material</th>
+                <th class="text-end">Measuring</th>
+                <th class="text-end">Quantity</th>
+                <th class="text-end">Waste</th>
+                <th class="text-end">SQ FT</th>
+                <th class="text-end">Units</th>
+                <th class="text-end">Cost ea</th>
+                <th class="text-end">Cost</th>
+                <th class="text-end">Tax</th>
+                <th class="text-end">Cost</th>
+                <th class="text-end">Cost/day</th>
+                <th class="text-end">Burden</th>
+                <th class="text-end">Lab Cost</th>
+                <th class="text-end">Days</th>
+                <th class="text-end">Cost</th>
+                <th class="text-end">Sub Total</th>
+                <th class="text-end">OH</th>
+                <th class="text-end">Profit</th>
+                <th class="text-end">Weather</th>
+                <th class="text-end">Total</th>
+            </tr>
+        </thead>
+        <tbody>';
+
         foreach ($materialesAgrupados as $idMaterial => $datos) {
-            $datos['material'] = (object)$datos['material'];
+
+            $material = (object)($datos['material'] ?? []);
+            $measurementUnit = $material->measurement_unit ?? '';
+
+            // Sumar totales por columna
+            foreach ($sumCols as $col) {
+                $totals[$col] += $num($datos[$col] ?? 0);
+            }
+
             $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($idMaterial) . '</td>';
-            $html .= '<td>' . htmlspecialchars($datos['material']->name) . " " . htmlspecialchars($datos['material']->unique_id) . '</td>';
-            $html .= '<td>' . number_format($datos['measuring'], 2) . " " . htmlspecialchars($datos['material']->measurement_unit) . '</td>';
-            $html .= '<td>' . number_format($datos['quantity'], 2) . '</td>';
-            $html .= '<td>' . number_format($datos['total'], 2) . '</td>';
+            $html .= '<td class="col-id">' . htmlspecialchars((string)$idMaterial) . '</td>';
+
+            $matName = trim(($material->name ?? '') . ' ' . ($material->unique_id ?? ''));
+            $html .= '<td class="material-cell">
+                        <span class="material-name">' . htmlspecialchars($matName) . '</span>
+                    </td>';
+
+            $html .= '<td class="text-end mono">' . number_format($num($datos['measuring'] ?? 0), 2) . ' '. htmlspecialchars((string)$measurementUnit) .'</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['quantity'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['waste'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['sq_ft'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['units'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['cost_ea'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['cost'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['tax'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['cost1'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['cost_day'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['burden'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['lab_cost'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['days'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['cost2'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['sub_total'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['oh'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['profit'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['weather'] ?? 0), 2) . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['total'] ?? 0), 2) . '</td>';
             $html .= '</tr>';
         }
 
-        // Cierre de la tabla
-        $html .= '</tbody></table>';
+        $html .= '</tbody>';
 
-        // Devolver el HTML generado
+        // Fila FINAL de totales
+        $html .= '<tfoot><tr>';
+        $html .= '<td class="text-center mono" colspan="2">TOTAL</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['measuring'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['quantity'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['waste'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['sq_ft'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['units'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['cost_ea'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['cost'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['tax'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['cost1'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['cost_day'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['burden'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['lab_cost'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['days'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['cost2'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['sub_total'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['oh'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['profit'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['weather'], 2) . '</td>';
+        $html .= '<td class="text-end mono">' . number_format($totals['total'], 2) . '</td>';
+        $html .= '</tr></tfoot>';
+
+        $html .= '</table></div>';
+
         return $html;
     }
 
@@ -1764,6 +2130,20 @@ class Total_Material
     public $waste;
     public $total;
     public $principal = false;
+    public $sq_ft;
+    public $cost_ea;
+    public $cost;
+    public $tax;
+    public $cost1;
+    public $cost_day;
+    public $burden;
+    public $lab_cost;
+    public $days;
+    public $cost2;
+    public $sub_total;
+    public $oh;
+    public $profit;
+    public $weather;
 }
 
 // class Material

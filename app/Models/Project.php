@@ -60,7 +60,11 @@ class Project extends Model
         'owning_office',
         'scope',
         'folder',
-        'files'
+        'files',
+        'tax',
+        'oh',
+        'profit',
+        'weather',
     ];
     function invitedUser(){
         return $this->hasMany(InviteProject::class, 'project_id');

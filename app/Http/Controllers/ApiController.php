@@ -43,6 +43,7 @@ use Illuminate\Support\Facades\Validator;   // si validas
 use App\Models\CourseBand;   
 use Illuminate\Support\Arr; 
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class ApiController extends Controller
@@ -1044,15 +1045,12 @@ class ApiController extends Controller
         }
 
         // Guardar PDF recortado
-        $pdf->Output($outputPdf, 'F');
+        $pdf->Output( 'F', $outputPdf);
 
         return $outputPdf;
     }
 
-
-
-    // ============================
-    //   PLAN UPLOAD (PDF RECORTADO)
+    //   PLAN UPLOAD (PDF YA RECORTADO EN FRONT)
     // ============================
     public function plan_upload(Request $request)
     {
@@ -1068,7 +1066,6 @@ class ApiController extends Controller
 
         try {
             $project_id = $request->post('project_id');
-            $pages = json_decode($request->post('pages', '[]'), true);
             $file = $request->file('file');
 
             // Carpeta destino
@@ -1078,34 +1075,27 @@ class ApiController extends Controller
                 File::makeDirectory($directory, 0777, true, true);
             }
 
-            // Nombre temporal para el PDF original
-            $tempPdfName = "temp_" . time() . "_" . $file->getClientOriginalName();
-            $tempPdfPath = $directory . $tempPdfName;
+            // ✅ Nombre final = nombre original del PDF
+            $originalName = $file->getClientOriginalName();
 
-            // Guardarlo temporalmente SOLO para recortar
-            $file->move($directory, $tempPdfName);
+            // (opcional pero recomendado) sanitiza nombre para Windows/servidor
+            $safeName = preg_replace('/[\\\\\\/\\:\\*\\?\\"\\<\\>\\|]+/', '-', $originalName);
 
-            // PDF final
-            $finalPdfName = "recortado_" . time() . ".pdf";
-            $finalPdfPath = $directory . $finalPdfName;
+            // Si quieres evitar colisiones (mismo nombre), agrega timestamp sin cambiar el nombre base:
+            // $safeName = pathinfo($safeName, PATHINFO_FILENAME) . '_' . time() . '.pdf';
 
-            // Recortar PDF (solo páginas seleccionadas)
-            $this->extractSelectedPages($tempPdfPath, $pages, $finalPdfPath);
+            $finalPdfPath = $directory . $safeName;
 
-            // Borrar PDF original inmediatamente
-            if (file_exists($tempPdfPath)) {
-                unlink($tempPdfPath);
-            }
+            // Guardar directo (sin FPDI)
+            $file->move($directory, $safeName);
 
             return response()->json([
-                'status' => 200,
-                'message' => "PDF recortado correctamente",
-                'pdf_path' => "uploads/projects/project{$project_id}/{$finalPdfName}",
-                'selected_pages' => $pages
+                'status'   => 200,
+                'message'  => "PDF recibido correctamente",
+                'pdf_path' => "uploads/projects/project{$project_id}/{$safeName}",
             ]);
 
         } catch (\Exception $e) {
-
             return response()->json([
                 'error' => $e->getMessage()
             ], 500);
@@ -2007,7 +1997,7 @@ class ApiController extends Controller
     public function listPlanImages(Request $request)
     {
         $projectId = $request->query('project');
-        $prefix = $request->query('prefix');
+        $prefix    = $request->query('prefix');
 
         if (!$projectId || !$prefix) {
             return response()->json([
@@ -2015,23 +2005,463 @@ class ApiController extends Controller
             ], 400);
         }
 
-        // Carpeta donde guardas tus imágenes
-        $folderPath = public_path("uploads/projects/project{$projectId}");
+        $folderPath = public_path("uploads/projects/project{$projectId}/thumb");
 
         if (!File::exists($folderPath)) {
             return response()->json([]);
         }
 
-        // Buscar archivos: A1-page-1.png, A1-page-2.png...
-        $pattern = $folderPath . '/' . $prefix . '-page-*.png';
-        $files = glob($pattern);
+        // Trae TODO lo que empiece con el prefix, sin asumir formato
+        $files = glob($folderPath . '/' . $prefix . '*.png') ?: [];
 
-        // Convertir a rutas relativas para React
-        $result = array_map(function ($path) {
-            return str_replace(public_path(), '', $path);
-        }, $files);
+        $rows = [];
+
+        foreach ($files as $path) {
+            $base = basename($path);
+
+            // ✅ Tu regla de orden: siempre por "__P{n}" al final
+            // Ej: "...__P1.png"
+            $page = PHP_INT_MAX;
+            if (preg_match('/__P(\d+)\.png$/i', $base, $m)) {
+                $page = (int)$m[1];
+            }
+
+            $rows[] = [
+                'page' => $page,
+                'path' => $path,
+            ];
+        }
+
+        // Orden numérico por página
+        usort($rows, function ($a, $b) {
+            return $a['page'] <=> $b['page'];
+        });
+
+        // Devuelve rutas relativas para React
+        $result = array_map(function ($row) {
+            return ltrim(str_replace(public_path(), '', $row['path']), '/\\');
+        }, $rows);
 
         return response()->json($result);
     }
+
+    private function sanitizeForFilename(string $s): string
+    {
+        $s = trim(preg_replace('/\s+/', ' ', $s));
+        $s = preg_replace('/[\\\\\/:\*\?"<>\|]/', '-', $s);
+        return trim($s);
+    }
+
+    private function projectDir(string $projectId): string
+    {
+        $pid = $this->sanitizeForFilename($projectId);
+        return public_path("uploads/projects/project{$pid}");
+    }
+
+    private function ensureDir(string $dir): void
+    {
+        if (!File::isDirectory($dir)) {
+            File::makeDirectory($dir, 0777, true, true);
+        }
+    }
+
+    private function getPageIndexFromFilename(string $filename): int
+    {
+        // Busca "__P12.png" al final
+        if (preg_match('/__P(\d+)\.png$/i', $filename, $m)) {
+            return (int)$m[1];
+        }
+        return PHP_INT_MAX;
+    }
+
+    // =========================================================
+    // 1) ANALYZE: PDF completo -> GPT -> [{page, code, source}]
+    // =========================================================
+    public function analyzePdf(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:pdf',
+            'project_id' => 'nullable'
+        ]);
+
+        $pdf = $request->file('file');
+        $pdfName = $pdf->getClientOriginalName() ?: 'document.pdf';
+        $pdfBytes = file_get_contents($pdf->getRealPath());
+
+        $prompt = <<<PROMPT
+        Analiza el documento PDF proporcionado.
+
+        Es un proyecto de planos de arquitectura.
+        Cada página (lámina) tiene UN SOLO código que la identifica
+        (número de plano o nombre de la lámina).
+
+        Para CADA página:
+        1. Identifica el código principal de la lámina.
+        2. El código suele encontrarse en el title block.
+        3. Elige SOLO UN código por página (el más representativo).
+        4. Si hay varios textos similares, selecciona el más probable como identificador.
+        5. Si no existe un código claro, devuelve null.
+        6. No inventes códigos.
+        7. No repitas códigos entre páginas.
+
+        Devuelve ÚNICAMENTE un JSON con este formato exacto:
+
+        [
+        {
+            "page": 1,
+            "code": "A-101",
+            "source": "text|ocr|mixed"
+        }
+        ]
+
+        No incluyas explicaciones ni texto adicional.
+        PROMPT;
+
+        // OpenAI Chat Completions (con archivo no siempre soporta "input_file" aquí).
+        // En Laravel lo más estable es usar OpenAI Responses API.
+        // Si tu cuenta no soporta Responses con input_file por HTTP directo, te doy fallback más abajo.
+
+        try {
+            $apiKey = config('services.openai.key');
+            if (!$apiKey) {
+                return response()->json(['error' => 'OPENAI key no configurada'], 500);
+            }
+
+            // ============================================================
+            // RESPONSES API (recomendado)
+            // Enviamos el PDF como "base64" dentro del JSON.
+            // ============================================================
+            $pdfB64 = base64_encode($pdfBytes);
+            $pdfDataUrl = "data:application/pdf;base64,{$pdfB64}";
+
+            $payload = [
+                'model' => 'gpt-5-nano',
+                'input' => [
+                    [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                        'type' => 'input_file',
+                        'filename' => $pdfName,
+                        'file_data' => $pdfDataUrl, // ✅ ESTE ES EL BUENO
+                        ],
+                        [
+                        'type' => 'input_text',
+                        'text' => $prompt,
+                        ],
+                    ],
+                    ],
+                ],
+            ];
+
+            $resp = Http::withToken($apiKey)
+            ->timeout(120)
+            ->post('https://api.openai.com/v1/responses', $payload);
+
+            if (!$resp->ok()) {
+                return response()->json([
+                    'error' => 'OpenAI error',
+                    'status' => $resp->status(),
+                    'body' => $resp->json(),
+                ], 500);
+            }
+
+            $data = $resp->json();
+
+            $outputText = $this->extractResponseText($data);
+
+            if ($outputText === '') {
+                return response()->json([
+                    'error' => 'Respuesta IA vacía',
+                    'raw' => $data,
+                ], 500);
+            }
+
+            $maybeJson = trim($outputText);
+
+            // 1) Si viene como string con comillas y escapes, quítale el envoltorio
+            // Ej: "\"[{\\\"page\\\":1}]\""  o  "\"{\\\"page\\\":1}\""
+            if (
+                (str_starts_with($maybeJson, '"') && str_ends_with($maybeJson, '"')) ||
+                (str_starts_with($maybeJson, "'") && str_ends_with($maybeJson, "'"))
+            ) {
+                $maybeJson = substr($maybeJson, 1, -1);
+            }
+
+            // 2) Des-escapar \" \n \t etc
+            $maybeJson = stripcslashes($maybeJson);
+            $maybeJson = trim($maybeJson);
+
+            // 3) Si el modelo devolvió objetos sueltos "{...},{...}" sin []
+            // o devolvió varios objetos pegados, envuélvelo como array
+            if (!str_starts_with($maybeJson, '[')) {
+                // Si parece una lista de objetos separados por "},{" o "}, {"
+                if (str_contains($maybeJson, '},{') || str_contains($maybeJson, '}, {')) {
+                    $maybeJson = '[' . $maybeJson . ']';
+                }
+            }
+
+            // 4) Si viene con texto alrededor, extrae el primer bloque array [...]
+            if (!preg_match('/\[[\s\S]*\]/', $maybeJson, $m)) {
+                return response()->json([
+                    'error' => 'No se encontró JSON en la respuesta',
+                    'raw' => \Illuminate\Support\Str::limit($maybeJson, 2000),
+                ], 500);
+            }
+
+            $maybeJson = $m[0];
+
+            // 5) Decode final
+            $parsed = json_decode($maybeJson, true);
+
+            if (!is_array($parsed)) {
+                return response()->json([
+                    'error' => 'JSON inválido (no se pudo decodificar)',
+                    'raw' => \Illuminate\Support\Str::limit($maybeJson, 2000),
+                    'json_error' => json_last_error_msg(),
+                ], 500);
+            }
+
+            // 3) Normaliza fila por fila (solo arrays)
+            $out = [];
+
+            foreach ($parsed as $row) {
+                if (!is_array($row)) {
+                    // Si viene algo raro, lo ignoramos
+                    continue;
+                }
+
+                $page = isset($row['page']) ? (int)$row['page'] : null;
+
+                $code = $row['code'] ?? null;
+                if ($code !== null) {
+                    $code = $this->sanitizeForFilename((string)$code);
+                    if ($code === '') $code = null;
+                }
+
+                $source = $row['source'] ?? 'mixed';
+                $source = $this->sanitizeForFilename((string)$source);
+                if ($source === '') $source = 'mixed';
+
+                $out[] = [
+                    'page' => $page,
+                    'code' => $code,
+                    'source' => $source,
+                ];
+            }
+
+            return response()->json($out);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Error analizando PDF',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function extractResponseText(array $data): string
+    {
+        // 1) Si viene output_text, úsalo
+        if (!empty($data['output_text']) && is_string($data['output_text'])) {
+            return trim($data['output_text']);
+        }
+
+        // 2) Busca el primer item type=message y concatena content[].text
+        $out = '';
+
+        if (!empty($data['output']) && is_array($data['output'])) {
+            foreach ($data['output'] as $item) {
+                if (!is_array($item)) continue;
+                if (($item['type'] ?? '') !== 'message') continue;
+
+                $content = $item['content'] ?? [];
+                if (!is_array($content)) continue;
+
+                foreach ($content as $c) {
+                    if (!is_array($c)) continue;
+
+                    // Normalmente viene: { type: "output_text", text: "..." }
+                    if (!empty($c['text']) && is_string($c['text'])) {
+                        $out .= $c['text'];
+                    }
+
+                    // Otros formatos posibles
+                    if (!empty($c['type']) && $c['type'] === 'output_text' && !empty($c['text'])) {
+                        $out .= $c['text'];
+                    }
+                }
+            }
+        }
+
+        return trim($out);
+    }
+
+    // =========================================================
+    // 2) UPLOAD: guarda PDF recortado + PNGs ya generados
+    // =========================================================
+    public function uploadPdfPngs(Request $request)
+    {
+        $request->validate([
+            'project_id' => 'required',
+            'file' => 'required|file|mimes:pdf',
+            'pngs' => 'nullable|array',
+            'pngs.*' => 'file|mimes:png',
+            'page_codes' => 'nullable|string',
+        ]);
+
+        $projectId = (string)$request->input('project_id');
+        $dir = $this->projectDir($projectId);
+        $this->ensureDir($dir);
+
+        // Guarda PDF (recortado)
+        $pdf = $request->file('file');
+        $pdfName = $this->sanitizeForFilename($pdf->getClientOriginalName() ?: 'document.pdf');
+        $pdf->move($dir, $pdfName);
+
+        // Guarda PNGs (ya renombrados en frontend)
+        $saved = [];
+        if ($request->hasFile('pngs')) {
+            foreach ($request->file('pngs') as $png) {
+                $pngName = $this->sanitizeForFilename($png->getClientOriginalName() ?: uniqid('page_') . '.png');
+                if (!Str::endsWith(Str::lower($pngName), '.png')) continue;
+
+                $png->move($dir, $pngName);
+                $saved[] = "uploads/projects/project{$this->sanitizeForFilename($projectId)}/{$pngName}";
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'project_id' => $projectId,
+            'pdf_saved_as' => "uploads/projects/project{$this->sanitizeForFilename($projectId)}/{$pdfName}",
+            'pngs_saved' => $saved
+        ]);
+    }
+
+    public function uploadPngChunk(Request $request)
+    {
+        $request->validate([
+            'project_id' => 'required',
+            'pdf_name'   => 'required|string',
+            'pages'      => 'required|string', // JSON: [1,2,3...]
+            'pngs'       => 'required',
+            'pngs.*'     => 'file|mimes:png|max:20480', // 20MB c/u (ajusta)
+        ]);
+
+        $projectId = (string)$request->project_id;
+
+        $pdfName = $request->input('pdf_name');
+        $pdfBase = preg_replace('/\.pdf$/i', '', $pdfName);
+        $pdfBase = $this->sanitizeForFilename($pdfBase);
+
+        $outDir = public_path("uploads/projects/project{$projectId}/thumb");
+        if (!File::isDirectory($outDir)) {
+            File::makeDirectory($outDir, 0777, true, true);
+        }
+
+        $saved = [];
+
+        foreach ($request->file('pngs', []) as $file) {
+            // Conserva el nombre que mandó el frontend (ya viene con código)
+            $name = $this->sanitizeForFilename($file->getClientOriginalName());
+
+            // seguridad: si por alguna razón viene vacío
+            if ($name === '') {
+                $name = $pdfBase . '__UNKNOWN__' . uniqid() . '.png';
+            }
+
+            $file->move($outDir, $name);
+            $saved[] = "uploads/projects/project{$projectId}/thumb/{$name}";
+        }
+
+        return response()->json([
+            'ok' => true,
+            'saved' => $saved,
+        ]);
+    }
+
+    public function fullExists(Request $request)
+    {
+        $projectId = $request->query('project_id');
+        $file = $request->query('file');
+
+        //dd('HIT fullExists');
+
+        if (!$projectId || !$file) {
+            return response()->json(['exists' => false], 400);
+        }
+
+        $safe = $this->sanitizeForFilename($file);
+        $path = public_path("uploads/projects/project{$projectId}/full/{$safe}");
+
+        return response()->json(['exists' => File::exists($path)]);
+    }
+
+    public function uploadFullPage(Request $request)
+    {
+        $request->validate([
+            'project_id' => 'required',
+            'png'        => 'required|file|mimes:png|max:51200',
+        ]);
+
+        $projectId = (string)$request->project_id;
+
+        $outDir = public_path("uploads/projects/project{$projectId}/full");
+        if (!File::isDirectory($outDir)) {
+            File::makeDirectory($outDir, 0777, true, true);
+        }
+
+        $file = $request->file('png');
+        $name = $this->sanitizeForFilename($file->getClientOriginalName());
+
+        $file->move($outDir, $name);
+
+        return response()->json([
+            'ok' => true,
+            'path' => "uploads/projects/project{$projectId}/full/{$name}",
+        ]);
+    }
+
+    // =========================================================
+    // 3) LIST: lista PNGs existentes para FileView
+    //     GET /api/list-plan-images?project=123&prefix=Plano
+    // =========================================================
+    /*public function listPlanImages(Request $request)
+    {
+        $project = (string)$request->query('project', '');
+        $prefix = (string)$request->query('prefix', '');
+
+        if ($project === '' || $prefix === '') {
+            return response()->json(['error' => 'project y prefix son requeridos'], 400);
+        }
+
+        $dir = $this->projectDir($project);
+        if (!File::isDirectory($dir)) {
+            return response()->json([]);
+        }
+
+        $prefixSafe = $this->sanitizeForFilename($prefix);
+
+        $files = collect(File::files($dir))
+            ->filter(function ($f) use ($prefixSafe) {
+                $name = $f->getFilename();
+                return Str::endsWith(Str::lower($name), '.png') && Str::startsWith($name, $prefixSafe . '__');
+            })
+            ->map(fn($f) => $f->getFilename())
+            ->sort(function ($a, $b) {
+                return $this->getPageIndexFromFilename($a) <=> $this->getPageIndexFromFilename($b);
+            })
+            ->values()
+            ->all();
+
+        $pid = $this->sanitizeForFilename($project);
+
+        $paths = array_map(function ($name) use ($pid) {
+            return "uploads/projects/project{$pid}/{$name}";
+        }, $files);
+
+        return response()->json($paths);
+    }*/
 
 }

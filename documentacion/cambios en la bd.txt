@@ -99,3 +99,11 @@ ALTER TABLE course_band
   DROP COLUMN fill_material,
   DROP COLUMN rebar_material,
   DROP COLUMN rebar_overlap;
+
+
+
+
+ALTER TABLE meco_db.projects
+  ADD COLUMN tax DOUBLE NOT NULL DEFAULT 0,
+  ADD COLUMN oh DOUBLE NOT NULL DEFAULT 0,
+  ADD COLUMN profit DOUBLE NOT NULL DEFAULT 0;

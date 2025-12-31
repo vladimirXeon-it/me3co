@@ -8,6 +8,8 @@ use GroceryCrud\Core\GroceryCrud;
 use App\Http\Controllers\Admin\Concerns\BuildsCrud;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class MaterialsCrudController extends Controller
 {
@@ -15,68 +17,100 @@ class MaterialsCrudController extends Controller
 
     public function index(Request $request)
     {
-        $viewData = $this->renderCrud($request, function (GroceryCrud $crud) {
+        try {
 
-            // ===== CONFIGURACIÓN DEL CRUD =====
+            $viewData = $this->renderCrud($request, function (GroceryCrud $crud) {
 
-            $crud->setTable('materials');
-            $crud->setSubject('Material', 'Materials');
+                $crud->setTable('materials');
+                $crud->setSubject('Material', 'Materials');
 
-            $crud->unsetExport();
-            $crud->unsetPrint();
-            $crud->unsetColumnsButton();
-            $crud->unsetSettings();
-            $crud->unsetFilters();
-            $crud->unsetAdd();
-            $crud->unsetEdit();
+                $crud->unsetExport();
+                $crud->unsetPrint();
+                $crud->unsetColumnsButton();
+                $crud->unsetSettings();
+                $crud->unsetFilters();
+                $crud->unsetAdd();
+                $crud->unsetEdit();
 
-            $columns = [
-                'id', 'unique_id', 'name', 'material_division_id', 'material_class_id',
-                'default_unit', 'measurement_unit', 'waste', 'production_rate', 'created_at'
-            ];
+                // ✅ OJO: si esto te da 500 por “undefined method”, quítalo del CRUD
+                // y pon el botón en la vista blade mejor.
+                // $crud->setActionButton('New Material', route('admin.material.form.create'), false, 'fa fa-plus');
+            });
 
-            if (!Schema::hasColumn('materials', 'created_at')) {
-                $columns = array_diff($columns, ['created_at']);
+            // 1) Si renderCrud devuelve una respuesta (redirect/response), respétala
+            if ($viewData instanceof \Symfony\Component\HttpFoundation\Response) {
+                return $viewData;
             }
 
-            $crud->columns(array_values($columns));
+            // 2) Si viene action=*, Grocery CRUD NECESITA JSON
+            if ($request->query('action')) {
+                return response()->json($viewData);
+            }
 
-            $crud->setActionButton('New Material', route('admin.material.form.create'), false, 'fa fa-plus');
+            // 3) Render normal (HTML)
+            // Asegura que lo que mandas a la vista sea array
+            $data = is_array($viewData) ? $viewData : [
+                'css_files' => $viewData->css_files ?? [],
+                'js_files'  => $viewData->js_files ?? [],
+                'output'    => $viewData->output ?? '',
+            ];
 
-            // TODO: tus callbacks (precios, repeaters, etc.)
-            // Aquí no modifico nada, funcionan igual.
+            return view('admin.material.material', $data);
 
-        });
+        } catch (Throwable $e) {
 
-        // ====== CORRECCIÓN CRÍTICA ======
-        // Grocery CRUD SÓLO ES FELIZ SI REGRESA JSON en AJAX
+            Log::error('Materials CRUD failed', [
+                'url' => $request->fullUrl(),
+                'action' => $request->query('action'),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
-        if (isset($viewData->isJSONResponse) && $viewData->isJSONResponse === true) {
-            return response()->json($viewData->data);
+            // Si era action=initial (ajax), responde JSON sí o sí
+            if ($request->query('action')) {
+                return response()->json([
+                    'message' => 'Internal Server Error',
+                    'details' => $e->getMessage(),
+                ], 500);
+            }
+
+            throw $e;
         }
-
-        // Para redirecciones internas de GC
-        if ($viewData instanceof \Illuminate\Http\RedirectResponse) {
-            return $viewData;
-        }
-
-        // ====== SALIDA NORMAL (HTML) ======
-        return view('admin.material.material', [
-            'css_files' => $viewData->css_files ?? [],
-            'js_files'  => $viewData->js_files ?? [],
-            'output'    => $viewData->output ?? '',
-        ]);
     }
 
     public function form(Request $request, $id = null)
     {
         $material = $id ? DB::table('materials')->where('id', $id)->first() : null;
 
-        $divisions = DB::table('material_divisions')->orderBy('name')->pluck('name', 'id')->toArray();
-        $classes   = DB::table('material_classes')->orderBy('name')->pluck('name', 'id')->toArray();
-        $types     = DB::table('material_types')->orderBy('name')->pluck('name', 'id')->toArray();
-        $units     = DB::table('units')->orderBy('unit')->pluck('unit', 'unit')->toArray();
-        $products  = DB::table('products')->orderBy('name')->pluck('name', 'id')->toArray();
+        $divisions = Schema::hasTable('material_divisions')
+            ? DB::table('material_divisions')->orderBy('name')->pluck('name', 'id')->toArray()
+            : [];
+
+        $classes = Schema::hasTable('material_classes')
+            ? DB::table('material_classes')->orderBy('name')->pluck('name', 'id')->toArray()
+            : [];
+
+        $types = Schema::hasTable('material_types')
+            ? DB::table('material_types')->orderBy('name')->pluck('name', 'id')->toArray()
+            : [];
+
+        $units = Schema::hasTable('units')
+            ? DB::table('units')->orderBy('unit')->pluck('unit', 'unit')->toArray()
+            : [];
+
+        // ✅ OJO: si "products" no existe en esta DB, NO revientes el modal
+        $products = [];
+
+        dd([
+            'material'  => $material,
+            'divisions' => $divisions,
+            'classes'   => $classes,
+            'types'     => $types,
+            'units'     => $units,
+            'products'  => $products,
+            'isModal'   => true,
+        ]);
 
         return view('admin.material.add', [
             'material'  => $material,
@@ -85,7 +119,7 @@ class MaterialsCrudController extends Controller
             'types'     => $types,
             'units'     => $units,
             'products'  => $products,
-            'isModal'   => true, // fuerza modo modal SIEMPRE
+            'isModal'   => true,
         ]);
     }
 

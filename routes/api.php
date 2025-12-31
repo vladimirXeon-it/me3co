@@ -45,7 +45,7 @@ Route::middleware('auth.token')->group(function() {
     Route::get('materials/{id}', [ApiController::class, 'materials']);
     Route::get('material/{id}', [ApiController::class, 'material']);
 
-    Route::post('plan/uploads', [ApiController::class, 'plan_upload']);
+    //Route::post('plan/uploads', [ApiController::class, 'plan_upload']);
     Route::get('plans/{id}', [ApiController::class, 'project_plans']);
 
     Route::post('plan/delete', [ApiController::class, 'delete_plans']);
@@ -83,5 +83,11 @@ Route::middleware('auth.token')->group(function() {
     Route::post('/pdf-to-png', [ApiController::class, 'convert']);
     Route::get('/groutBlock', [ApiController::class, 'searchGroutBlock']);
     Route::get('/list-plan-images', [ApiController::class, 'listPlanImages']);
+
+    Route::post('/pdf/analyze', [ApiController::class, 'analyzePdf']); 
+    Route::post('plan/uploads',      [ApiController::class, 'plan_upload']); 
+    Route::post('/plans/upload-png-chunk', [ApiController::class, 'uploadPngChunk']);
+    Route::post('/plan/upload-full-page', [ApiController::class, 'uploadFullPage']);
+    Route::get('/plan/fullExists', [ApiController::class, 'fullExists']);
 
 });
