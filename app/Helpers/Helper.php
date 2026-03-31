@@ -164,11 +164,11 @@ if (!function_exists('get_user_labors')) {
     {
         $labors = DB::table('labors')->where('user_id', Auth::id())->get();
         $idProject = session('idProject');
-        if($idProject)
+        /*if($idProject)
         {
              
             $labors = DB::table('labors')->where('user_id',  Auth::id())->where('project_id',  $idProject)->get();
-        }
+        }*/
         return $labors;
     }
 }

@@ -11,7 +11,17 @@
                 <div class="col-sm-12">
                     <div class="page-title-box">
                         <div class="row">
-                            <div class="col align-self-center">
+                            <div class="col align-items-center d-flex gap-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
+                                    onclick="goBack()"
+                                    aria-label="Go back"
+                                    title="Back"
+                                    style="line-height:1;"
+                                >
+                                    <i class="fa fa-reply"></i>
+                                </button>
                                 <h4 class="page-title pb-md-0">Crews  @if ($project!=null)
                                     for {{$project->name}}
                                  @endif</h4>
@@ -21,7 +31,7 @@
                             <div class="col-auto align-self-center">
                                 <ol class="breadcrumb">
                                     <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Crew</li>
+                                    <li class="breadcrumb-item active">Crew11</li>
                                 </ol>
                             </div>
                             <!--end col-->
@@ -157,6 +167,13 @@
 
 @section('script')
     <script>
+        function goBack() {
+            if (window.history.length > 1) {
+            window.history.back();
+            return;
+            }
+            window.location.href = "/projects"; // fallback
+        }
         $(document).ready(function(x) {
             //window.fs_test = $('.test').fSelect();
         })

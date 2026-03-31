@@ -45,6 +45,14 @@ use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Reader\Html as HtmlReader;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class ApiController extends Controller
 {
@@ -1030,16 +1038,16 @@ class ApiController extends Controller
 
             if ($pageNum > 0 && $pageNum <= $pageCount) {
 
-                // Importar página
+                // Importar pÃƒÆ’Ã‚Â¡gina
                 $tpl = $pdf->importPage($pageNum);
 
-                // Obtener tamaño de página
+                // Obtener tamaÃƒÆ’Ã‚Â±o de pÃƒÆ’Ã‚Â¡gina
                 $size = $pdf->getTemplateSize($tpl);
 
-                // Crear página nueva con el tamaño correspondiente
+                // Crear pÃƒÆ’Ã‚Â¡gina nueva con el tamaÃƒÆ’Ã‚Â±o correspondiente
                 $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
 
-                // Añadir contenido
+                // AÃƒÆ’Ã‚Â±adir contenido
                 $pdf->useTemplate($tpl);
             }
         }
@@ -1075,7 +1083,7 @@ class ApiController extends Controller
                 File::makeDirectory($directory, 0777, true, true);
             }
 
-            // ✅ Nombre final = nombre original del PDF
+            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Nombre final = nombre original del PDF
             $originalName = $file->getClientOriginalName();
 
             // (opcional pero recomendado) sanitiza nombre para Windows/servidor
@@ -1527,69 +1535,99 @@ class ApiController extends Controller
 
     public function CalculateData(Request $request)
     {
-        $procesado=false;
-        $data =  $request->all();
-        $projectId = $data['projectId'];
-        $templateName = $data['template_name'];
-        $tradeName = $data['trade_name'];
-        $type = ($data['type'] !== null) ? $data['type'] : "length";
-        // $formData =  $request->json()->all();
-        $formData = json_encode($data['formData']);
-        //var_dump($formData);
-        // dd($formData);
-        $user = auth()->user();
-        $userId = $user->id;
-        $existing_wall = Wall::where('user_id', $userId)
-            ->where('name', $templateName)
-            ->first();
-        // dd($checkTemplate);
+        try {
+            $procesado=false;
+            $data =  $request->all();
+            $projectId = $data['projectId'];
+            $templateName = $data['template_name'];
+            $tradeName = $data['trade_name'];
+            $type = ($data['type'] !== null) ? $data['type'] : "length";
+            // $formData =  $request->json()->all();
+            $formData = json_encode($data['formData']);
+            //var_dump($formData);
+            // dd($formData);
+            $user = auth()->user();
+            $userId = $user->id;
+            $existing_wall = Wall::where('user_id', $userId)
+                ->where('name', $templateName)
+                ->first();
+            // dd($checkTemplate);
 
-        // echo($data['formData']['additionalDatas']);
-        // $data->additionalDatas = json_decode($data['formData']['additionalDatas']);
-        $data['formData']['user_id'] = $userId;
-        $data['formData']['project_id'] = $projectId;
-        $data['formData']['type'] = $type;
-        $data['formData']['formData'] = $formData;
-
-        if (!isset($existing_wall->id)) {
-
-
-            $resultado =  Wall::create($data['formData']);
-        } else {
-            $resultado =  $existing_wall->update($data['formData']);
-        }
-        $existing_wall = Wall::where('user_id', $userId)
-            ->where('name', $templateName)
-            ->first();
-         
-        $wc =   new WallController;
-        $status = 200;
-
-        if (isset($existing_wall->id)) {
-            $resultado = $wc->recalculate($existing_wall->id);
-           
-            try {
-                //code...
-                $procesado=true;
-            } catch (\Throwable $th) {
-                //throw $th;
-                $status = 400;
-                $resultado = $th->getMessage();
-            }
-        } else {
+            // echo($data['formData']['additionalDatas']);
+            // $data->additionalDatas = json_decode($data['formData']['additionalDatas']);
+            $data['formData']['user_id'] = $userId;
+            $data['formData']['project_id'] = $projectId;
+            $data['formData']['type'] = $type;
+            $data['formData']['formData'] = $formData;
             
-            $resultado = $data['formData'];
+            try {
+                if (!isset($existing_wall->id)) {
+
+
+                    $resultado =  Wall::create($data['formData']);
+                } else {
+                    $resultado =  $existing_wall->update($data['formData']);
+                }
+            } catch (QueryException $e) {
+                // SQL + bindings (aquÃƒÆ’Ã‚Â­ estÃƒÆ’Ã‚Â¡ el error REAL)
+                return response()->json([
+                    'status' => 400,
+                    'error' => 'QueryException during save',
+                    'message' => $e->getMessage(),
+                    'sql' => $e->getSql(),
+                    'bindings' => $e->getBindings(),
+                ], 400);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'status' => 400,
+                    'error' => 'Throwable during save',
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ], 400);
+            }
+            $existing_wall = Wall::where('user_id', $userId)
+                ->where('name', $templateName)
+                ->first();
+            
+            $wc =   new WallController;
+            $status = 200;
+
+            if (isset($existing_wall->id)) {
+                $resultado = $wc->recalculate($existing_wall->id);
+            
+                try {
+                    //code...
+                    $procesado=true;
+                } catch (\Throwable $th) {
+                    //throw $th;
+                    $status = 400;
+                    $resultado = $th->getMessage();
+                }
+            } else {
+                
+                $resultado = $data['formData'];
+            }
+
+        
+
+            return json_encode([
+                'status' => $status,
+                'resultado' => $resultado,
+                'procesado' => $procesado,
+                'templateName' => $templateName,
+                'userId' => $userId,
+            ]);
+        } catch (\Throwable $e) {
+            // Catch final (por si truena antes)
+            return response()->json([
+                'status' => 500,
+                'error' => 'Unhandled exception',
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
         }
-
-      
-
-        return json_encode([
-            'status' => $status,
-            'resultado' => $resultado,
-            'procesado' => $procesado,
-            'templateName' => $templateName,
-            'userId' => $userId,
-        ]);
     }
 
     public function ObtenData(Request $request)
@@ -1605,6 +1643,7 @@ class ApiController extends Controller
         $userId = $user->id;
         $existing_wall = Wall::where('user_id', $userId)
             ->where('name', $tradeName)
+            ->orderByDesc('id')
             ->first();
         // dd($checkTemplate);
 
@@ -1615,6 +1654,7 @@ class ApiController extends Controller
 
         $existing_wall = Wall::where('user_id', $userId)
             ->where('name', $tradeName)
+            ->orderByDesc('id')
             ->first();
 
         $wc =   new WallController;
@@ -1684,7 +1724,7 @@ class ApiController extends Controller
             }
         }
 
-        // 🔹 Asegurar formato de fecha
+        // Asegurar formato de fecha
         if (isset($data['updated_at'])) {
             $data['updated_at'] = date('Y-m-d H:i:s', strtotime($data['updated_at']));
         } else {
@@ -1694,12 +1734,21 @@ class ApiController extends Controller
         $id = $data['id'];
         $row = \DB::table($table)->where('id', $id)->first();
 
+        // Si no existe por ID, pero la tabla es drawings e tiene path, buscamos por path
+        if (!$row && $table === 'drawings' && !empty($data['path'])) {
+            $rowByPath = \DB::table($table)->where('path', $data['path'])->first();
+            if ($rowByPath) {
+                // Si existe por path, actualizamos el ID al nuevo ID coordinado por el cliente
+                $row = $rowByPath;
+            }
+        }
+
         if ($row) {
-            if (strtotime($data['updated_at']) > strtotime($row->updated_at)) {
-                \DB::table($table)->where('id', $id)->update($data);
-                return response()->json(['status' => 'updated']);
+            if (strtotime($data['updated_at']) > strtotime($row->updated_at) || $row->id != $id) {
+                \DB::table($table)->where('id', $row->id)->update($data);
+                return response()->json(['status' => 'updated', 'previous_id' => $row->id, 'new_id' => $id]);
             } else {
-                return response()->json(['status' => 'skipped', 'reason' => 'Registro más reciente en servidor']);
+                return response()->json(['status' => 'skipped', 'reason' => 'Registro mas reciente en servidor']);
             }
         } else {
             \DB::table($table)->insert($data);
@@ -1791,7 +1840,7 @@ class ApiController extends Controller
             // serializa data a JSON para guardarlo
             $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE);
 
-            // ¿ya existe por (id_user, id_local)?
+            // Ãƒâ€šÃ‚Â¿ya existe por (id_user, id_local)?
             $existing = DB::table('course_band')
                 ->select('id')
                 ->where('id_user', $userId)
@@ -1842,7 +1891,7 @@ class ApiController extends Controller
 
     /**
      * PUT /api/course-bands/{id}
-     * Update directo por ID real de DB (útil si ya lo tienes en el front).
+     * Update directo por ID real de DB (ÃƒÆ’Ã‚Âºtil si ya lo tienes en el front).
      */
     public function api_course_bands_update(Request $request, $id)
     {
@@ -1871,10 +1920,10 @@ class ApiController extends Controller
         }
         $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE);
 
-        // si mandan id_local nuevo, úsalo; si no, conserva el actual
+        // si mandan id_local nuevo, ÃƒÆ’Ã‚Âºsalo; si no, conserva el actual
         $idLocalNew = $idLocal ? (string)$idLocal : $row->id_local;
 
-        // OJO: si cambias id_local, asegúrate de no romper el UNIQUE (id_user,id_local)
+        // OJO: si cambias id_local, asegÃƒÆ’Ã‚Âºrate de no romper el UNIQUE (id_user,id_local)
         DB::statement(
             "UPDATE course_band
             SET id_local = ?, data = CAST(? AS JSON), updated_at = ?
@@ -1890,6 +1939,53 @@ class ApiController extends Controller
                 'id_user'  => $userId,
                 'id_local' => $idLocalNew,
             ]
+        ]);
+    }
+
+    public function api_course_bands_show($id)
+    {
+        $userId = auth()->id();
+
+        $row = DB::table('course_band')
+            ->select('id', 'id_local', 'id_user', 'data', 'created_at', 'updated_at')
+            ->where('id', (int)$id)
+            ->where('id_user', $userId)
+            ->first();
+
+        if (!$row) {
+            return response()->json(['ok' => false, 'message' => 'No encontrado'], 404);
+        }
+
+        return response()->json($row);
+    }
+
+    /**
+     * DELETE /api/course-bands/{id}
+     * Elimina 1 registro por ID (solo si pertenece al usuario logueado).
+     */
+    public function api_course_bands_destroy($id)
+    {
+        $userId = auth()->id();
+
+        $row = DB::table('course_band')
+            ->select('id')
+            ->where('id', (int)$id)
+            ->where('id_user', $userId)
+            ->first();
+
+        if (!$row) {
+            return response()->json(['ok' => false, 'message' => 'No encontrado'], 404);
+        }
+
+        DB::table('course_band')
+            ->where('id', (int)$id)
+            ->where('id_user', $userId)
+            ->delete();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Eliminado',
+            'deleted_id' => (int)$id,
         ]);
     }
 
@@ -2019,7 +2115,7 @@ class ApiController extends Controller
         foreach ($files as $path) {
             $base = basename($path);
 
-            // ✅ Tu regla de orden: siempre por "__P{n}" al final
+            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Tu regla de orden: siempre por "__P{n}" al final
             // Ej: "...__P1.png"
             $page = PHP_INT_MAX;
             if (preg_match('/__P(\d+)\.png$/i', $base, $m)) {
@@ -2032,7 +2128,7 @@ class ApiController extends Controller
             ];
         }
 
-        // Orden numérico por página
+        // Orden numÃƒÆ’Ã‚Â©rico por pÃƒÆ’Ã‚Â¡gina
         usort($rows, function ($a, $b) {
             return $a['page'] <=> $b['page'];
         });
@@ -2092,19 +2188,19 @@ class ApiController extends Controller
         Analiza el documento PDF proporcionado.
 
         Es un proyecto de planos de arquitectura.
-        Cada página (lámina) tiene UN SOLO código que la identifica
-        (número de plano o nombre de la lámina).
+        Cada pÃƒÆ’Ã‚Â¡gina (lÃƒÆ’Ã‚Â¡mina) tiene UN SOLO cÃƒÆ’Ã‚Â³digo que la identifica
+        (nÃƒÆ’Ã‚Âºmero de plano o nombre de la lÃƒÆ’Ã‚Â¡mina).
 
-        Para CADA página:
-        1. Identifica el código principal de la lámina.
-        2. El código suele encontrarse en el title block.
-        3. Elige SOLO UN código por página (el más representativo).
-        4. Si hay varios textos similares, selecciona el más probable como identificador.
-        5. Si no existe un código claro, devuelve null.
-        6. No inventes códigos.
-        7. No repitas códigos entre páginas.
+        Para CADA pÃƒÆ’Ã‚Â¡gina:
+        1. Identifica el cÃƒÆ’Ã‚Â³digo principal de la lÃƒÆ’Ã‚Â¡mina.
+        2. El cÃƒÆ’Ã‚Â³digo suele encontrarse en el title block.
+        3. Elige SOLO UN cÃƒÆ’Ã‚Â³digo por pÃƒÆ’Ã‚Â¡gina (el mÃƒÆ’Ã‚Â¡s representativo).
+        4. Si hay varios textos similares, selecciona el mÃƒÆ’Ã‚Â¡s probable como identificador.
+        5. Si no existe un cÃƒÆ’Ã‚Â³digo claro, devuelve null.
+        6. No inventes cÃƒÆ’Ã‚Â³digos.
+        7. No repitas cÃƒÆ’Ã‚Â³digos entre pÃƒÆ’Ã‚Â¡ginas.
 
-        Devuelve ÚNICAMENTE un JSON con este formato exacto:
+        Devuelve ÃƒÆ’Ã…Â¡NICAMENTE un JSON con este formato exacto:
 
         [
         {
@@ -2117,9 +2213,9 @@ class ApiController extends Controller
         No incluyas explicaciones ni texto adicional.
         PROMPT;
 
-        // OpenAI Chat Completions (con archivo no siempre soporta "input_file" aquí).
-        // En Laravel lo más estable es usar OpenAI Responses API.
-        // Si tu cuenta no soporta Responses con input_file por HTTP directo, te doy fallback más abajo.
+        // OpenAI Chat Completions (con archivo no siempre soporta "input_file" aquÃƒÆ’Ã‚Â­).
+        // En Laravel lo mÃƒÆ’Ã‚Â¡s estable es usar OpenAI Responses API.
+        // Si tu cuenta no soporta Responses con input_file por HTTP directo, te doy fallback mÃƒÆ’Ã‚Â¡s abajo.
 
         try {
             $apiKey = config('services.openai.key');
@@ -2143,7 +2239,7 @@ class ApiController extends Controller
                         [
                         'type' => 'input_file',
                         'filename' => $pdfName,
-                        'file_data' => $pdfDataUrl, // ✅ ESTE ES EL BUENO
+                        'file_data' => $pdfDataUrl, // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ ESTE ES EL BUENO
                         ],
                         [
                         'type' => 'input_text',
@@ -2172,14 +2268,14 @@ class ApiController extends Controller
 
             if ($outputText === '') {
                 return response()->json([
-                    'error' => 'Respuesta IA vacía',
+                    'error' => 'Respuesta IA vacÃƒÆ’Ã‚Â­a',
                     'raw' => $data,
                 ], 500);
             }
 
             $maybeJson = trim($outputText);
 
-            // 1) Si viene como string con comillas y escapes, quítale el envoltorio
+            // 1) Si viene como string con comillas y escapes, quÃƒÆ’Ã‚Â­tale el envoltorio
             // Ej: "\"[{\\\"page\\\":1}]\""  o  "\"{\\\"page\\\":1}\""
             if (
                 (str_starts_with($maybeJson, '"') && str_ends_with($maybeJson, '"')) ||
@@ -2192,8 +2288,8 @@ class ApiController extends Controller
             $maybeJson = stripcslashes($maybeJson);
             $maybeJson = trim($maybeJson);
 
-            // 3) Si el modelo devolvió objetos sueltos "{...},{...}" sin []
-            // o devolvió varios objetos pegados, envuélvelo como array
+            // 3) Si el modelo devolviÃƒÆ’Ã‚Â³ objetos sueltos "{...},{...}" sin []
+            // o devolviÃƒÆ’Ã‚Â³ varios objetos pegados, envuÃƒÆ’Ã‚Â©lvelo como array
             if (!str_starts_with($maybeJson, '[')) {
                 // Si parece una lista de objetos separados por "},{" o "}, {"
                 if (str_contains($maybeJson, '},{') || str_contains($maybeJson, '}, {')) {
@@ -2204,7 +2300,7 @@ class ApiController extends Controller
             // 4) Si viene con texto alrededor, extrae el primer bloque array [...]
             if (!preg_match('/\[[\s\S]*\]/', $maybeJson, $m)) {
                 return response()->json([
-                    'error' => 'No se encontró JSON en la respuesta',
+                    'error' => 'No se encontrÃƒÆ’Ã‚Â³ JSON en la respuesta',
                     'raw' => \Illuminate\Support\Str::limit($maybeJson, 2000),
                 ], 500);
             }
@@ -2216,7 +2312,7 @@ class ApiController extends Controller
 
             if (!is_array($parsed)) {
                 return response()->json([
-                    'error' => 'JSON inválido (no se pudo decodificar)',
+                    'error' => 'JSON invÃƒÆ’Ã‚Â¡lido (no se pudo decodificar)',
                     'raw' => \Illuminate\Support\Str::limit($maybeJson, 2000),
                     'json_error' => json_last_error_msg(),
                 ], 500);
@@ -2262,7 +2358,7 @@ class ApiController extends Controller
 
     private function extractResponseText(array $data): string
     {
-        // 1) Si viene output_text, úsalo
+        // 1) Si viene output_text, ÃƒÆ’Ã‚Âºsalo
         if (!empty($data['output_text']) && is_string($data['output_text'])) {
             return trim($data['output_text']);
         }
@@ -2363,10 +2459,10 @@ class ApiController extends Controller
         $saved = [];
 
         foreach ($request->file('pngs', []) as $file) {
-            // Conserva el nombre que mandó el frontend (ya viene con código)
+            // Conserva el nombre que mandÃƒÆ’Ã‚Â³ el frontend (ya viene con cÃƒÆ’Ã‚Â³digo)
             $name = $this->sanitizeForFilename($file->getClientOriginalName());
 
-            // seguridad: si por alguna razón viene vacío
+            // seguridad: si por alguna razÃƒÆ’Ã‚Â³n viene vacÃƒÆ’Ã‚Â­o
             if ($name === '') {
                 $name = $pdfBase . '__UNKNOWN__' . uniqid() . '.png';
             }
@@ -2463,5 +2559,925 @@ class ApiController extends Controller
 
         return response()->json($paths);
     }*/
+
+    public function runQuery(Request $request)
+    {
+        $sql = trim((string) $request->input('query', ''));
+
+        if ($sql === '') {
+            return response()->json([
+                'ok' => false,
+                'error' => 'query is required',
+            ], 422);
+        }
+
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Solo SELECT (tambiÃƒÆ’Ã‚Â©n soporta WITH ... SELECT)
+        $normalized = strtoupper(preg_replace('/\s+/', ' ', $sql));
+
+        $startsOk = str_starts_with($normalized, 'SELECT ')
+            || str_starts_with($normalized, 'WITH ');
+
+        if (!$startsOk) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Only SELECT queries are allowed.',
+            ], 403);
+        }
+
+        // ÃƒÂ¢Ã‚ÂÃ…â€™ Bloqueos rÃƒÆ’Ã‚Â¡pidos (evita multi statements y comentarios)
+        if (str_contains($sql, ';') || str_contains($sql, '--') || str_contains($sql, '/*') || str_contains($sql, '*/')) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Invalid characters detected.',
+            ], 403);
+        }
+
+        // ÃƒÂ¢Ã‚ÂÃ…â€™ Keywords prohibidas
+        $forbidden = ['DELETE ', 'DROP ', 'TRUNCATE ', 'GRANT ', 'REVOKE '];
+        foreach ($forbidden as $kw) {
+            if (str_contains($normalized, $kw)) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'Forbidden keyword detected.',
+                ], 403);
+            }
+        }
+
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ params opcionales (recomendado)
+        $params = $request->input('params', []);
+        if (!is_array($params)) $params = [];
+
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ lÃƒÆ’Ã‚Â­mite de filas (si no trae LIMIT, lo agregamos)
+        $maxRows = 500;
+        if (!preg_match('/\bLIMIT\b/i', $sql)) {
+            $sql .= ' LIMIT ' . $maxRows;
+        }
+
+        try {
+            $rows = DB::select($sql, $params);
+
+            return response()->json([
+                'ok' => true,
+                'count' => count($rows),
+                'data' => $rows,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Query failed',
+                'message' => $e->getMessage(), // en producciÃƒÆ’Ã‚Â³n puedes ocultarlo
+            ], 500);
+        }
+    }
+
+    public function bulk(Request $request)
+    {
+        $path = trim((string)$request->input('path', ''));
+        $projectId = trim((string)$request->input('projectId', ''));
+
+        if ($path === '/' && $projectId !== '') {
+            $path = '/projects/project' . $projectId . '/';
+        }
+        
+        $basePath = $this->obtenerPathProyecto($path);
+        $projectId = trim((string)$request->input('projectId', ''));
+
+        if ($basePath === '') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Missing path',
+                'reports' => [],
+            ], 422);
+        }
+
+        $drawings = DB::table('drawings')
+            ->where('path', 'like', '%' . $basePath . '%')
+            ->get();
+
+        if ($drawings->isEmpty()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No drawings found for this path',
+                'reports' => [],
+            ], 404);
+        }
+
+        $lines = [];
+        $areas = [];
+        $perimeters = [];
+
+        foreach ($drawings as $drawing) {
+            $drawing_lines = $this->safeJson($drawing->line ?? null, []);
+            $drawing_areas = $this->safeJson($drawing->area ?? null, []);
+            $drawing_perimeters = $this->safeJson($drawing->perimeter ?? null, []);
+
+            $lines = array_merge($lines, is_array($drawing_lines) ? $drawing_lines : []);
+            $areas = array_merge($areas, is_array($drawing_areas) ? $drawing_areas : []);
+            $perimeters = array_merge($perimeters, is_array($drawing_perimeters) ? $drawing_perimeters : []);
+        }
+
+        $user = auth()->user();
+        $userId = (int)$user->id;
+
+        // 1) juntamos TRADES de TODOS los takeoffs (NO meta.name a ciegas)
+        $tradeNames = [];
+
+        foreach ($lines as $lineItem) {
+            $trade = $this->extractTradeNameFromTakeoff($lineItem);
+            if ($trade !== '') $tradeNames[] = $trade;
+        }
+
+        foreach ($perimeters as $perimeterItem) {
+            $trade = $this->extractTradeNameFromTakeoff($perimeterItem);
+            if ($trade !== '') $tradeNames[] = $trade;
+        }
+
+        foreach ($areas as $areaItem) {
+            $trade = $this->extractTradeNameFromTakeoff($areaItem);
+            if ($trade !== '') $tradeNames[] = $trade;
+        }
+
+        // dedupe
+        $tradeNames = array_values(array_unique($tradeNames));
+
+        // 2) pool global: acumular materialesAgrupados de TODOS los TRADES usados en el drawing
+        $pool_materiales = [];
+
+        foreach ($tradeNames as $tradeName) {
+            $materiales = $this->obtenerMaterialesDeWall($userId, $tradeName, $projectId);
+
+            if (is_array($materiales) && count($materiales)) {
+                foreach ($materiales as $item) {
+                    $pool_materiales[] = $item;
+                }
+            }
+        }
+        // 3) con el pool global generas reportes por material
+        $reports = $this->generarReportesPorMaterialDesdePool($pool_materiales);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Reports generated',
+            'path' => $path,
+            'trades_used' => $tradeNames,
+            'reports' => $reports,
+        ]);
+    }
+
+
+    // =========================================================
+    // Helpers
+    // =========================================================
+
+    private function safeJson($value, $default)
+    {
+        if ($value === null || $value === '') return $default;
+
+        // ya viene como array/obj
+        if (is_array($value) || is_object($value)) return $value;
+
+        $decoded = json_decode((string)$value, true);
+        if (json_last_error() !== JSON_ERROR_NONE) return $default;
+
+        return $decoded;
+    }
+
+    private function obtenerPathProyecto($path)
+    {
+        $partes = array_values(array_filter(explode('/', $path)));
+        // ["projects", "project58", "full", "archivo.png"]
+
+        if (count($partes) >= 2) {
+            return '/' . $partes[0] . '/' . $partes[1] . '/';
+        }
+
+        return '/';
+    }
+
+    private function extractTradeNameFromTakeoff($takeoffItem): string
+    {
+        if (!is_array($takeoffItem)) return '';
+
+        $meta = (isset($takeoffItem['meta']) && is_array($takeoffItem['meta'])) ? $takeoffItem['meta'] : [];
+
+        // 1) Primero lo correcto (trade)
+        $trade =
+            trim((string)($meta['trade_name'] ?? '')) ?:
+            trim((string)($meta['tradeName'] ?? '')) ?:
+            trim((string)($takeoffItem['trade_name'] ?? '')) ?:
+            trim((string)($takeoffItem['tradeName'] ?? ''));
+
+        if ($trade !== '') return $trade;
+
+        // 2) Fallback: algunos te lo guardan en name (pero NO siempre)
+        $fallback =
+            trim((string)($meta['name'] ?? '')) ?:
+            trim((string)($takeoffItem['name'] ?? ''));
+
+        return $fallback;
+    }
+
+    private function obtenerMaterialesDeWall(int $userId, string $tradeName, $projectId): array
+    {
+        $tradeName = trim((string)$tradeName);
+
+        $existing_wall = Wall::where('name', $tradeName)
+            ->where('project_id', $projectId)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!isset($existing_wall->id)) {
+            return [];
+        }
+
+        $wc = new WallController();
+
+        try {
+            $resultado = $wc->recalculate($existing_wall->id);
+
+            $materialesAgrupados = null;
+
+            if (isset($resultado->materialesAgrupados)) {
+                $materialesAgrupados = $resultado->materialesAgrupados;
+            }
+            if ($materialesAgrupados === null && isset($resultado->materiales_agrupados)) {
+                $materialesAgrupados = $resultado->materiales_agrupados;
+            }
+            if ($materialesAgrupados === null && isset($resultado->materialsGrouped)) {
+                $materialesAgrupados = $resultado->materialsGrouped;
+            }
+
+            $materialesAgrupados = $this->safeJson($materialesAgrupados, []);
+
+            if (!is_array($materialesAgrupados)) {
+                return [];
+            }
+
+            return $materialesAgrupados;
+
+        } catch (\Throwable $th) {
+            return [];
+        }
+    }
+
+    private function generarReportesPorMaterialDesdePool(array $pool_materiales): array
+    {
+        // 1) agrupar por material (trade + class + material_id)
+        $gruposPorMaterial = [];
+
+        foreach ($pool_materiales as $item) {
+            if (!is_array($item)) continue;
+
+            $tradeName = (string)($item['trade_name'] ?? 'TRADE');
+
+            $material = isset($item['material']) && is_array($item['material']) ? $item['material'] : [];
+            $materialId = (string)($material['id'] ?? ($item['material_id'] ?? ''));
+            $materialClassId = (string)($material['material_class_id'] ?? ($item['material_class_id'] ?? ''));
+            $materialNombre = (string)($material['name'] ?? ($item['material_name'] ?? 'Material'));
+
+            $materialClassNombre = (string)($item['material_class_name'] ?? 'CLASS');
+
+            if ($materialId === '') continue;
+
+            $grupoKey = $tradeName . '|' . $materialClassId . '|' . $materialId;
+
+            if (!isset($gruposPorMaterial[$grupoKey])) {
+                $gruposPorMaterial[$grupoKey] = [
+                    'trade_name' => $tradeName,
+                    'material_class_name' => $materialClassNombre,
+                    'material' => $material,
+                    'material_name' => $materialNombre,
+                    'items' => [],
+                ];
+            }
+
+            $gruposPorMaterial[$grupoKey]['items'][] = $item;
+        }
+
+        // 2) por cada material: agrupar por takeoff_name y sumar columnas
+        $reports = [];
+
+        foreach ($gruposPorMaterial as $grupo) {
+            $takeoffs = [];
+
+            foreach ($grupo['items'] as $item) {
+                $takeoffName = (string)($item['takeoff_name'] ?? 'takeoff');
+                if ($takeoffName === '') $takeoffName = 'takeoff';
+
+                if (!isset($takeoffs[$takeoffName])) {
+                    $takeoffs[$takeoffName] = [
+                        'takeoff_name' => $takeoffName,
+                        'quantity' => 0, 'waste' => 0, 'sq_ft' => 0, 'units' => 0,
+                        'cost' => 0, 'tax' => 0, 'sub_total' => 0, 'oh' => 0, 'profit' => 0, 'total' => 0,
+                    ];
+                }
+
+                // suma (toma lo que venga del item)
+                //$takeoffs[$takeoffName]['quantity'] += (float)($item['quantity'] ?? 0);
+                $takeoffs[$takeoffName]['waste'] += (float)($item['waste'] ?? 0);
+                $takeoffs[$takeoffName]['sq_ft'] += (float)($item['sq_ft'] ?? 0);
+                $takeoffs[$takeoffName]['units'] += (float)($item['units'] ?? 0);
+
+                $takeoffs[$takeoffName]['cost'] += (float)($item['cost'] ?? 0);
+                $takeoffs[$takeoffName]['tax'] += (float)($item['tax'] ?? 0);
+                $takeoffs[$takeoffName]['sub_total'] += (float)($item['sub_total'] ?? 0);
+                $takeoffs[$takeoffName]['oh'] += (float)($item['oh'] ?? 0);
+                $takeoffs[$takeoffName]['profit'] += (float)($item['profit'] ?? 0);
+
+                $valorTotal = isset($item['total']) ? (float)$item['total'] : 0;
+                if ($valorTotal == 0) {
+                    $valorTotal = (float)($item['sub_total'] ?? 0) + (float)($item['oh'] ?? 0) + (float)($item['profit'] ?? 0);
+                }
+                $takeoffs[$takeoffName]['total'] += $valorTotal;
+            }
+
+            $grupo['rows'] = array_values($takeoffs);
+
+            $html = $this->generarTablaHtmlPorMaterial($grupo);
+
+            if (trim($html) !== '') {
+                $reports[] = [
+                    'title' => (string)$grupo['trade_name'] . ' - ' . (string)$grupo['material_name'],
+                    'html'  => $html,
+                ];
+            }
+        }
+
+        return $reports;
+    }
+
+    private function generarTablaHtmlPorMaterial(array $grupo): string
+    {
+        $num = function ($v) {
+            return is_numeric($v) ? (float)$v : 0.0;
+        };
+
+        $money = function ($v) use ($num) {
+            return '$ ' . number_format($num($v), 2);
+        };
+
+        $trade = htmlspecialchars((string)($grupo['trade_name'] ?? 'TRADE'), ENT_QUOTES, 'UTF-8');
+
+        $material = isset($grupo['material']) && is_array($grupo['material']) ? $grupo['material'] : [];
+        $materialNombre = htmlspecialchars((string)($grupo['material_name'] ?? ($material['name'] ?? 'Material')), ENT_QUOTES, 'UTF-8');
+        $materialClassLabel = htmlspecialchars((string)($grupo['material_class_name'] ?? 'CLASS'), ENT_QUOTES, 'UTF-8');
+
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AQUÃƒÆ’Ã‚Â: usar items (no rows)
+        $items = isset($grupo['items']) && is_array($grupo['items']) ? $grupo['items'] : [];
+        if (!count($items)) {
+            return '';
+        }
+
+        // mismas columnas numÃƒÆ’Ã‚Â©ricas que generarTablaHtml()
+        $sumCols = [
+            'measuring', 'units', 'waste', 'sq_ft', 'units_total',
+            'cost_ea', 'cost', 'tax', 'cost1',
+            'cost_day', 'burden', 'lab_cost', 'days',
+            'cost2', 'sub_total', 'oh', 'profit', 'weather', 'total'
+        ];
+        $tot = array_fill_keys($sumCols, 0.0);
+
+        $html = '
+        <style>
+            .xeon-report-card{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:14px 0;font-family:Arial, sans-serif;}
+            .xeon-report-head{padding:10px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+            .xeon-pill{display:inline-block;padding:4px 10px;border:1px solid #cbd5e1;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;background:#fff}
+            .xeon-title{font-weight:800}
+
+            .xeon-table{width:100%;border-collapse:collapse}
+            .xeon-table th,.xeon-table td{border-bottom:1px solid #eef2f7;padding:8px 10px;font-size:12px;white-space:nowrap}
+            .xeon-table th{text-transform:uppercase;font-size:11px;letter-spacing:.3px;background:#fff}
+            .xeon-right{text-align:right}
+            .xeon-total-row td{font-weight:800;background:#fffdf2;border-top:2px solid #111827}
+
+            .col-id{width:60px;text-align:center;font-weight:800}
+            .col-takeoff{min-width:180px;}
+        </style>
+
+        <div class="xeon-report-card">
+            <div class="xeon-report-head">
+                <span class="xeon-pill">TRADE | ' . $trade . '</span>
+                <span class="xeon-pill">MATERIAL | ' . $materialClassLabel . '</span>
+                <span class="xeon-title">' . $materialNombre . '</span>
+            </div>
+
+            <div style="width:100%;overflow:auto;">
+                <table class="xeon-table">
+                    <thead>
+                        <tr>
+                            <th class="col-id">ID</th>
+                            <th class="col-takeoff">Takeoff</th>
+                            <th class="xeon-right">Measuring Area</th>
+                            <th class="xeon-right">Units</th>
+                            <th class="xeon-right">Waste</th>
+                            <th class="xeon-right">SQ FT</th>
+                            <th class="xeon-right">Units Total</th>
+                            <th class="xeon-right">Cost ea</th>
+                            <th class="xeon-right">Cost</th>
+                            <th class="xeon-right">Tax</th>
+                            <th class="xeon-right">Cost + Tax</th>
+                            <th class="xeon-right">Cost/day</th>
+                            <th class="xeon-right">Burden</th>
+                            <th class="xeon-right">Lab Cost</th>
+                            <th class="xeon-right">Days</th>
+                            <th class="xeon-right">Cost (2)</th>
+                            <th class="xeon-right">Sub Total</th>
+                            <th class="xeon-right">OH</th>
+                            <th class="xeon-right">Profit</th>
+                            <th class="xeon-right">Weather</th>
+                            <th class="xeon-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        ';
+
+        $i = 1;
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+
+            $takeoffName = htmlspecialchars((string)($item['takeoff_name'] ?? 'takeoff'), ENT_QUOTES, 'UTF-8');
+
+            $measuring = $num($item['measuring'] ?? 0);
+            $units     = $num($item['units'] ?? 0);
+            //$quantity  = $num($item['quantity'] ?? 0);
+            $waste     = $num($item['waste'] ?? 0);
+            $sqFt      = $num($item['sq_ft'] ?? 0);
+            $units_total     = $num($item['units_total'] ?? 0);
+
+            $costEa   = $num($item['cost_ea'] ?? 0);
+            $cost     = $num($item['cost'] ?? 0);
+            $tax      = $num($item['tax'] ?? 0);
+
+            $cost1    = $num($item['cost1'] ?? ($cost + $tax));
+            $costDay  = $num($item['cost_day'] ?? 0);
+            $burden   = $num($item['burden'] ?? 0);
+            $labCost  = $num($item['lab_cost'] ?? 0);
+            $days     = $num($item['days'] ?? 0);
+            $cost2    = $num($item['cost2'] ?? 0);
+
+            $subTotal = $num($item['sub_total'] ?? 0);
+            $oh       = $num($item['oh'] ?? 0);
+            $profit   = $num($item['profit'] ?? 0);
+            $weather  = $num($item['weather'] ?? 0);
+            $total    = $num($item['total'] ?? ($subTotal + $oh + $profit + $weather));
+
+            // acumular
+            $tot['measuring'] += $measuring;
+            $tot['op_unit']  = $item['op_unit'] != '' ? $item['op_unit'] : 'lf';
+            $tot['units']     += $units;
+            $tot['waste']     += $waste;
+            $tot['sq_ft']     += $sqFt;
+            $tot['units_total']     += $units_total;
+
+            $tot['cost_ea']   += $costEa;
+            $tot['cost']      += $cost;
+            $tot['tax']       += $tax;
+            $tot['cost1']     += $cost1;
+
+            $tot['cost_day']  += $costDay;
+            $tot['burden']    += $burden;
+            $tot['lab_cost']  += $labCost;
+            $tot['days']      += $days;
+
+            $tot['cost2']     += $cost2;
+            $tot['sub_total'] += $subTotal;
+            $tot['oh']        += $oh;
+            $tot['profit']    += $profit;
+            $tot['weather']   += $weather;
+            $tot['total']     += $total;
+
+            $html .= '
+                <tr>
+                    <td class="col-id">' . $i . '</td>
+                    <td class="col-takeoff">' . $takeoffName . '</td>
+                    <td class="xeon-right">' . number_format($measuring, 2) . ' ' . htmlspecialchars((string)$item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($units, 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($waste, 2) . '</td>
+                    <td class="xeon-right">' . number_format($sqFt, 2) . ' ' . htmlspecialchars((string)$item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($units_total, 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . $money($costEa) . '</td>
+                    <td class="xeon-right">' . $money($cost) . '</td>
+                    <td class="xeon-right">' . $money($tax) . '</td>
+                    <td class="xeon-right">' . $money($cost1) . '</td>
+                    <td class="xeon-right">' . $money($costDay) . '</td>
+                    <td class="xeon-right">' . $money($burden) . '</td>
+                    <td class="xeon-right">' . $money($labCost) . '</td>
+                    <td class="xeon-right">' . number_format($days, 2) . '</td>
+                    <td class="xeon-right">' . $money($cost2) . '</td>
+                    <td class="xeon-right">' . $money($subTotal) . '</td>
+                    <td class="xeon-right">' . $money($oh) . '</td>
+                    <td class="xeon-right">' . $money($profit) . '</td>
+                    <td class="xeon-right">' . $money($weather) . '</td>
+                    <td class="xeon-right">' . $money($total) . '</td>
+                </tr>
+            ';
+            $i++;
+        }
+
+        $html .= '
+                    </tbody>
+                    <tfoot>
+                        <tr class="xeon-total-row">
+                            <td colspan="2">Total</td>
+                            <td class="xeon-right">' . number_format($tot['measuring'], 2) . ' ' . htmlspecialchars((string)$tot['op_unit'], ENT_QUOTES, 'UTF-8') .'</td>
+                            <td class="xeon-right">' . number_format($tot['units'], 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['waste'], 2) . '</td>
+                            <td class="xeon-right">' . number_format($tot['sq_ft'], 2) . ' ' . htmlspecialchars((string)$tot['op_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['units_total'], 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . $money($tot['cost_ea']) . '</td>
+                            <td class="xeon-right">' . $money($tot['cost']) . '</td>
+                            <td class="xeon-right">' . $money($tot['tax']) . '</td>
+                            <td class="xeon-right">' . $money($tot['cost1']) . '</td>
+                            <td class="xeon-right">' . $money($tot['cost_day']) . '</td>
+                            <td class="xeon-right">' . $money($tot['burden']) . '</td>
+                            <td class="xeon-right">' . $money($tot['lab_cost']) . '</td>
+                            <td class="xeon-right">' . number_format($tot['days'], 2) . '</td>
+                            <td class="xeon-right">' . $money($tot['cost2']) . '</td>
+                            <td class="xeon-right">' . $money($tot['sub_total']) . '</td>
+                            <td class="xeon-right">' . $money($tot['oh']) . '</td>
+                            <td class="xeon-right">' . $money($tot['profit']) . '</td>
+                            <td class="xeon-right">' . $money($tot['weather']) . '</td>
+                            <td class="xeon-right">' . $money($tot['total']) . '</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        ';
+
+        return $html;
+    }
+
+    public function bulkExcel(Request $request)
+    {
+        $path = trim((string)$request->input('path', ''));
+        $projectId = trim((string)$request->input('projectId', ''));
+
+        if ($path === '') {
+            return response()->json(['ok' => false, 'message' => 'Missing path'], 422);
+        }
+
+        // Reutilizamos bulk()
+        $bulkResponse = $this->bulk($request)->getData(true);
+
+        if (empty($bulkResponse['ok']) || empty($bulkResponse['reports'])) {
+            return response()->json(['ok' => false, 'message' => 'No reports to export'], 404);
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Sheet Reports');
+
+        // Header general
+        $sheet->setCellValue('A1', 'SHEET REPORTS');
+        $sheet->mergeCells('A1:K1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        $currentRow = 3;
+        $htmlReader = new HtmlReader();
+
+        foreach ($bulkResponse['reports'] as $report) {
+
+            $title = trim((string)($report['title'] ?? 'Report'));
+            $html  = (string)($report['html'] ?? '');
+
+            if ($html === '') {
+                continue;
+            }
+
+            // ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¦ TÃƒÆ’Ã‚Â­tulo del bloque (tipo card header)
+            $sheet->setCellValue("A{$currentRow}", $title);
+            $sheet->mergeCells("A{$currentRow}:" . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(25) . "{$currentRow}");
+            $sheet->getStyle("A{$currentRow}:K{$currentRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['argb' => 'FFF1F5F9'],
+                ],
+            ]);
+            $sheet->getRowDimension($currentRow)->setRowHeight(22);
+            $currentRow++;
+
+            // HTML completo
+            $fullHtml = '<html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>';
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'bulkrep_') . '.html';
+            file_put_contents($tmpFile, $fullHtml);
+
+            $tmpBook = $htmlReader->load($tmpFile);
+            @unlink($tmpFile);
+
+            $tmpSheet = $tmpBook->getActiveSheet();
+
+            // Detectar filas reales (sin NBSP)
+            $firstDataRow = null;
+            $lastDataRow  = null;
+
+            $tmpMaxRow = (int)$tmpSheet->getHighestRow();
+            $tmpMaxCol = Coordinate::columnIndexFromString($tmpSheet->getHighestColumn());
+
+            for ($r = 1; $r <= $tmpMaxRow; $r++) {
+                if ($this->rowHasRealContent($tmpSheet, $r, $tmpMaxCol)) {
+                    if ($firstDataRow === null) $firstDataRow = $r;
+                    $lastDataRow = $r;
+                }
+            }
+
+            if ($firstDataRow === null || $lastDataRow === null) {
+                continue;
+            }
+
+            $startBlockRow = $currentRow;
+
+            $endBlockRow = $this->appendSheetBlock(
+                $tmpSheet,
+                $sheet,
+                $currentRow,
+                1,
+                $firstDataRow,
+                $lastDataRow
+            );
+
+            $this->styleReportBlock($sheet, $startBlockRow, $endBlockRow);
+
+            $currentRow = $endBlockRow + 2;
+        }
+
+        // Autosize
+        foreach (range('A', 'K') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'sheet-reports-' . date('Ymd_His') . '.xlsx';
+        $dir = storage_path('app/tmp');
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+        $filePath = $dir . DIRECTORY_SEPARATOR . $filename;
+
+        (new Xlsx($spreadsheet))->save($filePath);
+
+        return response()->download($filePath, $filename)->deleteFileAfterSend(true);
+    }
+
+    public function bulkExcelFromHtml(Request $request)
+    {
+        $reports = $request->input('reports', []);
+
+        if (!is_array($reports) || !count($reports)) {
+            return response()->json(['ok' => false, 'message' => 'No reports provided'], 422);
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Sheet Reports');
+
+        // Header general
+        $sheet->setCellValue('A1', 'SHEET REPORTS');
+        $sheet->mergeCells('A1:U1'); // U = 21 cols (tu tabla ya creciÃƒÆ’Ã‚Â³)
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        $currentRow = 3;
+        $htmlReader = new HtmlReader();
+
+        foreach ($reports as $report) {
+            if (!is_array($report)) continue;
+
+            $title = trim((string)($report['title'] ?? 'Report'));
+            $html  = (string)($report['html'] ?? '');
+
+            if ($html === '') continue;
+
+            // TÃƒÆ’Ã‚Â­tulo del bloque (tipo card header)
+            $sheet->setCellValue("A{$currentRow}", $title);
+            $sheet->mergeCells("A{$currentRow}:U{$currentRow}");
+            $sheet->getStyle("A{$currentRow}:U{$currentRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $sheet->getRowDimension($currentRow)->setRowHeight(22);
+            $currentRow++;
+
+            // HTML -> tmp sheet
+            $fullHtml = '<html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>';
+            $tmpFile = tempnam(sys_get_temp_dir(), 'bulkrep_') . '.html';
+            file_put_contents($tmpFile, $fullHtml);
+
+            $tmpBook = $htmlReader->load($tmpFile);
+            @unlink($tmpFile);
+
+            $tmpSheet = $tmpBook->getActiveSheet();
+
+            // Detectar filas reales (sin NBSP)
+            $firstDataRow = null;
+            $lastDataRow  = null;
+
+            $tmpMaxRow = (int)$tmpSheet->getHighestRow();
+            $tmpMaxCol = Coordinate::columnIndexFromString($tmpSheet->getHighestColumn());
+
+            for ($r = 1; $r <= $tmpMaxRow; $r++) {
+                if ($this->rowHasRealContent($tmpSheet, $r, $tmpMaxCol)) {
+                    if ($firstDataRow === null) $firstDataRow = $r;
+                    $lastDataRow = $r;
+                }
+            }
+
+            if ($firstDataRow === null || $lastDataRow === null) {
+                continue;
+            }
+
+            $startBlockRow = $currentRow;
+
+            // Copiar bloque colapsando filas vacÃƒÆ’Ã‚Â­as
+            $endBlockRow = $this->appendSheetBlock(
+                $tmpSheet,
+                $sheet,
+                $currentRow,
+                1,
+                $firstDataRow,
+                $lastDataRow
+            );
+
+            // Estilo a TODO el ancho real
+            $this->styleReportBlockDynamic($sheet, $startBlockRow, $endBlockRow);
+
+            $currentRow = $endBlockRow + 2;
+        }
+
+        // Auto-size columnas (hasta U)
+        foreach (range('A', 'U') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'sheet-reports-' . date('Ymd_His') . '.xlsx';
+        $dir = storage_path('app/tmp');
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+        $filePath = $dir . DIRECTORY_SEPARATOR . $filename;
+        (new Xlsx($spreadsheet))->save($filePath);
+
+        return response()->download($filePath, $filename)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Copia un bloque completo de una hoja a otra (valores + estilos).
+     * $startRowDestino: fila inicial en hoja destino
+     * $startColDestino: columna inicial (1 = A)
+     */
+    private function appendSheetBlock(
+        $srcSheet,
+        $dstSheet,
+        int $startRowDestino,
+        int $startColDestino = 1,
+        int $srcStartRow = 1,
+        ?int $srcEndRow = null
+    ): int {
+        $srcEndRow = $srcEndRow ?? (int)$srcSheet->getHighestRow();
+        $srcMaxCol = Coordinate::columnIndexFromString($srcSheet->getHighestColumn());
+
+        $dstRow = $startRowDestino;
+
+        for ($r = $srcStartRow; $r <= $srcEndRow; $r++) {
+
+            if (!$this->rowHasRealContent($srcSheet, $r, $srcMaxCol)) {
+                continue;
+            }
+
+            for ($c = 1; $c <= $srcMaxCol; $c++) {
+                $srcAddr = Coordinate::stringFromColumnIndex($c) . $r;
+                $dstAddr = Coordinate::stringFromColumnIndex($startColDestino + ($c - 1)) . $dstRow;
+
+                $dstSheet->setCellValue($dstAddr, $srcSheet->getCell($srcAddr)->getValue());
+                $dstSheet->duplicateStyle($srcSheet->getStyle($srcAddr), $dstAddr);
+            }
+
+            $dstRow++;
+        }
+
+        return $dstRow - 1;
+    }
+
+    private function styleReportBlock(Worksheet $sheet, int $startRow, int $endRow): void
+    {
+        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Detecta la ÃƒÆ’Ã‚Âºltima columna real en ese bloque (escaneando filas)
+        $maxColIndex = 1;
+        for ($r = $startRow; $r <= $endRow; $r++) {
+            $highestCol = $sheet->getHighestColumn($r); // ej. "U"
+            $colIndex = Coordinate::columnIndexFromString($highestCol);
+            if ($colIndex > $maxColIndex) $maxColIndex = $colIndex;
+        }
+
+        $startCol = 'A';
+        $endCol   = Coordinate::stringFromColumnIndex($maxColIndex);
+
+        // 1) Bordes + wrap para TODO el bloque
+        $sheet->getStyle("{$startCol}{$startRow}:{$endCol}{$endRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['argb' => 'FFE5E7EB'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+
+        // 2) Detectar HEADER: ahora buscamos la fila que contenga "TAKEOFF" en la columna B
+        // (porque columna A es "ID", columna B es "Takeoff")
+        $headerRow = null;
+        for ($r = $startRow; $r <= min($endRow, $startRow + 15); $r++) {
+            $b = strtoupper(trim((string)$sheet->getCell("B{$r}")->getValue()));
+            $a = strtoupper(trim((string)$sheet->getCell("A{$r}")->getValue()));
+            if ($b === 'TAKEOFF' || $a === 'ID') {
+                $headerRow = $r;
+                break;
+            }
+        }
+
+        // 3) Detectar TOTAL: sigue en la primera columna del tfoot ("Total")
+        $totalRow = null;
+        for ($r = $endRow; $r >= max($startRow, $endRow - 20); $r--) {
+            $val = strtoupper(trim((string)$sheet->getCell("A{$r}")->getValue()));
+            if ($val === 'TOTAL') {
+                $totalRow = $r;
+                break;
+            }
+        }
+
+        // 4) Header style
+        if ($headerRow !== null) {
+            $sheet->getStyle("{$startCol}{$headerRow}:{$endCol}{$headerRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF111827']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+            $sheet->getRowDimension($headerRow)->setRowHeight(18);
+
+            // 5) Zebra rows (solo datos)
+            $dataStart = $headerRow + 1;
+            $dataEnd = ($totalRow !== null) ? $totalRow - 1 : $endRow;
+
+            for ($r = $dataStart; $r <= $dataEnd; $r++) {
+                if ((($r - $dataStart) % 2) === 0) {
+                    $sheet->getStyle("{$startCol}{$r}:{$endCol}{$r}")->applyFromArray([
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFAFAFA']],
+                    ]);
+                }
+            }
+        }
+
+        // 6) Total style
+        if ($totalRow !== null) {
+            $sheet->getStyle("{$startCol}{$totalRow}:{$endCol}{$totalRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF111827']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFF7ED']],
+                'borders' => [
+                    'top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF111827']],
+                ],
+            ]);
+        }
+
+        // 7) AlineaciÃƒÆ’Ã‚Â³n: A y B a la izquierda, el resto derecha
+        $sheet->getStyle("A{$startRow}:B{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("C{$startRow}:{$endCol}{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        // 8) Formatos: ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œnÃƒÆ’Ã‚ÂºmerosÃƒÂ¢Ã¢â€šÂ¬Ã‚Â y ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œdineroÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+        // Tu tabla: A=ID, B=Takeoff, C..G nÃƒÆ’Ã‚Âºmeros, H.. fin dinero (mÃƒÆ’Ã‚Â¡s o menos)
+        // Lo hacemos robusto: C:G nÃƒÆ’Ã‚Âºmeros (si existen), H:last dinero
+        if ($maxColIndex >= 3) {
+            $sheet->getStyle("C{$startRow}:" . Coordinate::stringFromColumnIndex(min(7, $maxColIndex)) . "{$endRow}")
+                ->getNumberFormat()->setFormatCode('#,##0.00');
+        }
+        if ($maxColIndex >= 8) {
+            $sheet->getStyle("H{$startRow}:{$endCol}{$endRow}")
+                ->getNumberFormat()->setFormatCode('"$"#,##0.00');
+        }
+    }
+
+    private function normalizeCellValue($v): string
+    {
+        $s = (string)($v ?? '');
+        $s = str_replace(["\xC2\xA0", "\xA0"], ' ', $s);
+        $s = preg_replace('/\s+/u', ' ', $s);
+        return trim($s);
+    }
+
+    private function rowHasRealContent($sheet, int $row, int $maxCol): bool
+    {
+        for ($c = 1; $c <= $maxCol; $c++) {
+            $addr = Coordinate::stringFromColumnIndex($c) . $row;
+            if ($this->normalizeCellValue($sheet->getCell($addr)->getValue()) !== '') {
+                return true;
+            }
+        }
+        return false;
+    }
 
 }

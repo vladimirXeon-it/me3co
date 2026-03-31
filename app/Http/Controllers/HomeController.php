@@ -103,9 +103,9 @@ class HomeController extends Controller
         $project->name = $name;
         $project->bid_date = $validatedData['bid_date'];
         $project->user_id = $user_id;
-        $project->tax = $request->input('tax');
-        $project->oh = $request->input('oh');
-        $project->profit = $request->input('profit');
+        $project->tax = $request->input('tax') ?? 0;
+        $project->oh = $request->input('oh') ?? 0;
+        $project->profit = $request->input('profit') ?? 0;
         $project->save();
         return back()->with("message", "Project Created Successfully!");
     }

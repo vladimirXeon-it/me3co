@@ -9,7 +9,17 @@
                 <div class="col-sm-12">
                     <div class="page-title-box">
                         <div class="row">
-                            <div class="col align-self-center">
+                            <div class="col align-items-center d-flex gap-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
+                                    onclick="goBack()"
+                                    aria-label="Go back"
+                                    title="Back"
+                                    style="line-height:1;"
+                                >
+                                    <i class="fa fa-reply"></i>
+                                </button>
                                 <h4 class="page-title pb-md-0">Create Labor @if ($project!=null)
                                     for {{$project->name}}
                                  @endif</h2></h4>
@@ -155,6 +165,13 @@
 
 @section('script')
     <script>
+        function goBack() {
+            if (window.history.length > 1) {
+            window.history.back();
+            return;
+            }
+            window.location.href = "/projects"; // fallback
+        }
         let totalBurdens = 0;
         let totalBurdenPrice = 0;
         const calculateTotalCost = () => {

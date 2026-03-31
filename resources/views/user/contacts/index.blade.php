@@ -31,8 +31,18 @@
             </div> --}}
              <div class="row mt-3">
                 <div class="col-10">
-                    <div class="w-100 d-inline-block">
-                        <h2 class="text-black fs-4 fw-bold">My Contact</h2>
+                    <div class="d-flex align-items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-link btn-back-icon p-0 m-0 text-dark"
+                            onclick="goBack()"
+                            aria-label="Go back"
+                            title="Back"
+                            style="line-height:1;"
+                        >
+                            <i class="fa fa-reply"></i>
+                        </button>
+                        <h2 class="text-black fs-4 fw-bold m-0">My Contact</h2>
                     </div>
                 </div>
                 <div class="col-2">
@@ -113,6 +123,13 @@
         });
     </script>
     <script>
+        function goBack() {
+            if (window.history.length > 1) {
+            window.history.back();
+            return;
+            }
+            window.location.href = "/projects"; // fallback
+        }
         $(document).ready(function() {
             $('#create-new').click(function() {
                 $('.new-project').show();

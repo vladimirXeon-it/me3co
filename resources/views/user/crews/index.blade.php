@@ -32,8 +32,18 @@
             </div> --}}
              <div class="row mt-3">
                 <div class="col-10">
-                    <div class="w-100 d-inline-block">
-                        <h2 class="text-black fs-4 fw-bold">My Crews @if ($project!=null)
+                    <div class="d-flex align-items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-link btn-back-icon p-0 m-0 text-dark"
+                            onclick="goBack()"
+                            aria-label="Go back"
+                            title="Back"
+                            style="line-height:1;"
+                        >
+                            <i class="fa fa-reply"></i>
+                        </button>
+                        <h2 class="text-black fs-4 fw-bold m-0">My Crews @if ($project!=null)
                             for {{$project->name}}
                          @endif</h2>
                     </div>
@@ -115,6 +125,13 @@
         });
     </script>
     <script>
+        function goBack() {
+            if (window.history.length > 1) {
+            window.history.back();
+            return;
+            }
+            window.location.href = "/projects"; // fallback
+        }
         $(document).ready(function(x) {
             window.fs_test = $('.test').fSelect();
         })

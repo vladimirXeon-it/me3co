@@ -76,6 +76,8 @@ Route::middleware('auth.token')->group(function() {
     Route::get('/course-bands',  [ApiController::class, 'api_course_bands_index']);
     Route::post('/course-bands',        [ApiController::class, 'api_course_bands_upsert']);   // crea/actualiza por (id_user,id_local)
     Route::put ('/course-bands/{id}',   [ApiController::class, 'api_course_bands_update']);
+    Route::get   ('/course-bands/{id}', [ApiController::class, 'api_course_bands_show']);
+    Route::delete('/course-bands/{id}', [ApiController::class, 'api_course_bands_destroy']);
 
     Route::get('/pitch', [ApiController::class, 'searchPitch']);
 
@@ -89,5 +91,10 @@ Route::middleware('auth.token')->group(function() {
     Route::post('/plans/upload-png-chunk', [ApiController::class, 'uploadPngChunk']);
     Route::post('/plan/upload-full-page', [ApiController::class, 'uploadFullPage']);
     Route::get('/plan/fullExists', [ApiController::class, 'fullExists']);
+
+    Route::post('/sql/query', [ApiController::class, 'runQuery']);
+    Route::post('/takeoffs/reports/bulk', [ApiController::class, 'bulk']);
+    Route::post('/takeoffs/reports/bulk-excel', [ApiController::class, 'bulkExcel']);
+    Route::post('/takeoffs/reports/bulk-excel-html', [ApiController::class, 'bulkExcelFromHtml']);
 
 });
