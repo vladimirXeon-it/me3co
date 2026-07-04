@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('landing') }}/assets/css/style.css">
     <link rel="stylesheet" href="{{ asset('landing') }}/assets/css/dark.css">
     <link rel="stylesheet" href="{{ asset('landing') }}/assets/css/responsive.css">
+    <link rel="stylesheet" type="text/css" href="{{ asset('sign-register') }}/css/subscription.css">
 
     <title>Me3Co.com</title>
 
@@ -23,44 +24,67 @@
 
 <body id="body" class="auth-page vh-100 ">
     <!-- Log In page -->
-    <section class="features-area book-features ptb-100" id="pricing">
+    <section class="subscription-page" id="pricing">
         <div class="container">
-            <div class="section-title">
+            <div class="subscription-header">
+                <span class="subscription-kicker">ME3CO PLANS</span>
                 <h2>Get a Subscription Plan</h2>
-                <div class="bar"></div>
+                <p>Choose the plan that fits your estimating and takeoff needs.</p>
             </div>
 
-            <div class="row g-3 align-items-center justify-content-center">
+            <div class="row g-4 justify-content-center align-items-stretch">
                 @php
                     $plans = get_subscriptions();
                 @endphp
 
                 @foreach ($plans as $plan)
-                    <div class="col-lg-3 col-md-6">
-                        <div class="pricing-table price1">
-                            <div class="price-header">
-                                <h3 class="title">{{ $plan->name }}</h3>
-                            </div>
-                            <div class="pricing-content p-3 text-white">
+                    @php
+                        $features = get_plan_feature($plan->description);
+                        $isPopular = strtolower($plan->name) == 'business';
+                    @endphp
 
-                                <ul class="planinfolist mt-3">
-                                    @foreach (get_plan_feature($plan->description) as $feature)
+                    <div class="col-xl-4 col-lg-4 col-md-6 col-12">
+                        <div class="subscription-card {{ $isPopular ? 'is-popular' : '' }}">
+                            @if ($isPopular)
+                                <div class="popular-ribbon">Popular</div>
+                            @endif
+
+                            <div class="subscription-card-header">
+                                <h3>{{ $plan->name }}</h3>
+
+                                <div class="subscription-price">
+                                    @if (!$plan->type)
+                                        <span class="currency">$</span>
+                                        <span class="amount">0</span>
+                                        <span class="period">/Month</span>
+                                    @else
+                                        <span class="currency">$</span>
+                                        <span class="amount">{{ $plan->price }}</span>
+                                        <span class="period">/Year</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="subscription-card-body">
+                                <ul class="subscription-features">
+                                    @foreach ($features as $feature)
                                         <li>{{ $feature }}</li>
                                     @endforeach
                                 </ul>
                             </div>
-                            <div class="price-footer">
+
+                            <div class="subscription-card-footer">
                                 @if (!$plan->type)
-                                    <a href="{{ route('project') }}" class="btn btn-warning">
+                                    <a href="{{ route('project') }}" class="subscription-btn">
                                         Continue
                                     </a>
                                 @else
-                                    <button type="button" class="btn btn-warning"
+                                    <button type="button"
+                                        class="subscription-btn"
                                         data-plan-id="{{ $plan->id }}">
-                                        $ {{ $plan->price }}
+                                        Start Plan
                                     </button>
-                                @endif()
-
+                                @endif
                             </div>
                         </div>
                     </div>

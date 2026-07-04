@@ -153,7 +153,7 @@ class UsersCrudController extends Controller
                 );
 
                 $crud->callbackBeforeUpdate(function ($state) {
-                    foreach (['name', 'username', 'email', 'company', 'business_type', 'phone'] as $k) {
+                    foreach (['name', 'username', 'email', 'company', 'business_type', 'phone', 'role'] as $k) {
                         if (isset($state->data[$k]))
                             $state->data[$k] = trim((string)$state->data[$k]);
                     }

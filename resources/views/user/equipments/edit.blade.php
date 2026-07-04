@@ -42,6 +42,7 @@
                                 </div>
                                 <form method="post" action="{{ route('equipment.update', ['id' => $equipment->id]) }}">
                                     @csrf()
+                                    <input type="hidden" name="return_url" value="{{ request('return_url') }}">
                                     <div class="row">
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">

@@ -139,3 +139,97 @@ width:33% !important;
 }
 
 
+/*///////////////////////////////////////////////////////*/
+
+@media (max-width: 1024px){
+    .banner-image h1{
+        font-size:42px;
+    }
+
+    .bg-about-us{
+        margin:20px 12px;
+        border-radius:18px;
+    }
+
+    .account-section ul li span{
+        width:auto !important;
+        float:none !important;
+        display:inline-block;
+    }
+
+    .hero-title{
+        font-size:52px;
+    }
+}
+
+@media (max-width: 767px){
+    .banner-image{
+        min-height:520px !important;
+        text-align:center;
+    }
+
+    .banner-image h1{
+        font-size:34px !important;
+        width:100% !important;
+    }
+
+    .account-section ul{
+        width:100% !important;
+    }
+
+    .me3co-stat-box{
+        border-right:none;
+        border-bottom:1px solid rgba(255,255,255,.12);
+        padding:15px 0;
+    }
+
+    .me3co-stat-box:last-child{
+        border-bottom:none;
+    }
+
+    .hero-title{
+        font-size:34px;
+        line-height:1.15;
+    }
+
+    @media(max-width:991px){
+    .hero-features{
+        width:100%;
+        margin:18px auto 0 auto;
+    }
+
+    .hero-features li{
+        flex-direction:column;
+        gap:10px;
+    }
+
+    .hero-features li span{
+        width:100% !important;
+    }
+
+    .hero-features .account-btn{
+        min-width:100%;
+        font-size:18px !important;
+    }
+}
+
+@media(max-width:576px){
+    .hero-title{
+        font-size:36px !important;
+    }
+
+    .hero-features li span{
+        min-height:48px;
+        font-size:14px !important;
+    }
+}
+}
+
+@media(min-width:1200px){
+
+    .logo img{
+        height:64px;
+    }
+
+}
+

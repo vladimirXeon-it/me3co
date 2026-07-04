@@ -7,15 +7,16 @@
             <div class="row">
                 <div class="col-12">
                     <div class="w-100 d-inline-block mt-xl-5 mt-3">
-                        <h1 class="text-white fw-bold w-50 w-xs-100 w-sm-100 w-md-100 text-xs-20 w-lg-100">
-                            Takeoff & <span class="text-color">Estimating
-                            </span> Software For The Construction Industry
+                        <h1 class="hero-title">
+                            Takeoff &
+                            <span class="text-color">Estimating</span>
+                            Software For The Construction Industry
                         </h1>
                     </div>
                 </div>
                 <div class="account-section w-100 d-inline-block">
                     <p class="text-white text-14 fw-bold">Quote Jobs In Minutes</p>
-                    <ul class="d-inline-block w-35 w-xs-100 w-sm-100 w-md-100 w-lg-100">
+                    <ul class="hero-features d-inline-block w-xs-100 w-sm-100 w-md-100 w-lg-100">
                         <li class="w-100 d-inline-block mb-2">
                             <span class="text-white text-13 float-start 
                         w-45 text-i-11">
@@ -172,134 +173,89 @@
             </div>
         </div>
     </div>
-    <div id="how-it-work" class="w-100 d-inline-block mt-4 mt-xl-0">
-        <div class="w-50 d-inline-block w-xs-100 w-sm-100 w-md-100 w-lg-100">
-            <div class="w-100 d-inline-block float-start project-image position-relative">
-                <p class="work-text fs-1 fw-bold position-absolute position-inherit text-center">HOW DOES IT WORK?</p>
-                <img class="w-100 d-xl-block d-none" src="{{ asset('home') }}/images/project-image.svg">
-                <div class="container">
-                    <div class="row">
-                        <div class="col-12">
-                            <div
-                                class="d-inline-block position-absolute section-top position-inherit w-xs-100 w-sm-100 w-md-100 w-lg-100">
-                                <div
-                                    class="w-100 d-inline-block create-project border-bottom pb-1 position-relative cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">01</span>
-                                    <span
-                                        class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15 activeA">Create
-                                        a project
-                                    </span>
-                                    <span>
-                                        <img class="creat-project-icon"
-                                            src="{{ asset('home') }}/images/creat-project-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        This step involves the initial setup of a project. Name, bid date and time.
-                                    </p>
-                                </div>
-                                <div
-                                    class="w-100 d-inline-block digital-blueprints border-bottom pb-1 position-relative mt-2 cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">02</span>
-                                    <span class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15">Select
-                                        your digital blueprints and upload them</span>
-                                    <span>
-                                        <img class="creat-project-icon"
-                                            src="{{ asset('home') }}/images/digital-blueprints-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        Choose your digital blueprints and upload them.
-                                    </p>
-                                </div>
-                                <div
-                                    class="w-100 d-inline-block scale-project border-bottom pb-1 position-relative mt-2 
-                        cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">03</span>
-                                    <span class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15">Set
-                                        your
-                                        scale or Calibrate the scale</span>
-                                    <span>
-                                        <img class="creat-project-icon" src="{{ asset('home') }}/images/scale-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        To ensure accurate measurements and dimensions on the digital blueprints, it's
-                                        essential to set the scale or calibrate the scale. Always check the scale against
-                                        any known dimension
-                                    </p>
-                                </div>
-                                <div
-                                    class="w-100 d-inline-block create-measuring-project border-bottom pb-1 position-relative mt-2 cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">04</span>
-                                    <span class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15">Start
-                                        Measuring</span>
-                                    <span>
-                                        <img class="creat-project-icon"
-                                            src="{{ asset('home') }}/images/measuring-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        Once the scale is set, you can begin your takeoff
-                                    </p>
-                                </div>
-                                <div
-                                    class="w-100 d-inline-block create-report-project border-bottom pb-1 position-relative mt-2 cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">05</span>
-                                    <span class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15">View
-                                        the measuring report</span>
-                                    <span>
-                                        <img class="creat-project-icon"
-                                            src="{{ asset('home') }}/images/measuring-report-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        After measuring, you can review a measuring report that summarizes the collected
-                                        data. If discrepancies or errors are identified, adjustments can be made to ensure
-                                        the accuracy of the project's measurements.
-                                    </p>
-                                </div>
-                                {{-- <div class="w-100 d-inline-block create-formulas-project border-bottom pb-1 position-relative mt-2 cursor">
-                            <span class="text-color text-14 w-100 d-inline-block">06</span>
-                            <span class="text-18 fw-bold w-85 d-inline-block create-project-btn text-xs-15">Entering Or Changing Formulas</span>
-                            <span>
-                                <img class="creat-project-icon" src="{{ asset('home') }}/images/formulas-icon.svg">
-                            </span>
-                            <p class="mb-0 text-black text-13 hidden">
-                                This step involves the initial setup of a project. Name, bid date, and time
-                            </p>
-                        </div> --}}
-                                <div
-                                    class="w-100 d-inline-block create-estimated-project border-bottom pb-1 position-relative mt-2 cursor">
-                                    <span class="text-color text-14 w-100 d-inline-block">06</span>
-                                    <span
-                                        class="text-18 fw-bold w-85
-                             d-inline-block create-project-btn text-xs-15">View
-                                        the total Estimated price for the project</span>
-                                    <span>
-                                        <img class="creat-project-icon"
-                                            src="{{ asset('home') }}/images/estimated-icon.svg">
-                                    </span>
-                                    <p class="mb-0 text-black text-13 hidden">
-                                        Finally, you can view the total sale price for the project. This involves all the
-                                        costs associated with materials, labor, and any other expenses Including overhead
-                                        and profit based on the measurements and formulas applied. The total sale price
-                                        represents the estimated or actual cost of the project.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+    <div id="how-it-work" class="me3co-how-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <span class="me3co-how-badge">SIMPLE, FAST & ACCURATE</span>
 
-                    </div>
+                    <h2 class="me3co-how-title">
+                        HOW <span>ME3CO</span> WORKS
+                    </h2>
+
+                    <p class="me3co-how-subtitle">
+                        ME3CO makes takeoffs and estimating fast, accurate and effortless.
+                        <br>
+                        Follow these simple steps to get started.
+                    </p>
                 </div>
             </div>
-        </div>
-        <div class="w-50 d-inline-block float-end project-image-2 w-xs-100 w-sm-100 w-md-100 w-lg-100">
-            <div class="w-100 d-inline-block">
-                <img src="{{ asset('home') }}/images/project-image-2.svg" class="project-img w-100">
-                <img src="{{ asset('home') }}/images/digital-blueprints-image.svg" class="blueprint-img hidden w-100">
-                <img src="{{ asset('home') }}/images/scale-image.svg" class="scale-img hidden w-100">
-                <img src="{{ asset('home') }}/images/measuring-image.svg" class="measuring-img 
-        hidden w-100">
-                <img src="{{ asset('home') }}/images/measuring-report-image.svg"
-                    class="measuring-report-img hidden w-100">
-                <img src="{{ asset('home') }}/images/changing-formulas.svg" class="changing-formulas-img hidden w-100">
-                <img src="{{ asset('home') }}/images/estimated-price.svg" class="estimated-price-img hidden w-100">
+
+            <div class="me3co-how-grid">
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">01</div>
+                    <img src="{{ asset('home') }}/images/creat-project-icon.svg" class="me3co-how-icon">
+                    <h4>Create a Project</h4>
+                    <p>Name your project and set bid information.</p>
+                </div>
+
+                <div class="me3co-how-arrow">→</div>
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">02</div>
+                    <img src="{{ asset('home') }}/images/digital-blueprints-icon.svg" class="me3co-how-icon">
+                    <h4>Upload Plans</h4>
+                    <p>Select PDF.</p>
+                </div>
+
+                <div class="me3co-how-arrow">→</div>
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">03</div>
+                    <img src="{{ asset('home') }}/images/scale-icon.svg" class="me3co-how-icon">
+                    <h4>Calibrate Scale</h4>
+                    <p>Set the scale for accurate measurements.</p>
+                </div>
+
+                <div class="me3co-how-arrow">→</div>
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">04</div>
+                    <img src="{{ asset('home') }}/images/measuring-icon.svg" class="me3co-how-icon">
+                    <h4>Do Takeoffs</h4>
+                    <p>Measure lengths, areas and counts.</p>
+                </div>
+
+                <div class="me3co-how-arrow">→</div>
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">05</div>
+                    <img src="{{ asset('home') }}/images/measuring-report-icon.svg" class="me3co-how-icon">
+                    <h4>Generate Reports</h4>
+                    <p>Export professional reports in PDF, Excel and CSV.</p>
+                </div>
+
+                <div class="me3co-how-arrow">→</div>
+
+                <div class="me3co-how-card">
+                    <div class="me3co-step-number">06</div>
+                    <img src="{{ asset('home') }}/images/estimated-icon.svg" class="me3co-how-icon">
+                    <h4>Estimate Cost</h4>
+                    <p>View the total estimated price for the project.</p>
+                </div>
+
+            </div>
+
+            <div class="me3co-how-cta">
+                <div class="me3co-rocket">🚀</div>
+                <h3>Ready to streamline your estimating process?</h3>
+                <p>Save time, reduce errors and win more projects with ME3CO.</p>
+
+                <a href="{{ route('register') }}" class="me3co-how-btn">
+                    Start Free Trial
+                    <span>→</span>
+                </a>
             </div>
         </div>
     </div>
@@ -460,6 +416,36 @@ pb-4">
                                 </a>
                             </li>
                         </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="me3co-stats">
+            <div class="row">
+                <div class="col-xl-3 col-6 col-sm-6 col-md-3 mb-xl-0 mb-3">
+                    <div class="me3co-stat-box">
+                        <span class="me3co-stat-number">78%</span>
+                        <span class="me3co-stat-label">Average Time Saved on Takeoffs</span>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-6 col-sm-6 col-md-3 mb-xl-0 mb-3">
+                    <div class="me3co-stat-box">
+                        <span class="me3co-stat-number">99%</span>
+                        <span class="me3co-stat-label">More Accurate Estimates</span>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-6 col-sm-6 col-md-3 mb-xl-0 mb-3">
+                    <div class="me3co-stat-box">
+                        <span class="me3co-stat-number">10K+</span>
+                        <span class="me3co-stat-label">Projects Completed with ME3CO</span>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-6 col-sm-6 col-md-3 mb-xl-0 mb-3">
+                    <div class="me3co-stat-box">
+                        <span class="me3co-stat-number">40+</span>
+                        <span class="me3co-stat-label">Years Construction Experience</span>
                     </div>
                 </div>
             </div>

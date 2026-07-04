@@ -328,8 +328,22 @@ class HomeController extends Controller
             "project_id" => $idProject,
         ]);
 
-        if($isSuccess) {
+        /*if($isSuccess) {
             return back()->with("message", "&check; New Record Created!");
+        }*/
+
+        if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; Crew Created!");
+            }
+
+            if (!empty($idProject)) {
+                return redirect()->to('crew/' . $idProject)->with("message", "&check; Crew Created!");
+            }
+
+            return redirect()->to('crew')->with("message", "&check; Crew Created!");
         }
 
         return back()->with("message", "⚠ Error While Creating Record!");
@@ -342,8 +356,23 @@ class HomeController extends Controller
             'labor_info' => json_encode($request->post('labor_info'))
         ]);
 
-        if($isSuccess) {
+        /*if($isSuccess) {
             return redirect()->to('crew')->with("message", "&check; Record Updated!");
+        }*/
+        if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; Crew Updated!");
+            }
+
+            $idProject = session('idProject');
+
+            if (!empty($idProject)) {
+                return redirect()->to('crew/' . $idProject)->with("message", "&check; Crew Updated!");
+            }
+
+            return redirect()->to('crew')->with("message", "&check; Crew Updated!");
         }
 
         return back()->with("message", "⚠ Error While Updating Record!");
@@ -450,8 +479,21 @@ class HomeController extends Controller
             "project_id" => $idProject,
         ]);
 
-        if($isSuccess) {
+        /*if($isSuccess) {
             return back()->with("message", "&check; New Equipment Created!");
+        }*/
+        if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; New Equipment Created!");
+            }
+
+            if (!empty($idProject)) {
+                return redirect()->to('equipment/' . $idProject)->with("message", "&check; New Equipment Created!");
+            }
+
+            return redirect()->to('equipment')->with("message", "&check; New Equipment Created!");
         }
 
         return back()->with("message", "⚠ Error While Creating Record!");
@@ -481,7 +523,22 @@ class HomeController extends Controller
             "cost_per_day" => $request->post("cost_per_day")
         ]);
 
+        /*if($isSuccess) {
+            return redirect()->to('equipment')->with("message", "&check; Equipment Updated!");
+        }*/
         if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; Equipment Updated!");
+            }
+
+            $idProject = session('idProject');
+
+            if (!empty($idProject)) {
+                return redirect()->to('equipment/' . $idProject)->with("message", "&check; Equipment Updated!");
+            }
+
             return redirect()->to('equipment')->with("message", "&check; Equipment Updated!");
         }
 
@@ -744,14 +801,14 @@ class HomeController extends Controller
 
 
         $project = Project::find($idProject);
-        $materials = Material::where('user_id', Auth::id())->where('project_id', null)->orderBy('id', 'desc');
+        $materials = Material::where('user_id', Auth::id())->where('project_id', null)->orderBy('material_division_id', 'asc')->orderBy('name', 'asc');
         if( $idProject!=null)
         {
-            $materials = Material::where('project_id', $idProject)->orderBy('id', 'desc');
+            $materials = Material::where('project_id', $idProject)->orderBy('material_division_id', 'asc')->orderBy('name', 'asc');
         }
          if( $material_division_id!=null)
         {
-            $materials = Material::where('material_division_id', $material_division_id)->orderBy('id', 'desc');
+            $materials = Material::where('material_division_id', $material_division_id)->orderBy('material_division_id', 'asc')->orderBy('name', 'asc');
         }
         $materials = $materials->get();
         $data = array(
@@ -831,40 +888,92 @@ class HomeController extends Controller
 
     }
     public function create_material(Request $request) {
+        $is_global = 0;
 
-        $idProject = session('idProject');
-        $isSuccess = Material::create([
-            'user_id' => Auth::id(),
-            'name' => $request->post('name'),
-            'material_type_id' => $request->post('material_type_id'),
-            'material_class_id' => $request->post('material_class_id'),
-            'material_division_id' => $request->post('material_division_id'),
-            'description' => $request->post('description'),
-            'measurement_unit' => $request->post('measurement_unit'),
-            'default_unit' => $request->post('default_unit'),
-            'unique_id' => \generate_material_id($request->post('material_class_id')),
-            'height' => $request->post('height'),
-            'width' => $request->post('width'),
-            'length' => $request->post('length'),
-            'waste' => $request->post('waste'),
-            'prices' => $request->post('prices'),
- 
-            //nuevos campos 27 nov 2024
-            'weight_lf' => $request->post('weight_lf'),
-            'sq_ft_per_cy' => $request->post('sq_ft_per_cy'),
-            //nuevos campos 27 nov 2024
+        if (Auth::user()->role == 1 && $request->has('is_global')) {
+            $is_global = 1;
+        }
+        if ($is_global !== 1) {
+            $idProject = session('idProject');
+            $isSuccess = Material::create([
+                'user_id' => Auth::id(),
+                'name' => $request->post('name'),
+                'material_type_id' => $request->post('material_type_id'),
+                'material_class_id' => $request->post('material_class_id'),
+                'material_division_id' => $request->post('material_division_id'),
+                'description' => $request->post('description'),
+                'measurement_unit' => $request->post('measurement_unit'),
+                'default_unit' => $request->post('default_unit'),
+                'unique_id' => \generate_material_id($request->post('material_class_id')),
+                'height' => $request->post('height'),
+                'width' => $request->post('width'),
+                'length' => $request->post('length'),
+                'waste' => $request->post('waste'),
+                'prices' => $request->post('prices'),
+    
+                //nuevos campos 27 nov 2024
+                'weight_lf' => $request->post('weight_lf'),
+                'sq_ft_per_cy' => $request->post('sq_ft_per_cy'),
+                //nuevos campos 27 nov 2024
 
-            'production_rate' => $request->post('production_rate'),
-            'subbed_out_rate' => $request->post('subbed_out_rate'),
-            'production_subed_out_cost' => $request->post('production_subed_out_cost'),
-            'cleaning_cost' => $request->post('cleaning_cost'),
-            'cleaning_subed_out' => $request->post('cleaning_subed_out'),
-            'associated_products' => json_encode($request->post('associated_products')),
-            "project_id" => $idProject,
-        ]);
+                'production_rate' => $request->post('production_rate'),
+                'subbed_out_rate' => $request->post('subbed_out_rate'),
+                'production_subed_out_cost' => $request->post('production_subed_out_cost'),
+                'cleaning_cost' => $request->post('cleaning_cost'),
+                'cleaning_subed_out' => $request->post('cleaning_subed_out'),
+                'associated_products' => json_encode($request->post('associated_products')),
+                "project_id" => $idProject,
 
-        if($isSuccess) {
+                'is_global' => $is_global,
+            ]);
+        } else {
+            $isSuccess = Material::create([
+                'user_id' => 0,
+                'name' => $request->post('name'),
+                'material_type_id' => $request->post('material_type_id'),
+                'material_class_id' => $request->post('material_class_id'),
+                'material_division_id' => $request->post('material_division_id'),
+                'description' => $request->post('description'),
+                'measurement_unit' => $request->post('measurement_unit'),
+                'default_unit' => $request->post('default_unit'),
+                'unique_id' => \generate_material_id($request->post('material_class_id')),
+                'height' => $request->post('height'),
+                'width' => $request->post('width'),
+                'length' => $request->post('length'),
+                'waste' => $request->post('waste'),
+                'prices' => $request->post('prices'),
+    
+                //nuevos campos 27 nov 2024
+                'weight_lf' => $request->post('weight_lf'),
+                'sq_ft_per_cy' => $request->post('sq_ft_per_cy'),
+                //nuevos campos 27 nov 2024
+
+                'production_rate' => $request->post('production_rate'),
+                'subbed_out_rate' => $request->post('subbed_out_rate'),
+                'production_subed_out_cost' => $request->post('production_subed_out_cost'),
+                'cleaning_cost' => $request->post('cleaning_cost'),
+                'cleaning_subed_out' => $request->post('cleaning_subed_out'),
+                'associated_products' => json_encode($request->post('associated_products')),
+
+                'is_global' => $is_global,
+            ]);
+        }
+
+        /*if($isSuccess) {
             return back()->with("message", "&check; Record Created!");
+        }*/
+        if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; Record Created!");
+            }
+
+            if (!empty($idProject)) {
+                return redirect()->to('material/' . $idProject)->with("message", "&check; Record Created!");
+            }
+
+            return redirect()->to('material')->with("message", "&check; Record Created!");
         }
 
         return back()->with("message", "⚠ Error While Creating Record!");
@@ -911,10 +1020,28 @@ class HomeController extends Controller
             'production_subed_out_cost' => $request->post('production_subed_out_cost'),
             'cleaning_cost' => $request->post('cleaning_cost'),
             'cleaning_subed_out' => $request->post('cleaning_subed_out'),
-            'associated_products' => json_encode($request->post('associated_products'))
+            'associated_products' => json_encode($request->post('associated_products')),
+
+            'is_global' => Auth::user()->role == 1 && $request->has('is_global') ? 1 : 0,
         ]);
 
+        /*if($isSuccess) {
+            return redirect()->to('material')->with("message", "&check; Record Updated!");
+        }*/
+
         if($isSuccess) {
+            $return_url = $request->post('return_url');
+
+            if (!empty($return_url)) {
+                return redirect()->to($return_url)->with("message", "&check; Record Updated!");
+            }
+
+            $idProject = session('idProject');
+
+            if (!empty($idProject)) {
+                return redirect()->to('material/' . $idProject)->with("message", "&check; Record Updated!");
+            }
+
             return redirect()->to('material')->with("message", "&check; Record Updated!");
         }
 

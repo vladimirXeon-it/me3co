@@ -4,160 +4,204 @@
 
 @section('content')
 
-    <div class="page-content-tab">
-        <div class="container-fluid">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-items-center d-flex gap-2">
-                                <button
-                                    type="button"
-                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                                    onclick="goBack()"
-                                    aria-label="Go back"
-                                    title="Back"
-                                    style="line-height:1;"
-                                >
-                                    <i class="fa fa-reply"></i>
-                                </button>
-                                <h4 class="page-title pb-md-0">Crews  @if ($project!=null)
-                                    for {{$project->name}}
-                                 @endif</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Crew11</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
+            @if ($project != null)
+                <div class="alert border-0 shadow-sm mb-3"
+                    style="background:#eef5ff;border-left:4px solid #0d6efd!important;border-radius:14px;">
+                    <div class="d-flex align-items-center">
+                        <div class="labor-icon me-3">
+                            <i class="fa fa-folder"></i>
                         </div>
-                        <!--end row-->
+                        <div>
+                            <div class="fw-semibold text-dark">Creating crew for project</div>
+                            <div class="text-muted">{{ $project->name }}</div>
+                        </div>
                     </div>
-                    <!--end page-title-box-->
                 </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
-            <!-- end page title end breadcrumb -->
+            @endif
+
             <div class="row">
-                <div class="col-md-6 col-lg-4 order-lg-1 order-md-1 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
-                            
-                            <div class="pt-3 new-project">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Create crew</h3>
-                                    <hr>
-                                <h6>Quick Start Crew </h6>
-                                <hr>
-                                <button class="btn back-btn text-black btn-sm import_button"> <i class="fa fa-file-import"></i>
-                                    Import Items</button>
-                                <ul class="import-list">
-                                    @php
-                                        $master_labors = get_master_crews();
-                                    @endphp
-                                    @foreach ($master_labors as $master_labor)
-                                        <li class="import-item">
-                                            <input type="checkbox" class="check-box">
-                                            {{ $master_labor->name }} <a
-                                                href="{{ route('crew.import', ['id' => $master_labor->id]) }}">
-                                                <i class="fa fa-file-import"></i> Use
-                                            </a>
-                                        </li>
-                                    @endforeach
-                                </ul>
+                <div class="col-lg-8 col-md-10 mx-auto">
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
+
+                            <div class="my-project">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h3 class="me3co-form-title mb-1">My Crews</h3>
+                                        <p class="me3co-form-subtitle mb-0">Quick Start Crew Templates</p>
+                                    </div>
+
+                                    <a href="javascript:void(0);" id="create-new" class="btn me3co-primary-btn">
+                                        <i class="fa fa-plus me-1"></i>
+                                        Create New
+                                    </a>
                                 </div>
+
+                                <hr class="my-3">
+
+                                @php
+                                    $master_labors = get_master_crews();
+                                @endphp
+
+                                <button type="button" class="btn me3co-outline-btn import_button mb-3">
+                                    <i class="fa fa-file-import me-1"></i>
+                                    Import Items
+                                </button>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="form-check m-0">
+                                        <input type="checkbox" class="form-check-input m-0" id="selectAllCrew">
+                                        <label class="form-check-label fw-semibold" for="selectAllCrew">
+                                            Select All
+                                        </label>
+                                    </div>
+
+                                    <small class="text-muted">
+                                        {{ count($master_labors) }} templates
+                                    </small>
+                                </div>
+
+                                <div class="labor-template-list">
+                                    @foreach ($master_labors as $master_labor)
+                                        <div class="labor-template-item import-item">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <input type="checkbox" class="check-box form-check-input crew-checkbox m-0">
+
+                                                <div class="labor-icon">
+                                                    <i class="fa fa-users"></i>
+                                                </div>
+
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold text-dark">
+                                                        {{ $master_labor->name }}
+                                                    </h6>
+                                                    <small class="text-muted">
+                                                        Quick start crew template
+                                                    </small>
+                                                </div>
+                                            </div>
+
+                                            <a href="{{ route('crew.import', ['id' => $master_labor->id]) }}"
+                                                class="btn me3co-small-primary">
+                                                Use
+                                            </a>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="new-project" style="display:none;">
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">Create New Crew</h3>
+                                    <p class="me3co-form-subtitle mb-0">
+                                        Fill in the details below to create a new crew.
+                                    </p>
+                                </div>
+
                                 <form method="post" action="{{ route('crew.create') }}">
                                     @csrf()
-                                    <div class="row">
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                                    <input type="hidden" name="return_url" value="{{ request('return_url') }}">
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Crew name:</label>
-                                                <input type="text" name="name" class="form-control" required>
+                                                <label class="form-label fw-bold text-14">Crew Name</label>
+                                                <input type="text" name="name" class="form-control" placeholder="Crew Name" required>
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                        <div class="col-md-6">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Description:</label>
-                                                <textarea class="form-control" name="description" required></textarea>
+                                                <label class="form-label fw-bold text-14">Description</label>
+                                                <input type="text" class="form-control" name="description" placeholder="Description" required>
                                             </div>
                                         </div>
                                     </div>
-                                    <hr>
-                                    <div class="row">
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                    <hr class="my-4">
+
+                                    <h6 class="fw-bold text-primary mb-3">Labor Information</h6>
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Labor Type:</label>
+                                                <label class="form-label fw-bold text-14">Labor Type</label>
                                                 <select class="form-control" name="labor_info[0][labor_type_id]" required>
                                                     <option value="">Select</option>
                                                     @php
                                                         $labor_types = get_user_labors();
                                                     @endphp
-
                                                     @foreach ($labor_types as $labor_type)
-                                                        <option value="{{ $labor_type->id }}">{{ $labor_type->labor_type }}
+                                                        <option value="{{ $labor_type->id }}">
+                                                            {{ $labor_type->labor_type }}
                                                         </option>
                                                     @endforeach
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                        <div class="col-md-6">
                                             <div class="form-group input-project">
-                                                <label class="text-14">How many of this labor type:</label>
+                                                <label class="form-label fw-bold text-14">Quantity</label>
                                                 <input type="text" class="form-control" name="labor_info[0][quantity]"
-                                                    required>
+                                                    placeholder="How many of this labor type" required>
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                        <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">How many regular Hrs per day:</label>
-                                                <input type="text" class="form-control"
-                                                    name="labor_info[0][hours_per_day]" required>
+                                                <label class="form-label fw-bold text-14">Regular Hrs / Day</label>
+                                                <input type="text" class="form-control" name="labor_info[0][hours_per_day]"
+                                                    placeholder="Regular hours" required>
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                        <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">How many hours Overtime per day:</label>
-                                                <input type="text" class="form-control"
-                                                    name="labor_info[0][overtime_per_day]">
+                                                <label class="form-label fw-bold text-14">Overtime / Day</label>
+                                                <input type="text" class="form-control" name="labor_info[0][overtime_per_day]"
+                                                    placeholder="Overtime hours">
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+
+                                        <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">How many double time per day:</label>
-                                                <input type="text" class="form-control"
-                                                    name="labor_info[0][doubletime_per_day]">
+                                                <label class="form-label fw-bold text-14">Double Time / Day</label>
+                                                <input type="text" class="form-control" name="labor_info[0][doubletime_per_day]"
+                                                    placeholder="Double time">
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="more-labor"></div>
-                                    <div class="form-group row">
-                                        <div class="col-sm-12">
-                                            <a href="javascript:void(0);" class="btn back-btn text-black btn-labor">Add More</a>
-                                        </div>
+
+                                    <div class="more-labor mt-3"></div>
+
+                                    <div class="mt-3">
+                                        <a href="javascript:void(0);" class="btn me3co-outline-btn btn-labor">
+                                            <i class="fa fa-plus me-1"></i>
+                                            Add More
+                                        </a>
                                     </div>
-                                    <div class="row">
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <a href="javascript:void(0);" class="btn back-btn text-black"
-                                                    id="back">Back</a>
-                                                <button class="btn save-btn text-white">Save</button>
-                                            </div>
-                                        </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="javascript:void(0);" class="btn me3co-secondary-btn" id="back">
+                                            Back
+                                        </a>
+
+                                        <button class="btn me3co-primary-btn">
+                                            <i class="fa fa-save me-1"></i>
+                                            Save Crew
+                                        </button>
                                     </div>
                                 </form>
                             </div>
+
                         </div>
-                        <!--end card-body-->
                     </div>
                 </div>
-                <!--end col-->
-
             </div>
             <!--end row-->
 
@@ -196,9 +240,42 @@
 
             $(wrapper).on("click", ".remove", function(e) { //user click on remove text
                 e.preventDefault();
-                $(this).parents(".form-row").remove();
+                $(this).parents(".labor-extra-row").remove();
                 x--;
-            })
+            });
+
+            $('#selectAllCrew').on('change', function () {
+                $('.crew-checkbox').prop('checked', this.checked);
+            });
+
+            $('.crew-checkbox').on('change', function () {
+                $('#selectAllCrew').prop(
+                    'checked',
+                    $('.crew-checkbox').length === $('.crew-checkbox:checked').length
+                );
+            });
+            $(".new-project").hide();
+
+            $("#create-new").click(function () {
+                $(".my-project").hide();
+                $(".new-project").fadeIn(250);
+            });
+
+            $("#back").click(function () {
+                $(".new-project").hide();
+                $(".my-project").fadeIn(250);
+            });
+
+            $('#selectAllCrew').on('change', function () {
+                $('.crew-checkbox').prop('checked', this.checked);
+            });
+
+            $('.crew-checkbox').on('change', function () {
+                $('#selectAllCrew').prop(
+                    'checked',
+                    $('.crew-checkbox').length === $('.crew-checkbox:checked').length
+                );
+            });
         });
     </script>
 

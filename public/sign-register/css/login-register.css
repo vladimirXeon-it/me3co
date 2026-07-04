@@ -116,3 +116,70 @@ input[type="number"]::-webkit-inner-spin-button,
  input[type="number"] {
     -moz-appearance: textfield; /* Firefox */
 }
+
+/*nuevo*/
+
+@media (max-width: 991px){
+    .w-70.m-auto{
+        padding:26px;
+        border-radius:20px;
+        box-shadow:none;
+        border:0;
+    }
+
+    .col-xl-6.col-12.col-md-6.col-lg-6:not(.p-0){
+        min-height:auto;
+    }
+}
+
+@media (max-width: 576px){
+    body{
+        background:#fff;
+    }
+
+    .w-70.m-auto{
+        padding:20px 10px;
+    }
+
+    .w-70.m-auto p.fs-3{
+        font-size:30px !important;
+    }
+
+    .form-group input{
+        height:50px;
+    }
+}
+
+.register-card{
+    max-width:650px;
+}
+
+.register-title{
+    font-size:42px;
+    font-weight:800;
+    color:#04142E;
+    margin-bottom:8px;
+}
+
+.register-login-link{
+    position:absolute;
+    top:35px;
+    right:35px;
+    color:#6c7485;
+}
+
+.register-login-link a{
+    color:#0D5EFF;
+    font-weight:700;
+}
+
+.register-card .row{
+    margin-left:-8px;
+    margin-right:-8px;
+}
+
+.register-card .row > div{
+    padding-left:8px;
+    padding-right:8px;
+}
+

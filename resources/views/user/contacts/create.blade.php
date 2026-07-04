@@ -5,122 +5,104 @@
 @section('content')
     <div class="page-content-tab">
         <div class="container-fluid">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-items-center d-flex gap-2">
-                                <button
-                                    type="button"
-                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                                    onclick="goBack()"
-                                    aria-label="Go back"
-                                    title="Back"
-                                    style="line-height:1;"
-                                >
-                                    <i class="fa fa-reply"></i>
-                                </button>
-                                <h4 class="page-title pb-md-0">Contact</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Contacts</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
             <!-- end page title end breadcrumb -->
             <div class="row">
-                <div class="col-md-6 col-lg-4 order-lg-1 mx-auto order-md-1">
-                    <div class="card">
-                        <div class="card-body">
+                <div class="col-lg-8 col-md-10 mx-auto">
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
 
-                            <div class="pt-3 new-project">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Create New Contact</h3>
-                                </div>
-                                <form method="post" action="{{ route('contact.create') }}">
-                                    @csrf()
-                                    <div class="row">
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Contact Name:</label>
-                                                <input type="text" class="form-control" name="name" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Company Name:</label>
-                                                <input type="text" class="form-control" name="company" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Phone:</label>
-                                                <input type="tel" class="form-control" name="phone" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Email:</label>
-                                                <input type="email" class="form-control" name="email" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Company Address:</label>
-                                                <textarea class="form-control" rows="5" name="address" required></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">City:</label>
-                                                <input type="text" class="form-control" name="city" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">State:</label>
-                                                <input type="text" class="form-control" name="state" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Country:</label>
-                                                <input type="text" class="form-control" name="country" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6">
-                                            <div class="form-group input-project">
-                                                <label class="text-14">Zip Code:</label>
-                                                <input type="text" class="form-control" name="zip" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <button class="btn save-btn text-white">Create</button>
-                                            </div>
+                            <div class="mb-4">
+                                <h3 class="me3co-form-title mb-1">Create New Contact</h3>
+                                <p class="me3co-form-subtitle mb-0">
+                                    Fill in the contact information below.
+                                </p>
+                            </div>
+
+                            <form method="post" action="{{ route('contact.create') }}">
+                                @csrf()
+
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Contact Name</label>
+                                            <input type="text" class="form-control" name="name" placeholder="Contact Name" required>
                                         </div>
                                     </div>
-                                </form>
-                            </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Company Name</label>
+                                            <input type="text" class="form-control" name="company" placeholder="Company Name" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Phone</label>
+                                            <input type="tel" class="form-control" name="phone" placeholder="Phone" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Email</label>
+                                            <input type="email" class="form-control" name="email" placeholder="Email" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Company Address</label>
+                                            <textarea class="form-control" name="address" placeholder="Company Address" required style="height:110px;"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">City</label>
+                                            <input type="text" class="form-control" name="city" placeholder="City" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">State</label>
+                                            <input type="text" class="form-control" name="state" placeholder="State" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Country</label>
+                                            <input type="text" class="form-control" name="country" placeholder="Country" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group input-project">
+                                            <label class="form-label fw-bold text-14">Zip Code</label>
+                                            <input type="text" class="form-control" name="zip" placeholder="Zip Code" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="javascript:void(0);" onclick="goBack()" class="btn me3co-secondary-btn">
+                                        Back
+                                    </a>
+
+                                    <button class="btn me3co-primary-btn">
+                                        <i class="fa fa-save me-1"></i>
+                                        Save Contact
+                                    </button>
+                                </div>
+                            </form>
+
                         </div>
-                        <!--end card-body-->
                     </div>
                 </div>
-                <!--end col-->
-
             </div>
             <!--end row-->
 

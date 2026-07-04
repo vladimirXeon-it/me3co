@@ -598,6 +598,7 @@ class AdminController extends Controller
             'email' => $request->post('email'),
             'username' => $request->post('username'),
             'company' => $request->post('company'),
+            'role' => $request->has('role') ? 1 : 0,
         ]);
 
         if($isSuccess) {

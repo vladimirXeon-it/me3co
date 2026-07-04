@@ -42,6 +42,7 @@
                                 </div>
                                 <form method="post" action="{{ route('crew.update', ['id' => $crew->id]) }}">
                                     @csrf()
+                                    <a href="javascript:void(0);" class="btn back-btn text-black" onclick="goBack()">Back</a>
                                     <div class="row">
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">

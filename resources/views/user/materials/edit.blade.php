@@ -43,6 +43,7 @@
                                 </div>
                                 <form method="post" action="{{ route('material.update', ['id' => $material->id]) }}">
                                     @csrf()
+                                    <input type="hidden" name="return_url" value="{{ request('return_url') }}">
 
                                     <div class="row">
                                         <div class="col-lg4 col-md-4 col-sm-12 col-xs-12">
@@ -403,10 +404,25 @@
                                                 More</button>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
+                                            <!--div class="form-group text-center"-->
+                                            <div class="form-group d-flex justify-content-center align-items-center gap-3 flex-wrap">
                                                 <a href="#" onclick="history.back()"
                                                     class="btn back-btn text-black">Back</a>
                                                 <button class="btn save-btn text-white">Save Changes</button>
+                                                <!--@if(auth()->user()->role == 1)
+                                                <div class="form-check form-switch mt-3">
+                                                    <input 
+                                                        class="form-check-input" 
+                                                        type="checkbox" 
+                                                        id="is_global" 
+                                                        name="is_global"
+                                                        {{ $material->is_global ? 'checked' : '' }}
+                                                    >
+                                                    <label class="form-check-label" for="is_global">
+                                                        Checked: visible to all users
+                                                    </label>
+                                                </div>
+                                                @endif-->
                                             </div>
                                         </div>
                                     </div>

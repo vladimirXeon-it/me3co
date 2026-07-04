@@ -489,7 +489,9 @@ li.scale_view_container:hover {
 }
 
 .sidebar__left {
-  width: 300px;
+  width: 260px;
+  flex: 0 0 auto;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   background-color: white;
   overflow-y: auto;
   height: 100%;
@@ -664,7 +666,9 @@ hr {
 }
 
 .drawing-board__container {
-  width: calc(100% - 600px);
+  flex: 1 1 0%;
+  width: 0;
+  min-width: 0;
   height: 100%;
   display: flex;
   justify-content: center;
@@ -678,7 +682,9 @@ hr {
 }
 
 .sidebar__right {
-  width: 300px;
+  width: 260px;
+  flex: 0 0 auto;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   height: 100%;
   background-color: white;
   overflow: auto;

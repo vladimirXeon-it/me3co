@@ -1,5 +1,7 @@
 .logo img{
-	height:50px;
+	height:58px;
+    width:auto;
+    transition:.3s;
 }
 .login-btn{
 	background-color: #D9D9D9;
@@ -33,18 +35,18 @@ background-color: #093F4E;
     color:#30B6C4 !important;
     border-radius:0 !important;
 }
-.banner-image{
+/*.banner-image{
 	background: url(../images/banner-image.png) no-repeat left;
     background-repeat: no-repeat !important;
     background-size: cover !important;
     min-height: 500px;
-}
-.bg-about-us{
+}*/
+/*.bg-about-us{
 	background: url(../images/about-us-bg.svg) no-repeat left;
     background-repeat: no-repeat !important;
     background-size: cover !important;
     min-height: 230px;
-}
+}*/
 .trades-bg-image{
 	background: url(../images/trades-bg-image.svg) no-repeat left;
     background-repeat: no-repeat !important;
@@ -303,4 +305,592 @@ background-color: #093F4E;
 
 }
 
+/*//////////////////////////////////////////////*/
 
+:root{
+    --me3co-dark:#04142E;
+    --me3co-dark-2:#07204A;
+    --me3co-blue:#0D5EFF;
+    --me3co-blue-2:#1495FF;
+    --me3co-light:#F5F7FB;
+    --me3co-border:#DCE3F0;
+}
+
+/* General */
+body{
+    background:#F5F7FB;
+}
+
+.text-color,
+.activeA{
+    color:var(--me3co-blue) !important;
+}
+
+/* Header */
+header{
+    background:#fff;
+    box-shadow:0 8px 28px rgba(4,20,46,.08);
+}
+
+.logo img{
+    height:58px;
+}
+
+.login-btn{
+    background:#fff;
+    border:1px solid var(--me3co-border);
+    color:var(--me3co-dark) !important;
+    border-radius:12px;
+    padding:10px 18px;
+    font-weight:700;
+}
+
+.login-btn:hover{
+    background:var(--me3co-light);
+    color:var(--me3co-blue) !important;
+}
+
+.signup-btn,
+.account-btn,
+.btn-box,
+.sign-bg{
+    background:linear-gradient(135deg,var(--me3co-blue),var(--me3co-blue-2)) !important;
+    border-radius:12px;
+    padding:10px 18px;
+    color:#fff !important;
+    font-weight:700;
+    box-shadow:0 10px 25px rgba(13,94,255,.25);
+}
+
+.signup-btn:hover,
+.account-btn:hover,
+.see-more-btn:hover,
+.my-project-btn a:hover{
+    background:var(--me3co-dark) !important;
+    color:#fff !important;
+}
+
+.main-navbar li a,
+.sticky-navbar li a{
+    letter-spacing:.2px;
+}
+
+.main-navbar li a:hover,
+.sticky-navbar li a:hover{
+    color:var(--me3co-blue) !important;
+}
+
+.activeB{
+    border-bottom:2px solid var(--me3co-blue);
+    color:var(--me3co-blue) !important;
+}
+
+/* Sticky */
+.bg-sticky{
+    /*height:70px;*/
+    background:linear-gradient(90deg,var(--me3co-dark),var(--me3co-dark-2)) !important;
+    box-shadow:0 8px 28px rgba(0,0,0,.25);
+    padding: 0 !important;
+}
+
+/* Hero */
+.banner-image{
+    position:relative;
+    background:
+        linear-gradient(90deg,rgba(4,20,46,.92),rgba(7,32,74,.72),rgba(13,94,255,.12)),
+        url(../images/banner-image.png) no-repeat left !important;
+    background-size:cover !important;
+    min-height:500px;
+    overflow:hidden;
+}
+
+.banner-image:after{
+    content:"";
+    position:absolute;
+    inset:auto -10% -45% -10%;
+    height:360px;
+    background:radial-gradient(circle,rgba(13,94,255,.55),transparent 70%);
+    pointer-events:none;
+}
+
+.banner-image .container{
+    position:relative;
+    z-index:2;
+}
+
+.banner-image h1{
+    font-size:58px;
+    line-height:1.05;
+    max-width:620px;
+}
+
+.account-section p{
+    font-size:18px;
+}
+
+.account-section ul li span{
+    background:rgba(255,255,255,.09);
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:30px;
+    padding:8px 12px;
+    margin-right:8px;
+    margin-bottom:8px;
+}
+
+.account-section img{
+    height:18px;
+    margin-right:6px;
+}
+
+/* About */
+.bg-about-us{
+    background:url(../images/about-us-bg.svg) no-repeat left !important;
+    background-size:cover !important;
+    min-height:230px;
+
+    border-radius:0;
+    box-shadow:none;
+
+    margin:0;
+    padding-top:40px;
+    padding-bottom:40px;
+}
+
+/* How it works */
+#how-it-work{
+    background:#fff;
+    padding:35px 0;
+}
+
+.work-text{
+    color:var(--me3co-dark);
+}
+
+.create-project,
+.create-project-btn{
+    transition:.25s ease;
+}
+
+.create-project{
+    background:#fff;
+    border:1px solid var(--me3co-border) !important;
+    border-radius:18px;
+    padding:18px !important;
+    margin-bottom:14px;
+    box-shadow:0 10px 25px rgba(4,20,46,.08);
+}
+
+.create-project:hover{
+    transform:translateY(-4px);
+    border-color:var(--me3co-blue) !important;
+}
+
+.creat-project-icon{
+    height:42px;
+}
+
+/* Trades */
+.trades-bg-image{
+    background:linear-gradient(135deg,var(--me3co-dark),var(--me3co-dark-2)) !important;
+    padding:45px 0;
+}
+
+.contracter-box a{
+    width:185px;
+    height:120px;
+    border-radius:18px;
+    box-shadow:0 12px 30px rgba(0,0,0,.18);
+    transition:.25s ease;
+    border:1px solid rgba(255,255,255,.12);
+}
+
+.contracter-box a:hover{
+    background:var(--me3co-blue) !important;
+    transform:translateY(-5px);
+}
+
+/* Offer */
+.bg-bussiness{
+    background:#fff !important;
+    padding:45px 0;
+}
+
+.bussiness-content{
+    background:linear-gradient(135deg,var(--me3co-dark),var(--me3co-blue)) !important;
+    border-radius:24px;
+    box-shadow:0 18px 45px rgba(13,94,255,.18);
+}
+
+/* Pricing */
+.price-bg{
+    background:var(--me3co-light) !important;
+    padding:55px 0;
+}
+
+.main-price-box,
+.price-box{
+    border-radius:20px;
+    border:1px solid var(--me3co-border) !important;
+    transition:.25s ease;
+}
+
+.main-price-box:hover{
+    transform:translateY(-8px);
+    border-color:var(--me3co-blue) !important;
+    box-shadow:0 18px 45px rgba(13,94,255,.18);
+}
+
+.popular-btn{
+    background:var(--me3co-blue);
+    border-radius:20px;
+}
+
+/* Nueva sección métricas */
+.me3co-stats{
+    background:linear-gradient(90deg,var(--me3co-dark),var(--me3co-dark-2));
+    border-radius:24px;
+    padding:25px;
+    margin:35px auto;
+    box-shadow:0 18px 45px rgba(4,20,46,.20);
+}
+
+.me3co-stat-box{
+    color:#fff;
+    text-align:center;
+    border-right:1px solid rgba(255,255,255,.12);
+}
+
+.me3co-stat-box:last-child{
+    border-right:none;
+}
+
+.me3co-stat-number{
+    display:block;
+    font-size:42px;
+    font-weight:800;
+    line-height:1;
+}
+
+.me3co-stat-label{
+    display:block;
+    font-size:13px;
+    color:#DCE8FF;
+    margin-top:8px;
+}
+
+/* Contact/Footer */
+.footer-bg{
+    background:linear-gradient(135deg,var(--me3co-dark),var(--me3co-dark-2)) !important;
+}
+
+.input-contact input,
+.message-textarea textarea{
+    border-radius:12px;
+    border:1px solid var(--me3co-border);
+}
+
+.send-btn{
+    border-radius:12px;
+    padding:10px 22px;
+}
+
+.hero-title{
+    font-size:60px;
+    line-height:1.12;
+    font-weight:800;
+    color:#fff;
+    max-width:820px;
+    letter-spacing:-1px;
+    margin-bottom:22px;
+}
+
+.hero-title .text-color{
+    color:#0D5EFF !important;
+    display:inline-block;
+    position:relative;
+}
+
+.hero-title .text-color:after{
+    content:"";
+    position:absolute;
+    left:0;
+    bottom:-5px;
+    width:100%;
+    height:4px;
+    border-radius:10px;
+    background:#0D5EFF;
+}
+
+.hero-features{
+    width:760px;
+    max-width:100%;
+    display:block !important;
+    margin:18px 0 0 58px;
+    padding:0;
+}
+
+.hero-features li{
+    display:flex !important;
+    justify-content:flex-start;
+    gap:22px;
+    margin-bottom:12px !important;
+}
+
+.hero-features li span{
+    float:none !important;
+    width:350px !important;
+    min-height:52px;
+    display:flex !important;
+    align-items:center;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.28);
+    border-radius:12px;
+    padding:13px 22px;
+    margin:0 !important;
+    color:#fff !important;
+    font-size:17px !important;
+    font-weight:700;
+    backdrop-filter:blur(6px);
+}
+
+.hero-features li span img{
+    width:22px;
+    height:22px;
+    margin-right:16px;
+}
+
+.hero-features li:last-child{
+    display:block !important;
+    text-align:center;
+    margin-top:22px !important;
+}
+
+.hero-features .account-btn{
+    display:inline-flex !important;
+    align-items:center;
+    justify-content:center;
+    min-width:390px;
+    min-height:62px;
+    border-radius:12px;
+    font-size:22px !important;
+    font-weight:800;
+    background:linear-gradient(135deg,#0D5EFF,#1495FF) !important;
+    box-shadow:0 14px 35px rgba(13,94,255,.35);
+}
+
+.me3co-how-section {
+    width: 100%;
+    display: inline-block;
+    padding: 70px 0 55px;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.me3co-how-badge {
+    display: inline-block;
+    padding: 8px 35px;
+    border: 1px solid #cfe0ff;
+    border-radius: 30px;
+    color: #0066ff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    background: #fff;
+    margin-bottom: 20px;
+}
+
+.me3co-how-title {
+    color: #071b3a;
+    font-size: 48px;
+    font-weight: 900;
+    margin-bottom: 15px;
+    letter-spacing: 1px;
+}
+
+.me3co-how-title span {
+    color: #0066ff;
+}
+
+.me3co-how-subtitle {
+    color: #5c6475;
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 45px;
+}
+
+.me3co-how-grid {
+    display: grid;
+    grid-template-columns: 1fr 35px 1fr 35px 1fr 35px 1fr 35px 1fr 35px 1fr;
+    align-items: center;
+    gap: 0;
+}
+
+.me3co-how-card {
+    background: #fff;
+    border: 1px solid #edf1f7;
+    border-radius: 16px;
+    min-height: 280px;
+    padding: 28px 18px;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(7, 27, 58, 0.08);
+    transition: all .3s ease;
+}
+
+.me3co-how-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 38px rgba(7, 27, 58, 0.12);
+}
+
+.me3co-step-number {
+    width: 38px;
+    height: 38px;
+    background: #0066ff;
+    color: #fff;
+    border-radius: 50%;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: 0 6px 16px rgba(0, 102, 255, 0.35);
+}
+
+.me3co-how-icon {
+    height: 58px;
+    margin-bottom: 25px;
+
+    filter:
+        brightness(0)
+        saturate(100%)
+        invert(30%)
+        sepia(98%)
+        saturate(4354%)
+        hue-rotate(216deg)
+        brightness(101%)
+        contrast(102%);
+}
+
+.me3co-how-card h4 {
+    color: #071b3a;
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 15px;
+}
+
+.me3co-how-card p {
+    color: #5c6475;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.me3co-how-arrow {
+    color: #0066ff;
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.me3co-how-cta {
+    background: #f4f8ff;
+    border-radius: 24px;
+    margin-top: 45px;
+    padding: 45px 20px 35px;
+    text-align: center;
+    box-shadow: inset 0 0 0 1px rgba(0, 102, 255, 0.06);
+}
+
+.me3co-rocket {
+    width: 70px;
+    height: 70px;
+    margin: -75px auto 20px;
+    background: #e8f1ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+}
+
+.me3co-how-cta h3 {
+    color: #071b3a;
+    font-size: 26px;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+.me3co-how-cta p {
+    color: #5c6475;
+    font-size: 16px;
+    margin-bottom: 22px;
+}
+
+.me3co-how-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: #0066ff;
+    color: #fff !important;
+    padding: 14px 35px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(0, 102, 255, 0.35);
+}
+
+.me3co-how-btn span {
+    width: 26px;
+    height: 26px;
+    background: rgba(255,255,255,.2);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.me3co-how-cta small {
+    display: block;
+    margin-top: 15px;
+    color: #6c7485;
+    font-size: 13px;
+}
+
+@media (max-width: 1199px) {
+    .me3co-how-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+    }
+
+    .me3co-how-arrow {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .me3co-how-section {
+        padding: 45px 0;
+    }
+
+    .me3co-how-title {
+        font-size: 34px;
+    }
+
+    .me3co-how-subtitle {
+        font-size: 15px;
+    }
+
+    .me3co-how-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .me3co-how-card {
+        min-height: auto;
+    }
+
+    .me3co-how-cta h3 {
+        font-size: 22px;
+    }
+}

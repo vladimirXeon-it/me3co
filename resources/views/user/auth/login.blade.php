@@ -17,35 +17,41 @@
    	    			<div class="w-100 d-inline-block logo mt-5">
    	    				<img class="w-35 d-inline-block mt-xl-5" 
    	    				src="{{ asset('sign-register') }}/images/logo-image.svg">
-   	    				<p class="text-white fs-4 mt-3 w-55 fw-bold w-md-100 w-ipad-100">
-   	    					Accelerate Bidding. Secure More Wins. Construct with Intelligence
-   	    				</p>
+   	    				<h1 class="login-hero-title">
+							Accelerate Bidding.<br>
+							Secure More Wins.<br>
+							Construct with Intelligence.
+						</h1>
+						<div class="login-hero-line"></div>
    	    				<span class="text-white text-14">
    	    					From project assessment, takeoff, and estimation to construction and project completion, contractors utilize MSNSOFT's cloud-based software to streamline their operations and optimize profitability.
    	    				</span>
    	    			</div>
    	    		</div>
    	    	</div>
-   	    	<div class="col-xl-6 col-12 col-md-6 col-lg-6">
-   	    		<div class="w-100 d-inline-block mt-3">
-   	    			<a class="text-15 back-text w-50 d-inline-block w-xs-25 w-md-35" href="{{ url('/') }}">
+   	    	<div class="col-xl-6 col-12 col-md-6 col-lg-6 login-right-panel">
+   	    		<div class="login-top-link">
+   	    			<a class="back-text" href="{{ url('/') }}">
    	    				<i class="fa fa-angle-left" aria-hidden="true">          
                         </i>
    	    				Back
    	    			</a>
-   	    			<span class="text-14">
+   	    			<!--span class="text-14">
    	    				Don’t have an account?
    	    				<a class="text-15 back-text" 
    	    				href="{{ route('register') }}">
    	    				  Sign up!
                         </a>  
-   	    			</span>
+   	    			</span-->
    	    		</div>
-   	    		<div class="w-70 m-auto d-block mt-xl-5 mt-3 w-xs-100 w-md-100 w-ipad-100">
+   	    		<div class="login-card">
    	    			<div class="w-100 d-inline-block">
    	    				<p class="fw-bold fs-3 text-black mb-0">
    	    				Welcome Back
    	    			    </p>
+						<p class="dashboard-text">
+							Access your ME3CO dashboard
+						</p>
 	   	    			<span class="text-14 text-black">
 	   	    				Login into your account
 	   	    			</span>
@@ -76,11 +82,12 @@
    	    						<i class="fa fa-eye" aria-hidden="true" id="eye" style="display: none;"></i>
    	    					</a>
    	    				</div>
-   	    				<div class="w-100 d-inline-block form-check form-switch mt-3">
-   	    					<input class="form-check-input" name="remember_me" type="checkbox" role="switch" id="SwitchCheckDefault">
-   	    					<span class="text-black text-14">Remember me
-   	    					</span>
-   	    					<a class="back-text text-14 float-end" 
+   	    				<div class="login-options">
+   	    					<div class="remember-box">
+								<input type="checkbox" class="form-check-input" id="remember" name="remember">
+								<label for="remember">Remember me</label>
+							</div>
+   	    					<a class="recover-link" 
    	    					href="{{ route('password.reset') }}">
    	    						Recover Password
    	    					</a>
@@ -89,6 +96,10 @@
    	    					<button class="text-white text-14 p-2 w-100 d-inline-block" type="submit">
    	    						LOGIN
    	    					</button>
+							<div class="signup-footer">
+								Don't have an account?
+								<a href="{{ route('register') }}">Sign up!</a>
+							</div>
    	    					{{-- <p class="text-black text-14 position-relative mt-3">Or continue with</p> --}}
    	    				</div>
    	    				{{-- <div class="w-100 d-inline-block google-btn 

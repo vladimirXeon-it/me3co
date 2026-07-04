@@ -54,6 +54,16 @@
                                         <div class="col-lg-3 col-md-4 label">Username</div>
                                         <div class="col-lg-9 col-md-8">{{ $user->username }}</div>
                                     </div>
+                                    <div class="row">
+                                        <div class="col-lg-3 col-md-4 label">Type user</div>
+                                        <div class="col-lg-9 col-md-8">
+                                            @if($user->role == 1)
+                                                <span class="badge bg-success">Admin</span>
+                                            @else
+                                                <span class="badge bg-secondary">User</span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="tab-pane fade profile-edit pt-3" id="profile-edit">
                                     <form method="POST" action="{{ route('admin.users.update', ['id' => $user->id]) }}">
@@ -81,6 +91,25 @@
                                             <div class="col-md-8 col-lg-9"> <input name="username" type="text"
                                                     class="form-control" id="username" value="{{ $user->username }}"
                                                     required></div>
+                                        </div>
+
+                                        <div class="row mb-3">
+                                            <label for="role" class="col-md-4 col-lg-3 col-form-label">Type user</label>
+
+                                            <div class="col-md-8 col-lg-9">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input"
+                                                        type="checkbox"
+                                                        id="role"
+                                                        name="role"
+                                                        value="1"
+                                                        {{ $user->role == 1 ? 'checked' : '' }}>
+
+                                                    <label class="form-check-label" for="role" id="role_label">
+                                                        {{ $user->role == 1 ? 'Admin enabled' : 'Standard user' }}
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div class="text-center"> <button type="submit" class="btn btn-primary">Save
@@ -122,4 +151,17 @@
             </div>
         </section>
     </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const roleSwitch = document.getElementById('role');
+    const roleLabel = document.getElementById('role_label');
+
+    if (roleSwitch && roleLabel) {
+        roleSwitch.addEventListener('change', function () {
+            roleLabel.textContent = this.checked ? 'Admin enabled' : 'Standard user';
+        });
+    }
+});
+</script>
 @endsection()

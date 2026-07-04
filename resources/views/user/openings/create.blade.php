@@ -1,67 +1,44 @@
 @extends('user.layouts.app')
 
-@section('title', 'Edit Opening')
+@section('title', 'Create Opening')
 
 @section('content')
     <div class="page-content-tab">
         <div class="container-fluid">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-items-center d-flex gap-2">
-                                <button
-                                    type="button"
-                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                                    onclick="goBack()"
-                                    aria-label="Go back"
-                                    title="Back"
-                                    style="line-height:1;"
-                                >
-                                    <i class="fa fa-reply"></i>
-                                </button>
-                                <h4 class="page-title pb-md-0">Opening</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Openings</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
             <!-- end page title end breadcrumb -->
             <div class="row">
-                <div class="col-md-6 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
+                <div class="col-lg-8 col-md-10 mx-auto">
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
                             
                             <div class="pt-3 new-project">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Create New Opening</h3>
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">
+                                        Create New Opening
+                                    </h3>
+
+                                    <p class="me3co-form-subtitle mb-0">
+                                        Configure dimensions, materials and labor for this opening.
+                                    </p>
+                                    <hr class="my-4">
                                 </div>
                                 <form method="post" action="{{ route('opening.create') }}">
                                     @csrf()
                                     <div class="row">
+                                        <div class="me3co-section-title">
+                                            <span>1</span>
+                                            <i class="fa fa-file-alt"></i>
+                                            Basic Information
+                                        </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Description:</label>
+                                                <label class="form-label fw-bold text-14">Description:</label>
                                                 <textarea name="description" rows="3" class="form-control" placeholder="Opening Description" required></textarea>
                                             </div>
                                         </div>
                                         <div class="col-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Project:</label>
+                                                <label class="form-label fw-bold text-14">Project:</label>
                                                 <select name="project_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -76,7 +53,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Labor Class:</label>
+                                                <label class="form-label fw-bold text-14">Labor Class:</label>
                                                 <select name="labor_class_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -92,7 +69,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Labor Type:</label>
+                                                <label class="form-label fw-bold text-14">Labor Type:</label>
                                                 <select name="labor_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -109,7 +86,7 @@
                                         </div>
                                         <div class="col-lg-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Opening Shape:</label>
+                                                <label class="form-label fw-bold text-14">Opening Shape:</label>
                                                 <select name="opening_shape_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -125,70 +102,97 @@
                                         </div>
                                         <div class="col-lg-12 d-none col-md-12 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Choose Unit:</label>
+                                                <label class="form-label fw-bold text-14">Choose Unit:</label>
                                                 @php
                                                     $units = get_length_units();
                                                 @endphp
                                                 <input type="hidden" value="{{ $units->symbol }}" name="measurement_unit"/>
                                             </div>
                                         </div>
+                                        <div class="col-12">
+                                            <hr class="my-4">
+                                            <div class="me3co-section-title">
+                                                <span>2</span>
+                                                <i class="fa fa-ruler"></i>
+                                                Dimensions
+                                            </div>
+                                        </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Length:</label>
+                                                <label class="form-label fw-bold text-14">Length:</label>
                                                 <input type="number" step="0.001" name="length"
                                                     class="form-control measurement" placeholder="" required>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">height:</label>
+                                                <label class="form-label fw-bold text-14">height:</label>
                                                 <input type="number" step="0.001" name="height"
                                                     class="form-control measurement" placeholder="" required>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Elevation:</label>
+                                                <label class="form-label fw-bold text-14">Elevation:</label>
                                                 <input type="number" step="0.001" name="elevation"
                                                     class="form-control measurement" placeholder="" required>
                                             </div>
                                         </div>
-                                        <hr>
                                         <div class="col-12">
-                                            <h5 class="text-dark mb-3 fs-6">Header</h5>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group d-flex align-items-center input-project">
-                                                <label class="text-14">Inside:</label>
-                                                <input type="radio" class="form-radio ms-4" name="header"
-                                                    placeholder="Inside" value="0" checked required>
+                                            <hr class="my-4">
+
+                                            <div class="me3co-section-title">
+                                                <span>3</span>
+                                                <i class="fa fa-door-open"></i>
+                                                Header Configuration
+                                            </div>
+
+                                            <label class="form-label fw-bold text-14 mt-2">Header Position</label>
+
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="me3co-radio-card">
+                                                        <input type="radio" name="header" value="0" checked required>
+                                                        <span>Inside</span>
+                                                    </label>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="me3co-radio-card">
+                                                        <input type="radio" name="header" value="1" required>
+                                                        <span>Outside</span>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                                            <div class="form-group d-flex align-items-center input-project">
-                                                <label class="text-14">Outside:</label>
-                                                <input type="radio" class="form-radio ms-4" name="header" value="1"
-                                                    required>
-                                            </div>
-                                        </div>
-                                        <hr>
                                         <div class="col-12">
-                                            <h5 class="text-dark mb-3 fs-6">Lintels and Bearing</h5>
+                                            <hr class="my-4">
+
+                                            <div class="me3co-section-title">
+                                                <span>4</span>
+                                                <i class="fa fa-grip-lines"></i>
+                                                Lintels & Bearing
+                                            </div>
                                         </div>
                                         <div class="col-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Bearing each End</label>
+                                                <label class="form-label fw-bold text-14">Bearing each End</label>
                                                 <input type="number" step="0.001" class="form-control measurement"
                                                     placeholder="" name="bearing" required>
                                             </div>
                                         </div>
-                                        <hr>
                                         <div class="col-12">
-                                            <h5 class="text-dark mb-3 fs-6">Associated Materials</h5>
+                                            <hr class="my-4">
+
+                                            <div class="me3co-section-title">
+                                                <span>5</span>
+                                                <i class="fa fa-cube"></i>
+                                                Associated Materials
+                                            </div>
                                         </div>
                                         <div class="col-md-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Material</label>
+                                                <label class="form-label fw-bold text-14">Material</label>
                                                 <select class="form-control" name="materials[0][name]" id="">
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -203,7 +207,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Length ({{ $units->symbol }}):</label>
+                                                <label class="form-label fw-bold text-14">Length ({{ $units->symbol }}):</label>
                                                 <input type="number" step="0.001"
                                                     class="form-control mat_length_0 measurement"
                                                     data-disable=".mat_quantity_0" name="materials[0][length]">
@@ -211,7 +215,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Quantity:</label>
+                                                <label class="form-label fw-bold text-14">Quantity:</label>
                                                 <input type="number" step="0.001" class="form-control mat_quantity_0"
                                                     data-disable=".mat_length_0" name="materials[0][quantity]" readonly>
                                             </div>
@@ -219,17 +223,24 @@
                                         <div class="more-material"></div>
                                         <div class="form-group row">
                                             <div class="col-sm-12">
-                                                <a href="javascript:void(0);" class="btn back-btn text-black btn-material">Add
-                                                    More</a>
+                                                <a href="javascript:void(0);" class="btn me3co-outline-btn btn-material">
+                                                    <i class="fa fa-plus me-1"></i>
+                                                    Add Material
+                                                </a>
                                             </div>
                                         </div>
-                                        <hr>
                                         <div class="col-12">
-                                            <h5 class="text-dark mb-3 fs-6">Caulking</h5>
+                                            <hr class="my-4">
+
+                                            <div class="me3co-section-title">
+                                                <span>6</span>
+                                                <i class="fa fa-pencil-alt"></i>
+                                                Caulking
+                                            </div>
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Length({{ $units->symbol }}):</label>
+                                                <label class="form-label fw-bold text-14">Length({{ $units->symbol }}):</label>
                                                 <input type="number" step="0.001"
                                                     class="form-control caulking_length measurement"
                                                     name="caulking[length]">
@@ -237,17 +248,22 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Perimeter Around:</label>
+                                                <label class="form-label fw-bold text-14">Perimeter Around ({{ $units->symbol }}):</label>
                                                 <input type="number" step="0.001"
                                                     class="form-control caulking_perimeter measurement"
                                                     name="caulking[perimeter_around]" readonly>
                                             </div>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <a href="javascript:void(0);" class="btn back-btn text-black"
-                                                    id="back">Back</a>
-                                                <button class="btn save-btn text-white">Create</button>
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <a href="javascript:void(0);" onclick="goBack()" class="btn me3co-secondary-btn">
+                                                    Back
+                                                </a>
+
+                                                <button class="btn me3co-primary-btn">
+                                                    <i class="fa fa-save me-1"></i>
+                                                    Create Opening
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

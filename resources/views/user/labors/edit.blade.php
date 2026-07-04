@@ -2,41 +2,19 @@
 @section('title', 'Labors')
 
 @section('content')
-    <div class="page-content-tab">
-        <div class="container-fluid">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-self-center">
-                                <h4 class="page-title pb-md-0">Edit Labor</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Labor</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
             <!-- end page title end breadcrumb -->
             <div class="row">
-                <div class="col-md-6 col-lg-4 order-lg-1 order-md-1 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
+                <div class="col-lg-8 col-md-10 mx-auto">
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
                             <div class="pt-3 new-project" style="display: block;">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Edit Labor</h3>
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">Edit Labor</h3>
+                                    <p class="me3co-form-subtitle mb-0">
+                                        Update the labor information, hourly cost and burdens.
+                                    </p>
                                 </div>
                                 <form method="post" action="{{ route('labor.update', ['id' => $labor->id]) }}">
                                     @csrf()

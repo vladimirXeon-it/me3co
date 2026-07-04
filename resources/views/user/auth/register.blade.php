@@ -18,35 +18,38 @@
    	    			<div class="w-100 d-inline-block logo mt-5">
    	    				<img class="w-35 d-inline-block mt-xl-5" 
    	    				src="{{ asset('sign-register') }}/images/logo-image.svg">
-   	    				<p class="text-white fs-4 mt-3 w-55 fw-bold w-md-100 w-ipad-100">
-   	    					Accelerate Bidding. Secure More Wins. Construct with Intelligence
-   	    				</p>
+   	    				<h1 class="login-hero-title">
+                            Accelerate Bidding.
+                            <br>
+                            Secure More Wins.
+                            <br>
+                            Construct with Intelligence.
+                        </h1>
+
+                        <div class="login-hero-line"></div>
    	    				<span class="text-white text-14">
    	    					From project assessment, takeoff, and estimation to construction and project completion, contractors utilize MSNSOFT's cloud-based software to streamline their operations and optimize profitability.
    	    				</span>
    	    			</div>
    	    		</div>
    	    	</div>
-   	    	<div class="col-xl-6 col-12 col-md-6 col-lg-6">
-   	    		<div class="w-100 d-inline-block mt-3">
-   	    			<a class="text-15 back-text w-50 d-inline-block w-xs-25 w-md-35" href="{{ url('/') }}">
+   	    	<div class="col-xl-6 col-12 col-md-6 col-lg-6 login-right-panel">
+   	    		<div class="login-top-link">
+   	    			<a class="back-text" href="{{ url('/') }}">
    	    				<i class="fa fa-angle-left" aria-hidden="true">            
                         </i>
    	    				Back
    	    			</a>
-   	    			<span class="text-14">
-   	    				Already have an account?
-   	    				<a class="text-15 back-text" 
-   	    				    href="{{ route('login') }}">
-   	    				    Log in!
-                        </a>
-   	    			</span>
    	    		</div>
-   	    		<div class="w-70 m-auto d-block mt-xl-5 mt-3 w-xs-100 w-md-100 w-ipad-100">
+   	    		<div class="login-card register-card">
    	    			<div class="w-100 d-inline-block">
-   	    				<p class="fw-bold fs-3 text-black mb-0">
-   	    				Create Your Account
-   	    			    </p>
+   	    				<h2 class="register-title">
+                            Create Your Account
+                        </h2>
+
+                        <p class="dashboard-text">
+                            Join ME3CO and start estimating smarter.
+                        </p>
 	   	    			<span class="text-14 text-black">
 	   	    				Getting started is easy
 	   	    			</span>
@@ -65,63 +68,102 @@
                     @endif
    	    			<form method="post" action="{{ route('do_register') }}">
                         @csrf()
-                        <div class="w-100 d-inline-block form-group 
-                        mt-3">
-                            <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="text" name="name" placeholder="Name" required>
+                        <div class="form-group mt-3">
+                            <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3"
+                                type="text"
+                                name="name"
+                                placeholder="Full Name"
+                                required>
                         </div>
-   	    				<div class="w-100 d-inline-block form-group 
-                        mt-3">
-   	    					<input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="email" name="email" placeholder="Email" required>
-   	    				</div>
-                        <div class="w-100 d-inline-block form-group 
-                        mt-3">
-                            <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="text" name="username" 
-                            placeholder="Username" required>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mt-3">
+                                    <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3"
+                                        type="text"
+                                        name="username"
+                                        placeholder="Username"
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mt-3">
+                                    <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3"
+                                        type="email"
+                                        name="email"
+                                        placeholder="Email Address"
+                                        required>
+                                </div>
+                            </div>
                         </div>
-   	    				<div class="w-100 d-inline-block form-group mt-3 position-relative">
-   	    					<input id="passwordInput" class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="password" name="password"
-   	    					placeholder="Password" required>
-   	    					<a class="position-absolute eye-icon" 
-   	    					href="javascript:void(0)" onclick="togglePasswordVisibility()">
-   	    						<i class="fa fa-eye-slash" aria-hidden="true" id="eyeSlash"></i>
-   	    						<i class="fa fa-eye" aria-hidden="true" id="eye" style="display: none;"></i>
-   	    					</a>
-   	    				</div>
-                        <div class="w-100 d-inline-block form-group mt-3 position-relative">
-                            <input id="confirmPassword" class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="password" placeholder="Confirm Password" required>
-                            <a class="position-absolute eye-icon" 
-                            href="javascript:void(0)" onclick="toggleConfirmPasswordVisibility()">
-                                <i class="fa fa-eye-slash" aria-hidden="true" id="eyeSlash2"></i>
-                                <i class="fa fa-eye" aria-hidden="true" id="eye2" style="display: none;"></i>
-                            </a>
+   	    				<div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mt-3 position-relative">
+                                    <input id="passwordInput" class="w-100 d-inline-block pt-2 pb-2 pe-5 ps-3" type="password" name="password"
+                                    placeholder="Password" required>
+                                    <a class="position-absolute eye-icon" 
+                                    href="javascript:void(0)" onclick="togglePasswordVisibility()">
+                                        <i class="fa fa-eye-slash" aria-hidden="true" id="eyeSlash"></i>
+                                        <i class="fa fa-eye" aria-hidden="true" id="eye" style="display: none;"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mt-3 position-relative">
+                                    <input id="confirmPassword"
+                                        class="w-100 d-inline-block pt-2 pb-2 pe-5 ps-3"
+                                        type="password"
+                                        name="password_confirmation"
+                                        placeholder="Confirm Password"
+                                        required>
+                                    <a class="position-absolute eye-icon" 
+                                    href="javascript:void(0)" onclick="toggleConfirmPasswordVisibility()">
+                                        <i class="fa fa-eye-slash" aria-hidden="true" id="eyeSlash2"></i>
+                                        <i class="fa fa-eye" aria-hidden="true" id="eye2" style="display: none;"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                        <div class="w-100 d-inline-block form-group 
-                        mt-3">
-                            <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="text" name="company" placeholder="Company Name" required>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mt-3">
+                                    <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3"
+                                        type="text"
+                                        name="company"
+                                        placeholder="Company Name"
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mt-3 select-dropdown">
+                                    <select name="business_type"
+                                            class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3"
+                                            required>
+                                        <option value="" selected hidden>Select Business Type</option>
+                                        <option value="General Contractor">General Contractor</option>
+                                        <option value="Subcontractor">Subcontractor</option>
+                                        <option value="Supplier">Supplier</option>
+                                        <option value="Service Provider">Service Provider</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div class="w-100 d-inline-block form-group 
-                        mt-3 select-dropdown">
-                            <select name="business_type" class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" required>
-                                <option value="" selected hidden>Select</option>
-                                <option value="General Contractor">General Contractor</option>
-                                <option value="Subcontractor">Subcontractor</option>
-                                <option value="Supplier">Supplier</option>
-                                <option value="Service Provider">Service Provider</option>
-                            </select>
-                            {{-- <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3" type="text" placeholder="Bussiness Type"> --}}
-                        </div>
-                        <div class="w-100 d-inline-block form-group 
-                        mt-3">
+                        <div class="form-group mt-3">
                             <input class="w-100 d-inline-block pt-2 pb-2 pe-3 ps-3 "name="phone" type="number" placeholder="Your Phone Number" required>
                         </div>
    	    				<div class="w-100 d-inline-block form-check 
                         mt-3">
    	    					<input class="form-check-input" 
                             type="checkbox" name="agree" value="1" id="agree" required>
-                            <span class="text-13 text-black me-1" for="agree">I agree to the
-                            </span>
-                            <span class="text-13 fw-bold back-text w-xs-100 d-inline-block">I agree to the Terms and Conditions
-                            </span>
+                            <label class="text-13 text-black me-1" for="agree">
+                                I agree to the
+                            </label>
+
+                            <a href="javascript:void(0)" class="text-13 fw-bold terms-link">
+                                Terms and Conditions
+                            </a>
    	    				</div>
    	    				<div class="w-100 d-inline-block login-btn mt-3 text-center">
    	    					<button class="text-white text-14 p-2 w-100 d-inline-block" type="submit">
@@ -129,6 +171,12 @@
    	    					</button>
    	    					{{-- <p class="text-black text-14 position-relative mt-3">Or continue with</p> --}}
    	    				</div>
+                        <div class="signup-footer">
+                            Already have an account?
+                            <a href="{{ route('login') }}">
+                                Log in!
+                            </a>
+                        </div>
    	    				{{-- <div class="w-100 d-inline-block google-btn 
                         mb-4">
    	    					<a class="d-inline-block me-2 w-xs-100 text-center" href="javascript:void(0)">
@@ -140,7 +188,7 @@
    	    						<img src="{{ asset('sign-register') }}/images/microsoft-icon-image.svg">
    	    						<span class="text-black text-14">Login with Microsoft</span>
    	    					</a>
-   	    				</div> --}}
+   	    				</div>--}} 
    	    			</form>
    	    		</div>
    	    	</div>

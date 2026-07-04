@@ -4,83 +4,92 @@
 
 @section('content')
 
-    <div class="page-content-tab" data-select2-id="11">
-        <div class="container-fluid" data-select2-id="10">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-items-center d-flex gap-2">
-                                <button
-                                    type="button"
-                                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                                    onclick="goBack()"
-                                    aria-label="Go back"
-                                    title="Back"
-                                    style="line-height:1;"
-                                >
-                                    <i class="fa fa-reply"></i>
-                                </button>
-                                <h4 class="page-title pb-md-0">Materials  @if ($project!=null)
-                                    for {{$project->name}}
-                                 @endif</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Materials</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
             <!--end row-->
             <!-- end page title end breadcrumb -->
             <div class="row">
                 <div class="col-md-10 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="pt-3 my-project">
-                                <h3 class="text-dark font-24 fw-bold line-height-lg">Materials <span class="float-end">
-                                        <button id="create-new" class="btn save-btn text-white">Create
-                                            New</button></span></h3>
-                                <hr>
-                                <h6>Quick Start Materials</h6>
-                                <hr>
-                                <button class="btn back-btn text-black btn-sm import_button"> <i class="fa fa-file-import"></i>
-                                    Import Items</button>
-                                <ul class="import-list">
-                                    @php
-                                        $master_materials = get_master_materials();
-                                    @endphp
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="my-project">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h3 class="me3co-form-title mb-1">My Materials</h3>
+                                        <p class="me3co-form-subtitle mb-0">Quick Start Material Templates</p>
+                                    </div>
+
+                                    <a href="javascript:void(0);" id="create-new" class="btn me3co-primary-btn">
+                                        <i class="fa fa-plus me-1"></i>
+                                        Create New
+                                    </a>
+                                </div>
+
+                                <hr class="my-3">
+
+                                @php
+                                    $master_materials = get_master_materials();
+                                @endphp
+
+                                <button type="button" class="btn me3co-outline-btn import_button mb-3">
+                                    <i class="fa fa-file-import me-1"></i>
+                                    Import Items
+                                </button>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="form-check m-0">
+                                        <input type="checkbox" class="form-check-input m-0" id="selectAllMaterial">
+
+                                        <label class="form-check-label fw-semibold" for="selectAllMaterial">
+                                            Select All
+                                        </label>
+                                    </div>
+
+                                    <small class="text-muted">
+                                        {{ count($master_materials) }} templates
+                                    </small>
+                                </div>
+
+                                <div class="labor-template-list">
                                     @foreach ($master_materials as $master_material)
-                                        <li class="import-item">
-                                            <input type="checkbox" class="check-box">
-                                            {{ $master_material->name }} <a
-                                                href="{{ route('material.import', ['id' => $master_material->id]) }}">
-                                                <i class="fa fa-file-import"></i> Use
+                                        <div class="labor-template-item import-item">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <input type="checkbox" class="check-box form-check-input material-checkbox m-0">
+
+                                                <div class="labor-icon">
+                                                    <i class="fa fa-cube"></i>
+                                                </div>
+
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold text-dark">
+                                                        {{ $master_material->name }}
+                                                    </h6>
+                                                    <small class="text-muted">
+                                                        Quick start material template
+                                                    </small>
+                                                </div>
+                                            </div>
+
+                                            <a href="{{ route('material.import', ['id' => $master_material->id]) }}"
+                                                class="btn me3co-small-primary">
+                                                Use
                                             </a>
-                                        </li>
+                                        </div>
                                     @endforeach
-                                </ul>
+                                </div>
                             </div>
-                            <div class="pt-3 new-project" style="display:none;">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Create New Materials
-                                    </h3>
+                            <div class="new-project" style="display:none;">
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">Create New Material</h3>
+                                    <p class="me3co-form-subtitle mb-0">
+                                        Fill in the details below to create a new material.
+                                    </p>
                                 </div>
                                 <form method="post" action="{{ route('material.create') }}">
                                     @csrf()
                                     <div class="row">
                                         <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
+                                            <input type="hidden" name="return_url" value="{{ request('return_url') }}">
                                             <div class="form-group input-project">
                                                 <label class="text-14">Type: <span class="text-danger">*</span></label>
                                                 <select class="form-control" name="material_type_id"
@@ -367,10 +376,29 @@
                                                 More</button>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <a href="#" onclick="history.back()"
-                                                    class="btn back-btn text-black">Back</a>
-                                                <button class="btn save-btn text-white">Save Changes</button>
+                                            <!--div class="form-group text-center"-->
+                                            <div class="form-group text-center d-flex justify-content-center align-items-center gap-3 flex-wrap">
+                                                <a href="javascript:void(0);" id="back" class="btn me3co-secondary-btn">
+                                                    Back
+                                                </a>
+
+                                                <button class="btn me3co-primary-btn">
+                                                    <i class="fa fa-save me-1"></i>
+                                                    Save Material
+                                                </button>
+                                                @if(auth()->user()->role == 1)
+                                                <div class="form-check d-flex align-items-center m-0">
+                                                    <input 
+                                                        class="form-check-input me-2" 
+                                                        type="checkbox" 
+                                                        id="is_global" 
+                                                        name="is_global"
+                                                    >
+                                                    <label class="form-check-label small mb-0" for="is_global">
+                                                        Checked: visible to all users
+                                                    </label>
+                                                </div>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -399,13 +427,27 @@
             window.location.href = "/projects"; // fallback
         }
         $(document).ready(function() {
+            $('.new-project').hide();
+
             $('#create-new').click(function() {
-                $('.new-project').show();
+                $('.new-project').fadeIn(250);
                 $('.my-project').hide();
             });
+
             $('#back').click(function() {
                 $('.new-project').hide();
-                $('.my-project').show();
+                $('.my-project').fadeIn(250);
+            });
+
+            $('#selectAllMaterial').on('change', function () {
+                $('.material-checkbox').prop('checked', this.checked);
+            });
+
+            $('.material-checkbox').on('change', function () {
+                $('#selectAllMaterial').prop(
+                    'checked',
+                    $('.material-checkbox').length === $('.material-checkbox:checked').length
+                );
             });
         })
     </script>

@@ -13,15 +13,24 @@ use Illuminate\Support\Facades\DB;
 class WallController extends Controller
 {
     public $totalsDatasFinal = [];
-    function recalculate($wall_id)
+    public $current_project_id = null;
+
+    function recalculate($wall_id = null, $wall_data = null)
     {
         /*  $lineTemplate = LineTemplate::find($project_id);
         $json = json_decode($lineTemplate->local_db);
 
         $json->wall_length = 721.72;
  */
-        $wall = Wall::find($wall_id);
-        
+        if ($wall_data !== null) {
+            $wall = $wall_data;
+        }
+
+        if ($wall_data === null) {
+            $wall = Wall::find($wall_id);
+        };
+        $this->current_project_id = $wall->project_id;
+
         $project = Project::where('id', $wall->project_id)->select('tax', 'oh', 'profit', 'weather')->first();
         $wall->project = $project;
         //dd($wall);
@@ -44,7 +53,7 @@ class WallController extends Controller
         }
 
         // print("<pre>" . print_r($result, true) . "</pre>");
-        $wall->formData=null;
+        $wall->formData = null;
         //dd($result);
         return $result;
     }
@@ -52,39 +61,40 @@ class WallController extends Controller
     {
 
         $data = json_decode($data->formData);
-       
-        $data->top_elevation=0;
-        $data->material_sq_ft=0;
-        $data->sq_area= 0; // Numeric
-        $data->total_units= 0; // Numeric
-        $data->total= 0; // Numeric
-        $data->total_sq_ft= 0; // Numeric
-        $data->total_units_opening= 0; // Numeric
-        $data->total_area= 0; // Numeric
-        $data->total_cy= 0; // Numeric
-        $data->header_reinforcing= 0; // Select (Material)
-        $data->total_reinforcing= 0; // Numeric
-        
-        $data->total_materials= 0; // Numeric
-        $data->total_units= 0; // Numeric
-        $data->total_length= 0; // Numeric
-        $data->jamb_total_area= 0; // Numeric
-        $data->jamb_total_units= 0; // Numeric
-        $data->total_cubic_area= 0; // Numeric
-        $data->area_cubic_yards= 0; // Numeric
-        $data->total_cy_jamb= 0; // Numeric
-        $data->reinforcing_spacing= 0; // Numeric
-        $data->total_spaces= 0; // Numeric
-        $data->total_lf= 0; // Numeric
-        $data->total_material_units= 0; // Numeric
-        $data->sq_area_wall= 0; // Numeric
-        $data->total_grout_fill_cy= 0; // Numeric
-        
-        $data->other_fill= 0; // Select (Material)
-        $data->total_sq_area= 0; // Numeric
-        $data->total_cy_other_fill= 0; // Numeric
-         
-       
+        $this->limpiarMaterialesNoPertenecientesAlProyecto($data);
+
+        $data->top_elevation = 0;
+        $data->material_sq_ft = 0;
+        $data->sq_area = 0; // Numeric
+        $data->total_units = 0; // Numeric
+        $data->total = 0; // Numeric
+        $data->total_sq_ft = 0; // Numeric
+        $data->total_units_opening = 0; // Numeric
+        $data->total_area = 0; // Numeric
+        $data->total_cy = 0; // Numeric
+        $data->header_reinforcing = 0; // Select (Material)
+        $data->total_reinforcing = 0; // Numeric
+
+        $data->total_materials = 0; // Numeric
+        $data->total_units = 0; // Numeric
+        $data->total_length = 0; // Numeric
+        $data->jamb_total_area = 0; // Numeric
+        $data->jamb_total_units = 0; // Numeric
+        $data->total_cubic_area = 0; // Numeric
+        $data->area_cubic_yards = 0; // Numeric
+        $data->total_cy_jamb = 0; // Numeric
+        $data->reinforcing_spacing = 0; // Numeric
+        $data->total_spaces = 0; // Numeric
+        $data->total_lf = 0; // Numeric
+        $data->total_material_units = 0; // Numeric
+        $data->sq_area_wall = 0; // Numeric
+        $data->total_grout_fill_cy = 0; // Numeric
+
+        $data->other_fill = 0; // Select (Material)
+        $data->total_sq_area = 0; // Numeric
+        $data->total_cy_other_fill = 0; // Numeric
+
+
 
 
         if (isset($data->totalsDatas)) {
@@ -93,60 +103,64 @@ class WallController extends Controller
             //print_r($data->totalsDatas);
             //print_r($materialesAgrupados);
             $data->totales_html = $this->generarTablaHtml($materialesAgrupados);
-        }
-        else
-        {
-            $data->totales_html ="";
+        } else {
+            $data->totales_html = "";
         }
 
         $this->handleChangeadjustmentDatas($data);
-        return  $data;
+        return $data;
     }
     function processPerimeter($data)
     {
         $project = $data->project;
         $project_id = $data->project_id;
         $data = json_decode($data->formData);
-       
-        $perimeterFieldsFinal = [array( 
-            "perimeter"=> "", 
-            "material"=> "",
-            "materialQty"=> "", 
-            "totalLf"=> "", 
-            "totalUnits"=> "" 
-         )];
-       
+
+        $this->limpiarMaterialesNoPertenecientesAlProyecto($data);
+
+        $perimeterFieldsFinal = [
+            array(
+                "perimeter" => "",
+                "material" => "",
+                "materialQty" => "",
+                "totalLf" => "",
+                "totalUnits" => ""
+            )
+        ];
+
         $perimeterFields = $data->perimeterFields ?? [];
-        
-        if(isset($data->perimeterFields))
-        {
+
+        if (isset($data->perimeterFields)) {
             $perimeterFieldsFinal = [];
 
         }
 
-        foreach ($perimeterFields as $index  =>  $additionalData) {
+        foreach ($perimeterFields as $index => $additionalData) {
             $total_measuring = 0;
 
 
 
 
             try {
-                 
-                $selectedMaterial = json_decode($additionalData->material);
+
+                //$selectedMaterial = json_decode($additionalData->material);
+                $additionalData->material = $this->resolverMaterialActualizado($additionalData->material, true);
+                $selectedMaterial = $this->resolverMaterialActualizado($additionalData->material);
+
                 if ($selectedMaterial != null) {
 
 
-                 
 
-                    $additionalData->totalLf=$additionalData->perimeter;
+
+                    $additionalData->totalLf = $additionalData->perimeter;
                     //$additionalData->totalUnits= round(($additionalData->perimeter*$additionalData->materialQty)/$selectedMaterial->unit_measure_value,2);
                     if (!empty($selectedMaterial->unit_measure_value)) {
-                        $additionalData->totalUnits = round(((float)$additionalData->perimeter * (float)$additionalData->materialQty) / $selectedMaterial->unit_measure_value, 2);
+                        $additionalData->totalUnits = round(((float) $additionalData->perimeter * (float) $additionalData->materialQty) / $selectedMaterial->unit_measure_value, 2);
                     } else {
                         $additionalData->totalUnits = 0;
                     }
-                     
-                    $measuring = round(((float)$additionalData->perimeter * (float)$additionalData->materialQty), 2);
+
+                    $measuring = round(((float) $additionalData->perimeter * (float) $additionalData->materialQty), 2);
 
 
                     //Agregar material a la cuenta
@@ -154,21 +168,22 @@ class WallController extends Controller
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $measuring;
-                    $Agregarmaterial->op_unit   = 'lf';
+                    $Agregarmaterial->op_unit = 'lf';
                     $Agregarmaterial->units = $additionalData->totalUnits;
                     $this->addtotalDatas($Agregarmaterial, $data);
                 }
 
                 $perimeterFieldsFinal[] = $additionalData;
-             } catch (\Throwable $thx) {
-                log_message('error', 'processPerimeter error: ' . $ex->getMessage());
-             }
+            } catch (\Throwable $thx) {
+                \Log::error('processPerimeter error: ' . $thx->getMessage());
+            }
         }
         $data->perimeterFields = $perimeterFieldsFinal;
 
 
         if (isset($data->totalsDatas)) {
             $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
+            //$materialesAgrupados = $this->recalcularUnidadesAgrupadas($materialesAgrupados);
 
             $crew = $this->addCrew($project_id);
             $trade = json_decode($data->trade);
@@ -181,113 +196,121 @@ class WallController extends Controller
             $data->materialesAgrupados = $materialesAgrupados;
 
             $data->totales_html = $this->generarTablaHtml($materialesAgrupados, [
-                'report_id'      => 'perimeter_' . ($data->wall_id ?? '') . '_' . time(),
-                'report_type'    => 'PERIMETER',
-                'trade_name'    => $data->trade_name ?? '',
-                'trade'         => $trade->name ?? '',
-                'scope_label'   => $data->template_name ?? ($data->name ?? ''),
+                'report_id' => 'perimeter_' . ($data->wall_id ?? '') . '_' . time(),
+                'report_type' => 'PERIMETER',
+                'trade_name' => $data->trade_name ?? '',
+                'trade' => $trade->name ?? '',
+                'scope_label' => $data->template_name ?? ($data->name ?? ''),
                 //'material_label' => ($material->unique_id . " " . $material->name  ?? ''),
-                'generated_at'   => date('Y-m-d H:i'),
+                'generated_at' => date('Y-m-d H:i'),
             ]);
-        }
-        else
-        {
-            $data->totales_html ="";
+        } else {
+            $data->totales_html = "";
         }
 
         $this->handleChangeadjustmentDatas($data);
-        return  $data;
+        return $data;
     }
-    
+
     function processArea($data)
     {
         //var_dump($data->formData);
         $project = $data->project;
         $project_id = $data->project_id;
-        $data = isset($data->formData) ? json_decode($data->formData) : (object)[];
+        $data = isset($data->formData) ? json_decode($data->formData) : (object) [];
+
+        $this->limpiarMaterialesNoPertenecientesAlProyecto($data);
         //var_dump($data);
 
         // Si estÃ¡ guardada el Ã¡rea original, la preservamos en la variable
         if (isset($data->wall_total_area_original)) {
-            $area_original = (float)$data->wall_total_area_original;
+            $area_original = (float) $data->wall_total_area_original;
         }
 
         // 1) Si existe pitch vÃ¡lido â†’ aplicar
-        if (isset($data->pitch) && (float)$data->pitch > 0) {
+        if (isset($data->pitch) && (float) $data->pitch > 0) {
 
             // Si no se ha guardado aÃºn el Ã¡rea original, la guardamos
             if (!isset($data->wall_total_area_original)) {
                 $data->wall_total_area_original = $data->wall_total_area;
             }
 
-            $data->wall_total_area = $data->wall_total_area * (float)$data->pitch;
+            $data->wall_total_area = $data->wall_total_area * (float) $data->pitch;
         }
 
         // 2) Si NO hay pitch pero SÃ hay original â†’ restaurar
-        if ((!isset($data->pitch) || $data->pitch == "" || $data->pitch == 0)
-            && isset($data->wall_total_area_original)) {
+        if (
+            (!isset($data->pitch) || $data->pitch == "" || $data->pitch == 0)
+            && isset($data->wall_total_area_original)
+        ) {
 
             $data->wall_total_area = $data->wall_total_area_original;
         }
 
-        if (is_numeric($data->Area_thickness) && (float)$data->Area_thickness > 0) {
-            $data->area_cubic_ft = (float)$data->Area_thickness * (float)$data->wall_total_area;
+        if (is_numeric($data->Area_thickness) && (float) $data->Area_thickness > 0) {
+            $data->area_cubic_ft = (float) $data->Area_thickness * (float) $data->wall_total_area;
         } else {
             $data->area_cubic_ft = $data->wall_total_area;
         }
 
-        
-        
+
+
         $data->underlay_sq_ft = $data->wall_total_area;
 
         //rise_drop
-        
-        if (is_string($data->wall_material)) {
+
+        /*if (is_string($data->wall_material)) {
             $selectedMaterial = json_decode($data->wall_material);
-            
+
         }else {
             $selectedMaterial = $data->wall_material;
-        }
+        }*/
+        $this->reemplazarJsonMaterialEnCampo($data, 'wall_material');
+        $selectedMaterial = $this->resolverMaterialActualizado($data->wall_material);
+
         if ($selectedMaterial != null) {
-            
+
             $data->Total_units = round($data->area_cubic_ft / $selectedMaterial->unit_measure_value, 2);
 
             $data->rise_drop_area_added = $data->rise_drop_rise * $data->wall_total_perimeter;
-            if (is_numeric($data->rise_drop_thickness) && (float)$data->rise_drop_thickness > 0) {
+            if (is_numeric($data->rise_drop_thickness) && (float) $data->rise_drop_thickness > 0) {
                 $data->rise_drop_total = $data->rise_drop_area_added * $data->rise_drop_thickness;
             } else {
                 $data->rise_drop_total = $data->rise_drop_area_added;
             }
-            $data->rise_drop_total_unit =  round($data->rise_drop_total / $selectedMaterial->unit_measure_value, 2);
+            $data->rise_drop_total_unit = round($data->rise_drop_total / $selectedMaterial->unit_measure_value, 2);
 
-            $total_measuring = $data->area_cubic_ft + $data->rise_drop_total_unit;
+            $total_measuring = $data->area_cubic_ft + $data->rise_drop_total;
 
-            $total_units = $data->Total_units;
+            $total_units = $data->Total_units + $data->rise_drop_total_unit;
 
             //Agregar material a la cuenta
             $Agregarmaterial = new Total_Material();
             $Agregarmaterial->id_material = $selectedMaterial->id;
             $Agregarmaterial->material = $selectedMaterial;
             $Agregarmaterial->measuring = $total_measuring;
-            $Agregarmaterial->op_unit   = 'sqft';
+            $Agregarmaterial->op_unit = 'sqft';
             $Agregarmaterial->units = $total_units;
             $this->addtotalDatas($Agregarmaterial, $data);
         }
 
         //underlay
-        if (is_string($data->underlay_material)) {
+        /*if (is_string($data->underlay_material)) {
             $selectedMaterial = json_decode($data->underlay_material);
-            
+
         }else {
             $selectedMaterial = $data->underlay_material;
-        }
+        }*/
+        $this->reemplazarJsonMaterialEnCampo($data, 'underlay_material');
+        $selectedMaterial = $this->resolverMaterialActualizado($data->underlay_material);
+
         if ($selectedMaterial != null) {
-            if (is_numeric($data->underlay_thickness) && (float)$data->underlay_thickness > 0) {
-                $data->underlay_total  = $data->underlay_sq_ft * $data->underlay_thickness;
-            }else{
-                $data->underlay_total  = $data->underlay_sq_ft;
+            if (is_numeric($data->underlay_thickness) && (float) $data->underlay_thickness > 0) {
+                $data->underlay_total = $data->underlay_sq_ft * $data->underlay_thickness;
+            } else {
+                $data->underlay_total = $data->underlay_sq_ft;
             }
-            $total_units = $data->underlay_total_unit  =  round($data->underlay_total / $selectedMaterial->unit_measure_value, 2);
+            $total_units = $data->underlay_total_unit = round($data->underlay_total / $selectedMaterial->unit_measure_value, 2);
             $total_measuring = $data->underlay_total;
 
 
@@ -296,7 +319,7 @@ class WallController extends Controller
             $Agregarmaterial->id_material = $selectedMaterial->id;
             $Agregarmaterial->material = $selectedMaterial;
             $Agregarmaterial->measuring = $total_measuring;
-            $Agregarmaterial->op_unit   = 'sqft';
+            $Agregarmaterial->op_unit = 'sqft';
             $Agregarmaterial->units = $total_units;
             $this->addtotalDatas($Agregarmaterial, $data);
         }
@@ -307,16 +330,16 @@ class WallController extends Controller
 
         $additionalDatasFinal = [];
 
-        foreach ($additionalMaterials as $index  =>  $additionalData) {
+        foreach ($additionalMaterials as $index => $additionalData) {
             $total_measuring = 0;
-            $additionalData = (object)$additionalData;
+            $additionalData = (object) $additionalData;
             // $additionalDatas->additionalDatas[$index]=$additionalData;
             // echo "index " . $index . "<br>";
             // echo "additionalData " . json_encode($additionalData) . "<br>";
 
 
 
-            $additional_material = $additionalData->material ?? null;
+            /*$additional_material = $additionalData->material ?? null;
 
             $selectedMaterial = null;
 
@@ -333,28 +356,36 @@ class WallController extends Controller
             // âœ… Si viene como array â†’ conviÃ©rtelo a objeto
             if (is_array($additional_material)) {
                 $selectedMaterial = (object)$additional_material;
-            }
-            if ($selectedMaterial != null) {
+            }*/
+
+            $additional_material = $additionalData->material ?? null;
+
+            $additionalData->material = $this->resolverMaterialActualizado($additional_material, true);
+            $selectedMaterial = $this->resolverMaterialActualizado($additionalData->material);
+
+            if (is_object($selectedMaterial) && isset($selectedMaterial->id)) {
 
 
-                $thickness = isset($additionalData->thickness) 
-                                ? (float)$additionalData->thickness 
-                                : 0;
-                $cubicFt     = (float) $data->wall_total_area; // o lo que defina tu cubicFt
-                $unitMeasure = (float) $selectedMaterial->unit_measure_value;
+                $thickness = isset($additionalData->thickness)
+                    ? (float) $additionalData->thickness
+                    : 0;
+                $cubicFt = isset($data->wall_total_area) ? (float) $data->wall_total_area : 0; // o lo que defina tu cubicFt
+                $unitMeasure = isset($selectedMaterial->unit_measure_value)
+                    ? (float) $selectedMaterial->unit_measure_value
+                    : 0;
 
                 $additionalData->cubicFt = $cubicFt;
 
                 //$additionalData->cubicFt = $data->wall_total_area * $thickness;
-                if (is_numeric($thickness) && (float)$thickness > 0) {
+                if (is_numeric($thickness) && (float) $thickness > 0) {
                     $total_measuring1 = ($cubicFt * $thickness) / ($unitMeasure > 0 ? $unitMeasure : 1);
                     $total_measuring = $cubicFt * $thickness;
-                }else{
+                } else {
                     $total_measuring1 = $cubicFt / ($unitMeasure > 0 ? $unitMeasure : 1);
                     $total_measuring = $cubicFt;
                 }
                 $total_units = $additionalData->totalUnits = round($total_measuring1, 2);
-                
+
 
 
 
@@ -363,7 +394,7 @@ class WallController extends Controller
                 $Agregarmaterial->id_material = $selectedMaterial->id;
                 $Agregarmaterial->material = $selectedMaterial;
                 $Agregarmaterial->measuring = $total_measuring;
-                $Agregarmaterial->op_unit   = 'sqft';
+                $Agregarmaterial->op_unit = 'sqft';
                 $Agregarmaterial->units = $total_units;
                 $this->addtotalDatas($Agregarmaterial, $data);
             }
@@ -373,21 +404,23 @@ class WallController extends Controller
 
         //$material_per_sq_ft = (object)$data->material_per_sq_ft;
         $additionalDatasFinal = [];
-        $material_per_sq_ft  = $data->material_per_sq_ft ?? [];
+        $material_per_sq_ft = $data->material_per_sq_ft ?? [];
 
 
-        foreach ($material_per_sq_ft as $index  =>  $additionalData) {
+        foreach ($material_per_sq_ft as $index => $additionalData) {
             $total_measuring = 0;
 
 
 
 
             try {
-                $additional_material = $additionalData;
+                /*$additional_material = $additionalData;
                 $selectedMaterial = $additional_material;
                 if (is_string($selectedMaterial)) {
                     $selectedMaterial = json_decode($selectedMaterial);
-                }
+                }*/
+                $additional_material = $additionalData;
+                $selectedMaterial = $this->resolverMaterialActualizado($additional_material);
                 if ($selectedMaterial != null) {
 
 
@@ -396,7 +429,7 @@ class WallController extends Controller
 
                     $total = $data->wall_total_area * $qty;
                     $total_measuring = round($total, 2);
-                    
+
                     if (!isset($data->Totalquantity_per_sq_ft) || $data->Totalquantity_per_sq_ft === null) {
                         $data->Totalquantity_per_sq_ft = [];
                     }
@@ -418,7 +451,7 @@ class WallController extends Controller
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $total_measuring;
-                    $Agregarmaterial->op_unit   = 'sqft';
+                    $Agregarmaterial->op_unit = 'sqft';
                     $Agregarmaterial->units = $total_units;
                     $this->addtotalDatas($Agregarmaterial, $data);
                 }
@@ -432,35 +465,41 @@ class WallController extends Controller
 
         if (isset($data->totalsDatas)) {
             $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
+            //$materialesAgrupados = $this->recalcularUnidadesAgrupadas($materialesAgrupados);
 
             //print_r($data->totalsDatas);
             //print_r($materialesAgrupados);
             $crew = $this->addCrew($project_id);
             $trade = json_decode($data->trade);
-            $material = json_decode($data->wall_material);
+            //$material = json_decode($data->wall_material);
+            $material = $this->resolverMaterialActualizado($data->wall_material);
             $materialesAgrupados = $this->Calcula_totalDatas1($materialesAgrupados, $project, $crew, $trade->name ?? '', $data->name ?? '');
             //$data->totales_html = $this->generarTablaHtml($materialesAgrupados);
             $data->materialesAgrupados = $materialesAgrupados;
 
             $data->totales_html = $this->generarTablaHtml($materialesAgrupados, [
-                'report_id'      => 'area_' . ($data->wall_id ?? '') . '_' . time(),
-                'report_type'    => 'AREA',
-                'trade_name'    => $data->trade_name ?? '',
-                'trade'         => $trade->name ?? '',
-                'scope_label'   => $data->template_name ?? ($data->name ?? ''),
-                'material_label'=> ($material->unique_id ?? '') . ' ' . ($material->name ?? ''),
-                'generated_at'   => date('Y-m-d H:i'),
+                'report_id' => 'area_' . ($data->wall_id ?? '') . '_' . time(),
+                'report_type' => 'AREA',
+                'trade_name' => $data->trade_name ?? '',
+                'trade' => $trade->name ?? '',
+                'scope_label' => $data->template_name ?? ($data->name ?? ''),
+                'material_label' => ($material->unique_id ?? '') . ' ' . ($material->name ?? ''),
+                'generated_at' => date('Y-m-d H:i'),
             ]);
         }
-        
+
 
 
         $this->handleChangeadjustmentDatas($data);
         //dd($data);
-        return  $data;
+        return $data;
     }
     function processWallCalculations($data)
     {
+        $project = $data->project;
+        $data = json_decode($data->formData);
+        $this->limpiarMaterialesNoPertenecientesAlProyecto($data);
+
         if (!isset($data->totalsDatas) || !is_array($data->totalsDatas)) {
             $data->totalsDatas = [];
         }
@@ -474,32 +513,36 @@ class WallController extends Controller
         $this->handleUseCourse($data);
         $this->handleChangeAdditionalDatas($data);
         $this->handleChangeadjustmentDatas($data);
+        $this->ajustarMeasuringWallMaterial($data);
+
         $this->Calcula_totalDatas($data);
         $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
+        //$materialesAgrupados = $this->recalcularUnidadesAgrupadas($materialesAgrupados);
 
         $crew = $this->addCrew($data->project_id);
         $trade = json_decode($data->trade);
-        $material = json_decode($data->wall_material);
-        $materialesAgrupados = $this->Calcula_totalDatas1($materialesAgrupados, $data->project, $crew, $trade->name ?? '', $data->name ?? '');
+        //$material = json_decode($data->wall_material);
+        $material = $this->resolverMaterialActualizado($data->wall_material);
+        $materialesAgrupados = $this->Calcula_totalDatas1($materialesAgrupados, $project, $crew, $trade->name ?? '', $data->name ?? '');
 
         //print_r($data->totalsDatas);
         //print_r($materialesAgrupados);
         //$data->totales_html = $this->generarTablaHtml($materialesAgrupados);
 
         $data->materialesAgrupados = $materialesAgrupados;
-        
+
         $data->totales_html = $this->generarTablaHtml($materialesAgrupados, [
-            'report_id'      => 'length_' . ($data->wall_id ?? '') . '_' . time(),
-            'report_type'    => 'LENGTH',
-            'trade_name'    => $data->trade_name ?? '',
-            'trade'         => $trade->name ?? '',
-            'scope_label'   => $data->template_name ?? ($data->name ?? ''),
-            'material_label'=> ($material->unique_id ?? '') . ' ' . ($material->name ?? ''),
-            'generated_at'   => date('Y-m-d H:i'),
+            'report_id' => 'length_' . ($data->wall_id ?? '') . '_' . time(),
+            'report_type' => 'LENGTH',
+            'trade_name' => $data->trade_name ?? '',
+            'trade' => $trade->name ?? '',
+            'scope_label' => $data->template_name ?? ($data->name ?? ''),
+            'material_label' => ($material->unique_id ?? '') . ' ' . ($material->name ?? ''),
+            'generated_at' => date('Y-m-d H:i'),
         ]);
 
 
-        return  $data;
+        return $data;
     }
 
     #region calcula material   
@@ -508,41 +551,41 @@ class WallController extends Controller
     {
         $map = [
             // Wall / base
-            'WALL_LENGTH'     => 'ft',
-            'WALL_AREA'       => 'sq_ft',
+            'WALL_LENGTH' => 'ft',
+            'WALL_AREA' => 'sq_ft',
             'WALL_VOLUME_FT3' => 'cu_ft',
-            'WALL_VOLUME_CY'  => 'cy',
+            'WALL_VOLUME_CY' => 'cy',
 
             // Bloque 1
-            'COPING'          => 'ft',
-            'TOP_WALL'        => 'ft',
-            'ANCHORS'         => 'ea',
+            'COPING' => 'ft',
+            'TOP_WALL' => 'ft',
+            'ANCHORS' => 'ea',
 
             // Bloque 4
-            'CONTROL_JOINT'   => 'ft',     // si tu cálculo es lineal
-            'CAULKING'        => 'ft',     // si tu cálculo es lineal
-            'HALF_BLOCK'      => 'sq_ft',  // si tu cálculo es área
+            'CONTROL_JOINT' => 'ft',     // si tu cálculo es lineal
+            'CAULKING' => 'ft',     // si tu cálculo es lineal
+            'HALF_BLOCK' => 'sq_ft',  // si tu cálculo es área
 
             // Bloque 5
-            'REBAR_LF'        => 'ft',
-            'REBAR_TON'       => 'ton',
-            'POSITIONERS'     => 'ea',     // o ft si aplica en tu lógica
-            'REMAINING'       => 'sq_ft',  // o cu_ft/cy según tu cálculo real
+            'REBAR_LF' => 'ft',
+            'REBAR_TON' => 'ton',
+            'POSITIONERS' => 'ea',     // o ft si aplica en tu lógica
+            'REMAINING' => 'sq_ft',  // o cu_ft/cy según tu cálculo real
 
             // Additional datas
-            'LINEAL'          => 'ft',
-            'SPACING_FT'      => 'ft',
-            'PER_SQ_FT'       => 'sq_ft',
-            'PR_AREA'         => 'sq_ft',
-            'TOP_BOTTOM'      => 'ft',
-            'QUANTITY'        => 'ea',
+            'LINEAL' => 'ft',
+            'SPACING_FT' => 'ft',
+            'PER_SQ_FT' => 'sq_ft',
+            'PR_AREA' => 'sq_ft',
+            'TOP_BOTTOM' => 'ft',
+            'QUANTITY' => 'ea',
 
             // Perimeter/Area tool
-            'PERIMETER'       => 'ft',
-            'AREA'            => 'sq_ft',
+            'PERIMETER' => 'ft',
+            'AREA' => 'sq_ft',
 
             // Adjustment
-            'ADJUSTMENT'      => 'sq_ft',  // ajusta si tu adjustment es ft, cy, etc.
+            'ADJUSTMENT' => 'sq_ft',  // ajusta si tu adjustment es ft, cy, etc.
         ];
 
         return $map[$type] ?? '';
@@ -566,17 +609,17 @@ class WallController extends Controller
         }
 
         $m = new Total_Material();
-        $m->id_material    = $materialObj->id;
-        $m->material       = $materialObj;
+        $m->id_material = $materialObj->id;
+        $m->material = $materialObj;
 
-        $m->measuring      = (float)$measuring;
-        $m->measuring_unit = (string)$measuring_unit;
+        $m->measuring = (float) $measuring;
+        $m->measuring_unit = (string) $measuring_unit;
 
         if ($units !== null) {
-            $m->units = (float)$units;
+            $m->units = (float) $units;
         }
         if ($units_unit !== null) {
-            $m->units_unit = (string)$units_unit;
+            $m->units_unit = (string) $units_unit;
         }
 
         $m->principal = $principal;
@@ -584,18 +627,265 @@ class WallController extends Controller
         $this->addtotalDatas($m, $formData);
     }
 
+    private function extraerMaterialDesdeCualquierFormato($material_original)
+    {
+        if ($material_original === null) {
+            return null;
+        }
+
+        if (is_string($material_original)) {
+            $material_decodificado = json_decode($material_original);
+            if (json_last_error() === JSON_ERROR_NONE && is_object($material_decodificado)) {
+                return $material_decodificado;
+            }
+        }
+
+        if (is_object($material_original)) {
+            return $material_original;
+        }
+
+        if (is_array($material_original)) {
+            return (object) $material_original;
+        }
+
+        return null;
+    }
+
+    private function buscarMaterialActualizadoEnBd($id_material = null, $unique_id_material = null, $project_id = null)
+    {
+        $consulta_material = DB::table('materials');
+
+        // 1. Prioridad: Buscar en el proyecto actual
+        if (!empty($project_id)) {
+            if (!empty($id_material) && !empty($unique_id_material)) {
+                $material_encontrado = (clone $consulta_material)
+                    ->where('id', $id_material)
+                    ->where('unique_id', $unique_id_material)
+                    ->where('project_id', $project_id)
+                    ->first();
+
+                if ($material_encontrado != null) {
+                    return $material_encontrado;
+                }
+            }
+
+            if (!empty($id_material)) {
+                $material_encontrado = (clone $consulta_material)
+                    ->where('id', $id_material)
+                    ->where('project_id', $project_id)
+                    ->first();
+
+                if ($material_encontrado != null) {
+                    return $material_encontrado;
+                }
+            }
+
+            if (!empty($unique_id_material)) {
+                $material_encontrado = (clone $consulta_material)
+                    ->where('unique_id', $unique_id_material)
+                    ->where('project_id', $project_id)
+                    ->first();
+
+                if ($material_encontrado != null) {
+                    return $material_encontrado;
+                }
+            }
+        }
+
+        // 2. Fallback: Búsqueda global original (sin project_id o si no se encontró en el proyecto)
+        /*if (!empty($id_material) && !empty($unique_id_material)) {
+            $material_encontrado = (clone $consulta_material)
+                ->where('id', $id_material)
+                ->where('unique_id', $unique_id_material)
+                ->first();
+
+            if ($material_encontrado != null) {
+                return $material_encontrado;
+            }
+        }
+
+        if (!empty($id_material)) {
+            $material_encontrado = (clone $consulta_material)
+                ->where('id', $id_material)
+                ->first();
+
+            if ($material_encontrado != null) {
+                return $material_encontrado;
+            }
+        }
+
+        if (!empty($unique_id_material)) {
+            $material_encontrado = (clone $consulta_material)
+                ->where('unique_id', $unique_id_material)
+                ->first();
+
+            if ($material_encontrado != null) {
+                return $material_encontrado;
+            }
+        }*/
+
+        return null;
+    }
+
+    private function resolverMaterialActualizado($material_original, $devolver_json = false, $project_id = null)
+    {
+        if ($project_id === null) {
+            $project_id = $this->current_project_id;
+        }
+
+        $material_base = $this->extraerMaterialDesdeCualquierFormato($material_original);
+
+        /*if ($material_base == null) {
+            return $material_original;
+        }*/
+
+        $id_material = isset($material_base->id) ? $material_base->id : null;
+        $unique_id_material = isset($material_base->unique_id) ? $material_base->unique_id : null;
+
+        $material_actualizado = $this->buscarMaterialActualizadoEnBd($id_material, $unique_id_material, $project_id);
+
+        // Si no se encuentra en el proyecto, retornamos null para filtrar del reporte
+        if ($material_actualizado == null) {
+            return null;
+        }
+
+        /* Bloque original comentado como referencia
+        if ($material_actualizado == null) {
+            if ($devolver_json === true) {
+                if (is_string($material_original)) {
+                    return $material_original;
+                }
+
+                return json_encode($material_base, JSON_UNESCAPED_UNICODE);
+            }
+
+            return $material_base;
+        }
+        */
+
+        if (!isset($material_actualizado->unit_measure_value)) {
+            $material_actualizado->unit_measure_value = $this->calcularUnitMeasureValueMaterial($material_actualizado);
+        }
+
+        if ($devolver_json === true) {
+            return json_encode($material_actualizado, JSON_UNESCAPED_UNICODE);
+        }
+
+        return $material_actualizado;
+    }
+
+    private function limpiarMaterialesNoPertenecientesAlProyecto(&$data)
+    {
+        if (!is_object($data)) return;
+
+        // Resetear totales para que se recalculen de cero sin basura anterior
+        $data->totalsDatas = [];
+
+        $campos_materiales = [
+            'wall_material',
+            'coping_material',
+            'anchor_material',
+            'top_wall_material',
+            'grout_fill_material',
+            'other_select_material',
+            'vertical_grout_material',
+            'vertical_fill_remaining',
+            'half_block_material',
+            'control_material',
+            'control_rod',
+            'underlay_material'
+        ];
+
+        foreach ($campos_materiales as $campo) {
+            if (property_exists($data, $campo)) {
+                $this->reemplazarJsonMaterialEnCampo($data, $campo);
+            }
+        }
+
+        // Limpiar materiales adicionales
+        if (isset($data->additionalMaterials) && is_array($data->additionalMaterials)) {
+            foreach ($data->additionalMaterials as &$ad) {
+                if (is_array($ad)) $ad = (object)$ad;
+                if (isset($ad->material)) {
+                    $ad->material = $this->resolverMaterialActualizado($ad->material, true);
+                }
+                if (isset($ad->additional_material)) {
+                    $ad->additional_material = $this->resolverMaterialActualizado($ad->additional_material, true);
+                }
+            }
+        }
+
+        // Limpiar ajustes
+        if (isset($data->adjustmentDatas) && is_array($data->adjustmentDatas)) {
+            foreach ($data->adjustmentDatas as &$adj) {
+                if (is_array($adj)) $adj = (object)$adj;
+                if (isset($adj->adjustment_material)) {
+                    $adj->adjustment_material = $this->resolverMaterialActualizado($adj->adjustment_material, true);
+                }
+            }
+        }
+
+        // Limpiar cursos (courses)
+        if (isset($data->courses) && is_array($data->courses)) {
+            foreach ($data->courses as &$course) {
+                if (is_array($course)) $course = (object)$course;
+                $campos_curso = ['band_material', 'rebar_material', 'fill_material'];
+                foreach ($campos_curso as $cc) {
+                    if (isset($course->{$cc})) {
+                        $course->{$cc} = $this->resolverMaterialActualizado($course->{$cc}, true);
+                    }
+                }
+            }
+        }
+    }
+
+    private function reemplazarJsonMaterialEnCampo(&$contenedor, $nombre_campo)
+    {
+        if (!is_object($contenedor)) {
+            return;
+        }
+
+        if (!property_exists($contenedor, $nombre_campo)) {
+            return;
+        }
+
+        $contenedor->{$nombre_campo} = $this->resolverMaterialActualizado($contenedor->{$nombre_campo}, true);
+    }
+
+    private function calcularUnitMeasureValueMaterial($material)
+    {
+        $tipo_material = isset($material->material_type_id) ? (int) $material->material_type_id : 0;
+        $largo_material = isset($material->length) ? (float) $material->length : 0;
+        $alto_material = isset($material->height) ? (float) $material->height : 0;
+
+        if ($tipo_material === 1) {
+            return ($largo_material * $alto_material) / 144;
+        }
+
+        if ($tipo_material === 2) {
+            return $largo_material / 12;
+        }
+
+        if ($tipo_material === 3) {
+            return 1;
+        }
+
+        return 0;
+    }
 
     public function calculaWallMaterial(&$updatedFormData)
     {
         // echo "calculaWallMaterial<br>";
         // Ensure $updatedFormData is an stdClass object
         if (is_array($updatedFormData)) {
-            $updatedFormData = (object)$updatedFormData;
+            $updatedFormData = (object) $updatedFormData;
         }
         if ($updatedFormData->wall_material != null) {
             // Handle changes for main material
-            $wall_material = $updatedFormData->wall_material;
-            $selectedMaterial = json_decode($wall_material); // Parse the selected material
+            //$wall_material = $updatedFormData->wall_material;
+            //$selectedMaterial = json_decode($wall_material); // Parse the selected material
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'wall_material');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->wall_material);
 
             // Access the height, width, and length properties of the selected material object
             $materialLength = $selectedMaterial->length;
@@ -624,76 +914,80 @@ class WallController extends Controller
     public function calculaBloque1(&$updatedFormData)
     {
         $calculatedEffectiveFoundationHeight = $this->calculateFoundationHeight($updatedFormData);
-        $calculatedTotalWallHeight           = $this->calculatedWallHeight($updatedFormData, $calculatedEffectiveFoundationHeight);
+        $calculatedTotalWallHeight = $this->calculatedWallHeight($updatedFormData, $calculatedEffectiveFoundationHeight);
 
-        $calculateTotalWallLength  = $this->calculationWallLength($updatedFormData);
-        $calculateTotalSquareArea  = $this->calculationSquareArea($calculatedTotalWallHeight, $calculateTotalWallLength);
-        $calculateTotalCubicArea   = $this->calculationCubicArea($updatedFormData, $calculateTotalSquareArea);
-        $calculateAreaCubicYards   = $this->calculationCubicYards($updatedFormData, $calculateTotalCubicArea);
-        $calculateWallSquareUnits  = $this->calculationWallSquareUnit($updatedFormData, $calculateTotalSquareArea);
+        $calculateTotalWallLength = $this->calculationWallLength($updatedFormData);
+        $calculateTotalSquareArea = $this->calculationSquareArea($calculatedTotalWallHeight, $calculateTotalWallLength);
+        $calculateTotalCubicArea = $this->calculationCubicArea($updatedFormData, $calculateTotalSquareArea);
+        $calculateAreaCubicYards = $this->calculationCubicYards($updatedFormData, $calculateTotalCubicArea);
+        $calculateWallSquareUnits = $this->calculationWallSquareUnit($updatedFormData, $calculateTotalSquareArea);
 
         // ====== COPING ======
-        $calculateCopingTotals     = $this->calculationCopingTotal($updatedFormData);
+        $calculateCopingTotals = $this->calculationCopingTotal($updatedFormData);
         $calculateCopingTotalUnits = $this->calculationCopingTotalUnit($updatedFormData, $calculateCopingTotals);
 
         // ====== GUARDAR CAMPOS EN FORM DATA ======
         $updatedFormData->effective_foundation_height = $calculatedEffectiveFoundationHeight;
-        $updatedFormData->total_wall_height           = $calculatedTotalWallHeight;
-        $updatedFormData->total_wall_length           = $calculateTotalWallLength;
-        $updatedFormData->total_square_area           = $calculateTotalSquareArea;
+        $updatedFormData->total_wall_height = $calculatedTotalWallHeight;
+        $updatedFormData->total_wall_length = $calculateTotalWallLength;
+        $updatedFormData->total_square_area = $calculateTotalSquareArea;
 
-        $updatedFormData->total_cubic_area            = $calculateTotalCubicArea;
-        $updatedFormData->area_cubic_yards            = $calculateAreaCubicYards;
-        $updatedFormData->wall_square_units           = $calculateWallSquareUnits;
+        $updatedFormData->total_cubic_area = $calculateTotalCubicArea;
+        $updatedFormData->area_cubic_yards = $calculateAreaCubicYards;
+        $updatedFormData->wall_square_units = $calculateWallSquareUnits;
 
         // Wall coping material
-        $updatedFormData->coping_material_total       = $calculateCopingTotals;
+        $updatedFormData->coping_material_total = $calculateCopingTotals;
         $updatedFormData->coping_material_total_units = $calculateCopingTotalUnits;
 
         // ====== MATERIAL PRINCIPAL (WALL MATERIAL) ======
         $wall_material_obj = null;
         if (isset($updatedFormData->wall_material)) {
-            $wall_material_obj = json_decode($updatedFormData->wall_material);
+            //$wall_material_obj = json_decode($updatedFormData->wall_material);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'wall_material');
+            $wall_material_obj = $this->resolverMaterialActualizado($updatedFormData->wall_material);
         }
 
         if ($wall_material_obj != null) {
             $material_principal = new Total_Material();
             $material_principal->id_material = $wall_material_obj->id;
-            $material_principal->material    = $wall_material_obj;
+            $material_principal->material = $wall_material_obj;
 
             // Measuring = base (ft²)
-            $material_principal->measuring   = (float)$calculateTotalSquareArea;
-            $material_principal->units = (float)$calculateWallSquareUnits;
-            $material_principal->op_unit   = 'sqft';
+            $material_principal->measuring = (float) $calculateTotalSquareArea;
+            $material_principal->units = (float) $calculateWallSquareUnits;
+            $material_principal->op_unit = 'sqft';
 
-            $material_principal->principal  = true;
+            $material_principal->principal = true;
             $this->addtotalDatas($material_principal, $updatedFormData);
         }
 
         // ====== COPING MATERIAL (MEASURING + UNITS) ======
         $coping_material_obj = null;
         if (isset($updatedFormData->coping_material)) {
-            $coping_material_obj = json_decode($updatedFormData->coping_material);
+            //$coping_material_obj = json_decode($updatedFormData->coping_material);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'coping_material');
+            $coping_material_obj = $this->resolverMaterialActualizado($updatedFormData->coping_material);
         }
 
         if ($coping_material_obj != null) {
             $material_coping = new Total_Material();
             $material_coping->id_material = $coping_material_obj->id;
-            $material_coping->material    = $coping_material_obj;
+            $material_coping->material = $coping_material_obj;
 
             // ✅ Measuring = total lineal calculado (ft)
-            $material_coping->measuring   = (float)$updatedFormData->coping_material_total;
-            $material_coping->op_unit   = 'lf';
+            $material_coping->measuring = (float) $updatedFormData->coping_material_total;
+            $material_coping->op_unit = 'lf';
 
             // ✅ Units = total units calculadas para el material
-            $material_coping->units       = (float)$updatedFormData->coping_material_total_units;
+            $material_coping->units = (float) $updatedFormData->coping_material_total_units;
 
             $this->addtotalDatas($material_coping, $updatedFormData);
         }
 
         // ====== ANCHOR SPACES (solo matemático) ======
-        $anchor_spacing           = isset($updatedFormData->anchor_spacing) ? (float)$updatedFormData->anchor_spacing : 0;
-        $anchor_additional_spaces = isset($updatedFormData->anchor_additional_spaces) ? (float)$updatedFormData->anchor_additional_spaces : 0;
+        $anchor_spacing = isset($updatedFormData->anchor_spacing) ? (float) $updatedFormData->anchor_spacing : 0;
+        $anchor_additional_spaces = isset($updatedFormData->anchor_additional_spaces) ? (float) $updatedFormData->anchor_additional_spaces : 0;
 
         // Si hay spacing válido, calcula spaces (matemático)
         if ($anchor_spacing > 0) {
@@ -706,20 +1000,22 @@ class WallController extends Controller
         // Agregar anchor material (MEASURING + UNITS)
         $anchor_material_obj = null;
         if (isset($updatedFormData->anchor_material)) {
-            $anchor_material_obj = json_decode($updatedFormData->anchor_material);
+            //$anchor_material_obj = json_decode($updatedFormData->anchor_material);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'anchor_material');
+            $anchor_material_obj = $this->resolverMaterialActualizado($updatedFormData->anchor_material);
         }
 
         if ($anchor_material_obj != null) {
             $material_anchor = new Total_Material();
             $material_anchor->id_material = $anchor_material_obj->id;
-            $material_anchor->material    = $anchor_material_obj;
+            $material_anchor->material = $anchor_material_obj;
 
             // ✅ Measuring = anchor_total (conteo base)
-            $material_anchor->measuring   = (float)$updatedFormData->anchor_total;
-            $material_anchor->op_unit   = '';
+            $material_anchor->measuring = (float) $updatedFormData->anchor_total;
+            $material_anchor->op_unit = '';
 
             // ✅ Units = matemáticamente igual (si luego quieres cajas, aquí aplicarías unit_measure_value)
-            $material_anchor->units       = (float)$updatedFormData->anchor_total;
+            $material_anchor->units = (float) $updatedFormData->anchor_total;
 
             $this->addtotalDatas($material_anchor, $updatedFormData);
         }
@@ -727,10 +1023,12 @@ class WallController extends Controller
         // ====== TOP WALL MATERIAL (BRICK / TOP WALL) ======
         $top_wall_material_obj = null;
         if (isset($updatedFormData->top_wall_material)) {
-            $top_wall_material_obj = json_decode($updatedFormData->top_wall_material);
+            //$top_wall_material_obj = json_decode($updatedFormData->top_wall_material);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'top_wall_material');
+            $top_wall_material_obj = $this->resolverMaterialActualizado($updatedFormData->top_wall_material);
         }
 
-        $updatedFormData->total_anchor_coping       = $this->calculationTotalAnchorCoping($updatedFormData);
+        $updatedFormData->total_anchor_coping = $this->calculationTotalAnchorCoping($updatedFormData);
         $updatedFormData->total_anchor_coping_units = $this->calculationTotalAnchorCopingUnits(
             $top_wall_material_obj,
             $updatedFormData->total_anchor_coping
@@ -740,14 +1038,14 @@ class WallController extends Controller
         if ($top_wall_material_obj != null) {
             $material_top_wall = new Total_Material();
             $material_top_wall->id_material = $top_wall_material_obj->id;
-            $material_top_wall->material    = $top_wall_material_obj;
+            $material_top_wall->material = $top_wall_material_obj;
 
             // ✅ Measuring = base lineal (ft) (NO units)
-            $material_top_wall->measuring   = (float)$updatedFormData->total_anchor_coping;
-            $material_top_wall->op_unit   = 'lf';
+            $material_top_wall->measuring = (float) $updatedFormData->total_anchor_coping;
+            $material_top_wall->op_unit = 'lf';
 
             // ✅ Units = lo convertido (p.ej. 4.39)
-            $material_top_wall->units       = (float)$updatedFormData->total_anchor_coping_units;
+            $material_top_wall->units = (float) $updatedFormData->total_anchor_coping_units;
 
             $this->addtotalDatas($material_top_wall, $updatedFormData);
         }
@@ -760,9 +1058,9 @@ class WallController extends Controller
     {
         // echo "calculaBloque5<br>";
         // Calculate functions
-        
+
         if (is_array($updatedFormData)) {
-            $updatedFormData = (object)$updatedFormData;
+            $updatedFormData = (object) $updatedFormData;
         }
 
         // ✅ Asegurar totalsDatas
@@ -776,48 +1074,48 @@ class WallController extends Controller
         $calculateFillMatPerCy = $this->calculateFillMatPerCys($updatedFormData);
 
         // Si el usuario metió manuality, se respeta; si no, usa el calculado
-        $manual_fill = isset($updatedFormData->sq_fill_mat_per_cy_manuality) ? (float)$updatedFormData->sq_fill_mat_per_cy_manuality : 0;
-        $updatedFormData->sq_fill_mat_per_cy = ($manual_fill > 0) ? $manual_fill : (float)$calculateFillMatPerCy;
+        $manual_fill = isset($updatedFormData->sq_fill_mat_per_cy_manuality) ? (float) $updatedFormData->sq_fill_mat_per_cy_manuality : 0;
+        $updatedFormData->sq_fill_mat_per_cy = ($manual_fill > 0) ? $manual_fill : (float) $calculateFillMatPerCy;
 
         // =========================================================
         // 2) Cálculos del bloque
         // =========================================================
-        $calculateSpacesFilled         = $this->calculateTotalSpacesFilled($updatedFormData);
-        $calculateTotalLift            = $this->calculateTotalLifts($updatedFormData);
-        $calculateRebarLf              = $this->calculateRebarLfs($updatedFormData, $calculateTotalLift);
-        $calculateVericalRebarTotal    = $this->calculateVericalRebarTotals($updatedFormData, $calculateSpacesFilled, $calculateRebarLf);
+        $calculateSpacesFilled = $this->calculateTotalSpacesFilled($updatedFormData);
+        $calculateTotalLift = $this->calculateTotalLifts($updatedFormData);
+        $calculateRebarLf = $this->calculateRebarLfs($updatedFormData, $calculateTotalLift);
+        $calculateVericalRebarTotal = $this->calculateVericalRebarTotals($updatedFormData, $calculateSpacesFilled, $calculateRebarLf);
 
-        $calculateRebarTon             = $this->calculateRebarTons($updatedFormData, $calculateVericalRebarTotal);
-        $calculateRebarPerTon          = $this->calculateRebarPerTons($updatedFormData->grout_fill_material);
+        $calculateRebarTon = $this->calculateRebarTons($updatedFormData, $calculateVericalRebarTotal);
+        $calculateRebarPerTon = $this->calculateRebarPerTons($updatedFormData->grout_fill_material);
 
-        $calculatePostionPerTotal      = $this->calculatePostionPerTotals($updatedFormData);
-        $calculatePostionOtherTotal    = $this->calculatePostionOtherTotals($calculateSpacesFilled, $calculatePostionPerTotal);
+        $calculatePostionPerTotal = $this->calculatePostionPerTotals($updatedFormData);
+        $calculatePostionOtherTotal = $this->calculatePostionOtherTotals($calculateSpacesFilled, $calculatePostionPerTotal);
 
-        $calculateAreaGrouted          = $this->calculateAreaGrouteds($updatedFormData, $calculateSpacesFilled);
-        $calculateRemainingArea        = $this->calculateRemainingAreas($updatedFormData, $calculateAreaGrouted);
+        $calculateAreaGrouted = $this->calculateAreaGrouteds($updatedFormData, $calculateSpacesFilled);
+        $calculateRemainingArea = $this->calculateRemainingAreas($updatedFormData, $calculateAreaGrouted);
 
-        $calculateGroutMaterial        = $this->calculateGroutMaterials($updatedFormData, $calculateAreaGrouted);
-        $calculateRemainingMaterial    = $this->calculateRemainingMaterials($updatedFormData, $calculateRemainingArea);
+        $calculateGroutMaterial = $this->calculateGroutMaterials($updatedFormData, $calculateAreaGrouted);
+        $calculateRemainingMaterial = $this->calculateRemainingMaterials($updatedFormData, $calculateRemainingArea);
 
         // =========================================================
         // 3) Guardar en form data (igual que tu flujo)
         // =========================================================
-        $updatedFormData->total_spaces_filled              = $calculateSpacesFilled;
-        $updatedFormData->total_lifts                      = $calculateTotalLift;
-        $updatedFormData->rebar_lf_pr_space                = $calculateRebarLf;
-        $updatedFormData->vertical_rebar_total             = $calculateVericalRebarTotal;
+        $updatedFormData->total_spaces_filled = $calculateSpacesFilled;
+        $updatedFormData->total_lifts = $calculateTotalLift;
+        $updatedFormData->rebar_lf_pr_space = $calculateRebarLf;
+        $updatedFormData->vertical_rebar_total = $calculateVericalRebarTotal;
 
-        $updatedFormData->lft_rebar_per_ton                = $calculateRebarPerTon;
-        $updatedFormData->vertical_total_rebar_tons        = $calculateRebarTon;
+        $updatedFormData->lft_rebar_per_ton = $calculateRebarPerTon;
+        $updatedFormData->vertical_total_rebar_tons = $calculateRebarTon;
 
-        $updatedFormData->vertical_postioner_per_total     = $calculatePostionPerTotal;
-        $updatedFormData->vertical_postioner_other_total   = $calculatePostionOtherTotal;
+        $updatedFormData->vertical_postioner_per_total = $calculatePostionPerTotal;
+        $updatedFormData->vertical_postioner_other_total = $calculatePostionOtherTotal;
 
-        $updatedFormData->vertical_grouted_area            = $calculateAreaGrouted;
-        $updatedFormData->remaining_area                   = $calculateRemainingArea;
+        $updatedFormData->vertical_grouted_area = $calculateAreaGrouted;
+        $updatedFormData->remaining_area = $calculateRemainingArea;
 
-        $updatedFormData->total_grout_mat                  = $calculateGroutMaterial;
-        $updatedFormData->total_remaining_mat              = $calculateRemainingMaterial;
+        $updatedFormData->total_grout_mat = $calculateGroutMaterial;
+        $updatedFormData->total_remaining_mat = $calculateRemainingMaterial;
 
         // =========================================================
         // 4) Agregar materiales a totalsDatas con measuring + units
@@ -826,22 +1124,27 @@ class WallController extends Controller
         // ---- A) "grout_fill_material" (en realidad se comporta como REBAR en tus cálculos)
         // measuring = vertical_rebar_total (LF)
         // units     = vertical_total_rebar_tons (TONS)  <-- matemáticamente más correcto en reporte final
-        $selectedMaterial = null;
+        /*$selectedMaterial = null;
         if (isset($updatedFormData->grout_fill_material)) {
             $selectedMaterial = json_decode($updatedFormData->grout_fill_material);
+        }*/
+        $selectedMaterial = null;
+        if (isset($updatedFormData->grout_fill_material)) {
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'grout_fill_material');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->grout_fill_material);
         }
 
         if ($selectedMaterial != null) {
             $Agregarmaterial = new Total_Material();
             $Agregarmaterial->id_material = $selectedMaterial->id;
-            $Agregarmaterial->material    = $selectedMaterial;
+            $Agregarmaterial->material = $selectedMaterial;
 
             // ✅ Base matemática (LF)
-            $Agregarmaterial->measuring   = (float)$updatedFormData->vertical_grouted_area;
-            $Agregarmaterial->op_unit   = 'sqft';
+            $Agregarmaterial->measuring = (float) $updatedFormData->vertical_grouted_area;
+            $Agregarmaterial->op_unit = 'sqft';
 
             // ✅ Units matemáticas (TONS)
-            $Agregarmaterial->units       = (float)$updatedFormData->total_grout_mat;
+            $Agregarmaterial->units = (float) $updatedFormData->total_grout_mat;
 
             $this->addtotalDatas($Agregarmaterial, $updatedFormData);
         }
@@ -850,23 +1153,27 @@ class WallController extends Controller
         // measuring = vertical_postioner_other_total (base)
         // units     = measuring / unit_measure_value (si existe), si no = measuring
         $selectedMaterial = null;
-        if (isset($updatedFormData->other_select_material)) {
+        /*if (isset($updatedFormData->other_select_material)) {
             $selectedMaterial = json_decode($updatedFormData->other_select_material);
+        }*/
+        if (isset($updatedFormData->other_select_material)) {
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'other_select_material');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->other_select_material);
         }
 
         if ($selectedMaterial != null) {
             $Agregarmaterial = new Total_Material();
             $Agregarmaterial->id_material = $selectedMaterial->id;
-            $Agregarmaterial->material    = $selectedMaterial;
+            $Agregarmaterial->material = $selectedMaterial;
 
-            $Agregarmaterial->measuring   = (float)$updatedFormData->vertical_postioner_other_total;
-            $Agregarmaterial->op_unit   = 'sqft';
+            $Agregarmaterial->measuring = (float) $updatedFormData->vertical_postioner_other_total;
+            $Agregarmaterial->op_unit = 'sqft';
 
-            $unit_measure_value = isset($selectedMaterial->unit_measure_value) ? (float)$selectedMaterial->unit_measure_value : 0;
+            $unit_measure_value = isset($selectedMaterial->unit_measure_value) ? (float) $selectedMaterial->unit_measure_value : 0;
             if ($unit_measure_value > 0) {
                 $Agregarmaterial->units = round($Agregarmaterial->measuring / $unit_measure_value, 6);
             } else {
-                $Agregarmaterial->units = (float)$Agregarmaterial->measuring;
+                $Agregarmaterial->units = (float) $Agregarmaterial->measuring;
             }
 
             $this->addtotalDatas($Agregarmaterial, $updatedFormData);
@@ -876,35 +1183,43 @@ class WallController extends Controller
         // measuring = total_remaining_mat (base)
         // units     = measuring / unit_measure_value (si existe), si no = measuring
         $selectedMaterial = null;
-        if (isset($updatedFormData->vertical_grout_material)) {
+        /*if (isset($updatedFormData->vertical_grout_material)) {
             $selectedMaterial = json_decode($updatedFormData->vertical_grout_material);
+        }*/
+        if (isset($updatedFormData->vertical_grout_material)) {
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'vertical_grout_material');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->vertical_grout_material);
         }
 
         if ($selectedMaterial != null) {
             $Agregarmaterial = new Total_Material();
             $Agregarmaterial->id_material = $selectedMaterial->id;
-            $Agregarmaterial->material    = $selectedMaterial;
+            $Agregarmaterial->material = $selectedMaterial;
 
-            $Agregarmaterial->measuring   = (float)$updatedFormData->vertical_grouted_area;
-            $Agregarmaterial->op_unit   = 'sqft';
-            $Agregarmaterial->units = (float)$updatedFormData->total_grout_mat;
+            $Agregarmaterial->measuring = (float) $updatedFormData->vertical_grouted_area;
+            $Agregarmaterial->op_unit = 'sqft';
+            $Agregarmaterial->units = (float) $updatedFormData->total_grout_mat;
 
             $this->addtotalDatas($Agregarmaterial, $updatedFormData);
         }
 
         $selectedMaterial = null;
-        if (isset($updatedFormData->vertical_fill_remaining)) {
+        /*if (isset($updatedFormData->vertical_fill_remaining)) {
             $selectedMaterial = json_decode($updatedFormData->vertical_fill_remaining);
+        }*/
+        if (isset($updatedFormData->vertical_fill_remaining)) {
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'vertical_fill_remaining');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->vertical_fill_remaining);
         }
 
         if ($selectedMaterial != null) {
             $Agregarmaterial = new Total_Material();
             $Agregarmaterial->id_material = $selectedMaterial->id;
-            $Agregarmaterial->material    = $selectedMaterial;
+            $Agregarmaterial->material = $selectedMaterial;
 
-            $Agregarmaterial->measuring   = (float)$updatedFormData->remaining_area;
-            $Agregarmaterial->op_unit   = 'sqft';
-            $Agregarmaterial->units = (float)$updatedFormData->total_remaining_mat;
+            $Agregarmaterial->measuring = (float) $updatedFormData->remaining_area;
+            $Agregarmaterial->op_unit = 'sqft';
+            $Agregarmaterial->units = (float) $updatedFormData->total_remaining_mat;
 
             $this->addtotalDatas($Agregarmaterial, $updatedFormData);
         }
@@ -915,8 +1230,10 @@ class WallController extends Controller
     public function calculaBloque4(&$updatedFormData)
     {
         // echo "calculaBloque4<br>";
-        $half_block_material = $updatedFormData->half_block_material;
-        $selectedMaterial = json_decode($half_block_material);
+        //$half_block_material = $updatedFormData->half_block_material;
+        //$selectedMaterial = json_decode($half_block_material);
+        $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'half_block_material');
+        $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->half_block_material);
         if ($selectedMaterial != null) {
             $materialLength = $selectedMaterial->length;
             $materialHeight = $selectedMaterial->height;
@@ -947,13 +1264,15 @@ class WallController extends Controller
             $updatedFormData->control_total_cj_material = $calculateTotalCjMaterial;
             $updatedFormData->control_total_cj_material_ea = $calculateTotalCjMaterial_ea;
 
-            $selectedMaterial = json_decode($updatedFormData->control_material);
+            //$selectedMaterial = json_decode($updatedFormData->control_material);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'control_material');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->control_material);
             if ($selectedMaterial != null) {
                 $Agregarmaterial = new Total_Material();
                 $Agregarmaterial->id_material = $selectedMaterial->id;
                 $Agregarmaterial->material = $selectedMaterial;
                 $Agregarmaterial->measuring = $updatedFormData->control_total_cj_material;
-                $Agregarmaterial->op_unit   = 'lf';
+                $Agregarmaterial->op_unit = 'lf';
                 $Agregarmaterial->units = $updatedFormData->control_total_cj_material_ea;
 
                 $this->addtotalDatas($Agregarmaterial, $updatedFormData);
@@ -962,27 +1281,30 @@ class WallController extends Controller
 
             $updatedFormData->control_total_caulking_material = $calculateTotalCaulkingMaterial;
             $updatedFormData->control_total_caulking_material_ea = $calculateTotalCaulkingMaterial_ea;
-            $selectedMaterial = json_decode($updatedFormData->control_rod);
+            //$selectedMaterial = json_decode($updatedFormData->control_rod);
+            $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'control_rod');
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->control_rod);
             if ($selectedMaterial != null) {
                 $Agregarmaterial = new Total_Material();
                 $Agregarmaterial->id_material = $selectedMaterial->id;
                 $Agregarmaterial->material = $selectedMaterial;
                 $Agregarmaterial->measuring = $updatedFormData->control_total_caulking_material;
-                $Agregarmaterial->op_unit   = 'lf';
-                $Agregarmaterial->units = (float)$updatedFormData->control_total_caulking_material_ea;
-                
+                $Agregarmaterial->op_unit = 'lf';
+                $Agregarmaterial->units = (float) $updatedFormData->control_total_caulking_material_ea;
+
                 $this->addtotalDatas($Agregarmaterial, $updatedFormData);
             }
 
             $updatedFormData->control_total_sq_ft = $calculateTotalHalfBlock;
-            $selectedMaterial = json_decode($updatedFormData->half_block_material);
+            //$selectedMaterial = json_decode($updatedFormData->half_block_material);
+            $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->half_block_material);
             $updatedFormData->total_half_unit = $calculateTotalHalfUnit;
             if ($selectedMaterial != null) {
                 $Agregarmaterial = new Total_Material();
                 $Agregarmaterial->id_material = $selectedMaterial->id;
                 $Agregarmaterial->material = $selectedMaterial;
                 $Agregarmaterial->measuring = $updatedFormData->control_total_sq_ft;
-                $Agregarmaterial->op_unit   = 'sqft';
+                $Agregarmaterial->op_unit = 'sqft';
                 $Agregarmaterial->units = $updatedFormData->total_half_unit;
                 $this->addtotalDatas($Agregarmaterial, $updatedFormData);
             }
@@ -1002,7 +1324,7 @@ class WallController extends Controller
     {
         // echo "calculaBloque2<br>";
         if (is_array($updatedFormData)) {
-            $updatedFormData = (object)$updatedFormData;
+            $updatedFormData = (object) $updatedFormData;
         }
 
         // Si no viene coping_material, no hacemos nada
@@ -1011,7 +1333,7 @@ class WallController extends Controller
         }
 
         // Puede venir como JSON string o como objeto
-        $coping_material_raw = $updatedFormData->coping_material;
+        /*$coping_material_raw = $updatedFormData->coping_material;
 
         $selectedMaterial = null;
 
@@ -1021,16 +1343,19 @@ class WallController extends Controller
 
         if (is_object($coping_material_raw)) {
             $selectedMaterial = $coping_material_raw;
-        }
+        }*/
+
+        $this->reemplazarJsonMaterialEnCampo($updatedFormData, 'coping_material');
+        $selectedMaterial = $this->resolverMaterialActualizado($updatedFormData->coping_material);
 
         if ($selectedMaterial == null) {
             return $updatedFormData;
         }
 
         // Dimensiones con fallback a 0
-        $material_length = isset($selectedMaterial->length) ? (float)$selectedMaterial->length : 0;
-        $material_height = isset($selectedMaterial->height) ? (float)$selectedMaterial->height : 0;
-        $material_width  = isset($selectedMaterial->width)  ? (float)$selectedMaterial->width  : 0;
+        $material_length = isset($selectedMaterial->length) ? (float) $selectedMaterial->length : 0;
+        $material_height = isset($selectedMaterial->height) ? (float) $selectedMaterial->height : 0;
+        $material_width = isset($selectedMaterial->width) ? (float) $selectedMaterial->width : 0;
 
         // Calcular unidad del coping (misma lógica)
         $calculate_unit = 0;
@@ -1040,9 +1365,9 @@ class WallController extends Controller
 
         // Guardar en form data
         $updatedFormData->coping_material_height = $material_height;
-        $updatedFormData->coping_material_width  = $material_width;
+        $updatedFormData->coping_material_width = $material_width;
         $updatedFormData->coping_material_length = $material_length;
-        $updatedFormData->coping_material_unit   = $calculate_unit;
+        $updatedFormData->coping_material_unit = $calculate_unit;
 
         return $updatedFormData;
     }
@@ -1180,9 +1505,9 @@ class WallController extends Controller
     {
         // echo "calculationCubicArea<br>";
         try {
-            if (is_numeric($data->wall_structure_thickness) && (float)$data->wall_structure_thickness > 0) {
+            if (is_numeric($data->wall_structure_thickness) && (float) $data->wall_structure_thickness > 0) {
                 return $data->wall_structure_thickness * $totalSqArea;
-            }else{
+            } else {
                 return $totalSqArea;
             }
         } catch (\Throwable $th) {
@@ -1255,7 +1580,9 @@ class WallController extends Controller
 
                     // Crear el objeto Material
                     //$selectedMaterial = new Material($data->top_wall_material);
-                    $selectedMaterial = json_decode($data->top_wall_material);
+                    //$selectedMaterial = json_decode($data->top_wall_material);
+                    //return round($data->wall_length * ($data->coping_wall_side), 2);
+                    $selectedMaterial = $this->resolverMaterialActualizado($data->top_wall_material);
                     return round($data->wall_length * ($data->coping_wall_side), 2);
                 }
 
@@ -1270,7 +1597,7 @@ class WallController extends Controller
     {
         //echo $data;
         try {
-            return round( $total / 20, 2);
+            return round($total / 20, 2);
             //return round( $total / 1, 2);
         } catch (\Throwable $th) {
             return 0;
@@ -1339,7 +1666,9 @@ class WallController extends Controller
     {
 
         try {
-            $selectedMaterial = json_decode($data);
+            //$selectedMaterial = json_decode($data);
+            //return round($selectedMaterial->shortton_wlf, 3);
+            $selectedMaterial = $this->resolverMaterialActualizado($data);
             return round($selectedMaterial->shortton_wlf, 3);
         } catch (\Throwable $th) {
             // echo "totalRebarLfts " . $totalRebarLfts . "<br>";
@@ -1385,7 +1714,7 @@ class WallController extends Controller
         try {
             $total_sq_area_filled = 0;
             foreach ($data->courses as $course) {
-                $course =  (object) $course;
+                $course = (object) $course;
 
                 $total_sq_area_filled += $course->total_sq_area_filled;
             }
@@ -1425,7 +1754,9 @@ class WallController extends Controller
         // echo "calculateFillMatPerCys<br>";
 
         try {
-            $selectedMaterial = json_decode($data->wall_material);
+            //$selectedMaterial = json_decode($data->wall_material);
+            //return $selectedMaterial->sq_ft_per_cy;
+            $selectedMaterial = $this->resolverMaterialActualizado($data->wall_material);
             return $selectedMaterial->sq_ft_per_cy;
         } catch (\Throwable $th) {
             //throw $th;
@@ -1470,7 +1801,8 @@ class WallController extends Controller
     {
         // echo "calculateTotalCjMaterials_ea<br>";
         try {
-            $selectedMaterial = json_decode($data->control_material);
+            //$selectedMaterial = json_decode($data->control_material);
+            $selectedMaterial = $this->resolverMaterialActualizado($data->control_material);
             $control_material_length = $selectedMaterial->length / 12;
             return round($data->control_total_cj_material / $control_material_length, 2);
         } catch (\Throwable $th) {
@@ -1483,9 +1815,10 @@ class WallController extends Controller
     {
         // echo "calculateTotalCaulkingMaterials_ea<br>";
         try {
-            $selectedMaterial = json_decode($data->control_rod);
+            //$selectedMaterial = json_decode($data->control_rod);
+            $selectedMaterial = $this->resolverMaterialActualizado($data->control_rod);
             $control_material_length = $selectedMaterial->length / 12;
-        
+
             return round(($data->control_total_cj_material * $data->control_rod_side) / $control_material_length, 2);
         } catch (\Throwable $th) {
             //throw $th;
@@ -1496,7 +1829,7 @@ class WallController extends Controller
     public function calculateTotalHalfBlocks($data, $totalCjMaterials, $materialLength = null)
     {
         // echo "calculateTotalHalfBlocks<br>";
-        
+
         try {
             $halfLength = isset($materialLength) ? $materialLength : $data->half_block_length;
             return round($totalCjMaterials * ($halfLength / 12), 2);
@@ -1509,7 +1842,7 @@ class WallController extends Controller
     public function calculateTotalHalfUnits($data, $halfBlock, $materialUnit = null)
     {
         // echo "calculateTotalHalfUnits<br>";
-        
+
         try {
             $halfUnit = isset($materialUnit) ? $materialUnit : $data->half_block_lf_unit;
 
@@ -1538,16 +1871,16 @@ class WallController extends Controller
 
             foreach ($courses as $selectedCourseData) {
 
-                $selectedCourseData = (object)$selectedCourseData;
+                $selectedCourseData = (object) $selectedCourseData;
                 // echo "selectedCourseData->name" . $selectedCourseData->name . "<br>";
 
                 $nombre_course = '';
-                if (isset($selectedCourseData->name) && trim((string)$selectedCourseData->name) !== '') {
-                    $nombre_course = trim((string)$selectedCourseData->name);
+                if (isset($selectedCourseData->name) && trim((string) $selectedCourseData->name) !== '') {
+                    $nombre_course = trim((string) $selectedCourseData->name);
                 }
 
-                if ($nombre_course === '' && isset($selectedCourseData->course_name) && trim((string)$selectedCourseData->course_name) !== '') {
-                    $nombre_course = trim((string)$selectedCourseData->course_name);
+                if ($nombre_course === '' && isset($selectedCourseData->course_name) && trim((string) $selectedCourseData->course_name) !== '') {
+                    $nombre_course = trim((string) $selectedCourseData->course_name);
                 }
 
                 if ($nombre_course === '') {
@@ -1555,11 +1888,10 @@ class WallController extends Controller
                 }
 
 
-
                 //top_elevation
-                $selectedCourseData->top_elevation =  round(
+                $selectedCourseData->top_elevation = round(
                     $selectedCourseData->band_height +
-                        $selectedCourseData->bottom_elevation,
+                    $selectedCourseData->bottom_elevation,
                     3
                 );
 
@@ -1571,8 +1903,8 @@ class WallController extends Controller
 
                 $band_material = null;
 
-                if (isset($selectedCourseData->band_material) && $selectedCourseData->band_material != '') {
-                    if (is_string($selectedCourseData->band_material)) {
+                /*if (isset($selectedCourseData->band_material) && $selectedCourseData->band_material != '') {
+                    *if (is_string($selectedCourseData->band_material)) {
                         $band_material = json_decode($selectedCourseData->band_material);
                     }
 
@@ -1583,15 +1915,20 @@ class WallController extends Controller
                     if (is_array($selectedCourseData->band_material)) {
                         $band_material = (object)$selectedCourseData->band_material;
                     }
-                }
+
+
+                }*/
+
+                $selectedCourseData->band_material = $this->resolverMaterialActualizado($selectedCourseData->band_material, true);
+                $band_material = $this->resolverMaterialActualizado($selectedCourseData->band_material);
 
                 $Agregarmaterial = new Total_Material();
                 if (isset($band_material->id)) {
                     $Agregarmaterial->id_material = $band_material->id;
                     $Agregarmaterial->material = $band_material;
                     $Agregarmaterial->measuring = $selectedCourseData->material_sq_ft;
-                    $Agregarmaterial->op_unit   = 'sqft';
-                    $Agregarmaterial->units     = (float)$selectedCourseData->total_material_units;
+                    $Agregarmaterial->op_unit = 'sqft';
+                    $Agregarmaterial->units = (float) $selectedCourseData->total_material_units;
                     $Agregarmaterial->principal = true;
                     $Agregarmaterial->source_type = 'course';
                     $Agregarmaterial->course_name = $nombre_course;
@@ -1599,15 +1936,24 @@ class WallController extends Controller
                     $Agregarmaterial->global_takeoff_suffix = $nombre_course;
                     $this->addtotalDatas($Agregarmaterial, $formData);
 
-                    //total_courses
-                    $band_material_height_feet = round(($band_material->height / 12), 6);
-                    $total_courses = round(($selectedCourseData->band_height / $band_material_height_feet), 0);
+                    $band_material_height_feet = 0;
+
+                    if (isset($band_material->height)) {
+                        $band_material_height_feet = round(((float) $band_material->height / 12), 6);
+                    }
+
+                    $total_courses = 0;
+
+                    if ($band_material_height_feet > 0) {
+                        $total_courses = round(((float) $selectedCourseData->band_height / $band_material_height_feet), 0);
+                    }
+
                     $selectedCourseData->total_courses = $total_courses;
                 }
-                
+
                 $rebar_material = null;
 
-                if (isset($selectedCourseData->rebar_material) && $selectedCourseData->rebar_material != '') {
+                /*if (isset($selectedCourseData->rebar_material) && $selectedCourseData->rebar_material != '') {
                     if (is_string($selectedCourseData->rebar_material)) {
                         $rebar_material = json_decode($selectedCourseData->rebar_material);
                     }
@@ -1619,14 +1965,16 @@ class WallController extends Controller
                     if (is_array($selectedCourseData->rebar_material)) {
                         $rebar_material = (object)$selectedCourseData->rebar_material;
                     }
-                }
+                }*/
+                $selectedCourseData->rebar_material = $this->resolverMaterialActualizado($selectedCourseData->rebar_material, true);
+                $rebar_material = $this->resolverMaterialActualizado($selectedCourseData->rebar_material);
 
                 $Agregarmaterial = new Total_Material();
                 if (isset($rebar_material->id)) {
 
                     $selectedCourseData->total_per_each = round(
                         $selectedCourseData->rebar_overlap +
-                            ($rebar_material->length / 12),
+                        ($rebar_material->length / 12),
                         3
                     );
 
@@ -1635,15 +1983,12 @@ class WallController extends Controller
                     $selectedCourseData->total_rebar_linear_feet = $this->calcularTotalRebarLinearFeet($selectedCourseData);
                     $selectedCourseData->total_rebar_units = $this->calcularTotalRebarUnits($selectedCourseData, $rebar_material);
                     $selectedCourseData->rebar_lf_ton = $this->calcularRebarLfTon($rebar_material);
-                    $selectedCourseData->sq_ft_filled_grouted = $this->calcularSqFtFilledGrouted($selectedCourseData, $formData->wall_length);
-                    $selectedCourseData->total_sq_area_filled = $this->calcularTotalSqAreaFilled($selectedCourseData);
 
-                    $selectedCourseData->deducted_area_vertically = $this->calcularDeductedAreaVertically($selectedCourseData, $formData->total_spaces_filled);
                     $Agregarmaterial->id_material = $rebar_material->id;
                     $Agregarmaterial->material = $rebar_material;
-                    $Agregarmaterial->measuring   = (float)$selectedCourseData->total_rebar_linear_feet;
-                    $Agregarmaterial->op_unit   = 'lf';
-                    $Agregarmaterial->units       = (float)$selectedCourseData->total_rebar_units;
+                    $Agregarmaterial->measuring = (float) $selectedCourseData->total_rebar_linear_feet;
+                    $Agregarmaterial->op_unit = 'lf';
+                    $Agregarmaterial->units = (float) $selectedCourseData->total_rebar_units;
                     $Agregarmaterial->principal = true;
 
                     $Agregarmaterial->source_type = 'course';
@@ -1657,7 +2002,7 @@ class WallController extends Controller
                 //Agregar material a la cuenta
                 $fill_material = null;
 
-                if (isset($selectedCourseData->fill_material) && $selectedCourseData->fill_material != '') {
+                /*if (isset($selectedCourseData->fill_material) && $selectedCourseData->fill_material != '') {
                     if (is_string($selectedCourseData->fill_material)) {
                         $fill_material = json_decode($selectedCourseData->fill_material);
                     }
@@ -1669,25 +2014,51 @@ class WallController extends Controller
                     if (is_array($selectedCourseData->fill_material)) {
                         $fill_material = (object)$selectedCourseData->fill_material;
                     }
-                }
+                }*/
+                $selectedCourseData->fill_material = $this->resolverMaterialActualizado($selectedCourseData->fill_material, true);
+                $fill_material = $this->resolverMaterialActualizado($selectedCourseData->fill_material);
                 $Agregarmaterial = new Total_Material();
                 if (isset($fill_material->id)) {
 
-                    $selectedMaterial = json_decode($formData->wall_material);
+                    //$selectedMaterial = json_decode($formData->wall_material);
+                    //$selectedCourseData->sq_grouted_per_cy = $selectedMaterial->sq_ft_per_cy;
+                    /*$selectedMaterial = $this->resolverMaterialActualizado($formData->wall_material);
                     $selectedCourseData->sq_grouted_per_cy = $selectedMaterial->sq_ft_per_cy;
                     if (isset($selectedCourseData->sq_grouted_per_cy_manuality)) {
                         $selectedCourseData->sq_grouted_per_cy = ((float)$selectedCourseData->sq_grouted_per_cy_manuality > 0) ? (float)$selectedCourseData->sq_grouted_per_cy_manuality : $selectedCourseData->sq_grouted_per_cy;
+                    }*/
+                    $selectedMaterial = null;
+
+                    if (isset($formData->wall_material)) {
+                        $selectedMaterial = $this->resolverMaterialActualizado($formData->wall_material);
                     }
+
+                    $selectedCourseData->sq_grouted_per_cy = 0;
+
+                    if (isset($selectedMaterial->sq_ft_per_cy)) {
+                        $selectedCourseData->sq_grouted_per_cy = (float) $selectedMaterial->sq_ft_per_cy;
+                    }
+
+                    if (isset($selectedCourseData->sq_grouted_per_cy_manuality)) {
+                        $selectedCourseData->sq_grouted_per_cy = ((float) $selectedCourseData->sq_grouted_per_cy_manuality > 0)
+                            ? (float) $selectedCourseData->sq_grouted_per_cy_manuality
+                            : $selectedCourseData->sq_grouted_per_cy;
+                    }
+
+                    $selectedCourseData->sq_ft_filled_grouted = $this->calcularSqFtFilledGrouted($selectedCourseData, $formData->wall_length);
+                    $selectedCourseData->total_sq_area_filled = $this->calcularTotalSqAreaFilled($selectedCourseData);
+
+                    $selectedCourseData->deducted_area_vertically = $this->calcularDeductedAreaVertically($selectedCourseData, $formData->total_spaces_filled);
                     $selectedCourseData->total_sq_fill_materials = $this->calcularTotalSqFillMaterials($selectedCourseData, $selectedCourseData->sq_grouted_per_cy);
                     $Agregarmaterial->id_material = $fill_material->id;
                     $Agregarmaterial->material = $fill_material;
                     $Agregarmaterial->measuring = $selectedCourseData->total_sq_fill_materials;
-                    $Agregarmaterial->op_unit   = 'sqft';
-                    $unit_measure_value = isset($fill_material->unit_measure_value) ? (float)$fill_material->unit_measure_value : 0;
+                    $Agregarmaterial->op_unit = 'sqft';
+                    $unit_measure_value = isset($fill_material->unit_measure_value) ? (float) $fill_material->unit_measure_value : 0;
                     if ($unit_measure_value > 0) {
                         $Agregarmaterial->units = round($Agregarmaterial->measuring / $unit_measure_value, 6);
                     } else {
-                        $Agregarmaterial->units = (float)$Agregarmaterial->measuring;
+                        $Agregarmaterial->units = (float) $Agregarmaterial->measuring;
                     }
                     $Agregarmaterial->principal = true;
 
@@ -1698,7 +2069,7 @@ class WallController extends Controller
                     $this->addtotalDatas($Agregarmaterial, $formData);
                 }
                 $selectedCourseData->area_grouted_sq = $this->calculateGroutedSqs($formData, $selectedCourseData);
-                $selectedCourseData->total_grout_cy =  $this->calculateGroutedCys($selectedCourseData, $selectedCourseData->area_grouted_sq);
+                $selectedCourseData->total_grout_cy = $this->calculateGroutedCys($selectedCourseData, $selectedCourseData->area_grouted_sq);
                 $selectedCourseData->total_area_grout_sq = $this->calculateTotalGroutedCys($selectedCourseData, $selectedCourseData->total_grout_cy);
 
 
@@ -1714,6 +2085,7 @@ class WallController extends Controller
 
             return $formData;
         } catch (\Throwable $th) {
+            dd($th);
             return $formData;
         }
     }
@@ -1722,7 +2094,12 @@ class WallController extends Controller
         // echo "calculateTotalMaterialUnits<br>";
         try {
             $wallLength = floatval($data->wall_length);
-            $wallMaterialUnit = floatval($data->wall_material_unit);
+            /*$band_material = $course->band_material;
+            if (is_string($band_material)) {
+                $band_material = json_decode($band_material);
+            }*/
+            $band_material = $this->resolverMaterialActualizado($course->band_material);
+            $wallMaterialUnit = floatval(round(($band_material->height * $band_material->length) / 144, 3));
             $bandHeight = floatval($course->band_height);
             $materialUnits = round(($wallLength * $bandHeight) / $wallMaterialUnit, 0);
             return $materialUnits;
@@ -1742,10 +2119,10 @@ class WallController extends Controller
             // $totalRebars = round($wallLength / ($wallMaterialLength * $totalPerEach), 3);
             $totalRebars = round(($wallLength / $wallMaterialLength) * $totalPerEach, 3);
 
-        // echo "calculate Total Rebars<br>";
-        // echo "wallLength: $wallLength<br>";
-        // echo "wallMaterialLength: $wallMaterialLength<br>";
-        // echo "totalPerEach: $totalPerEach<br>";
+            // echo "calculate Total Rebars<br>";
+            // echo "wallLength: $wallLength<br>";
+            // echo "wallMaterialLength: $wallMaterialLength<br>";
+            // echo "totalPerEach: $totalPerEach<br>";
 
             return $totalRebars;
         } catch (\Throwable $th) {
@@ -1832,12 +2209,12 @@ class WallController extends Controller
     {
         //   echo "calcularTotalRebarLength\n";
         try {
-            $rebarLength = isset($rebar_material->length) ? (float)$rebar_material->length / 12 : 0;
-            $rebarOverlap = isset($selectedCourseData->rebar_overlap) ? (float)$selectedCourseData->rebar_overlap : 0;
+            $rebarLength = isset($rebar_material->length) ? (float) $rebar_material->length / 12 : 0;
+            $rebarOverlap = isset($selectedCourseData->rebar_overlap) ? (float) $selectedCourseData->rebar_overlap : 0;
 
             $totalPerEach = number_format($rebarOverlap + $rebarLength, 3);
 
-            $wallLength = isset($formData->wall_length) ? (float)$formData->wall_length : 0;
+            $wallLength = isset($formData->wall_length) ? (float) $formData->wall_length : 0;
 
             $totalRebarLength = number_format(($wallLength / $rebarLength) * $totalPerEach, 3);
 
@@ -1857,7 +2234,7 @@ class WallController extends Controller
     {
         //   echo "calcularTotalRebarUnits\n"; 
         try {
-            $total_rebar_units = round(((float)$formData->total_rebar_linear_feet) /
+            $total_rebar_units = round(((float) $formData->total_rebar_linear_feet) /
                 ($rebar_material->unit_measure_value), 2);
 
             return $total_rebar_units;
@@ -1871,9 +2248,9 @@ class WallController extends Controller
     {
         //   echo "calcularTotalRebarLinearFeet\n";
         try {
-            $totalRebarLength = isset($formData->total_rebar_length) ? (float)$formData->total_rebar_length : 0;
-            $rebarQuantity = isset($formData->rebar_quantity) ? (float)$formData->rebar_quantity : 0;
-            $totalCourses = isset($formData->total_courses) ? (float)$formData->total_courses : 0;
+            $totalRebarLength = isset($formData->total_rebar_length) ? (float) $formData->total_rebar_length : 0;
+            $rebarQuantity = isset($formData->rebar_quantity) ? (float) $formData->rebar_quantity : 0;
+            $totalCourses = isset($formData->total_courses) ? (float) $formData->total_courses : 0;
 
             $totalLinearFeet = number_format($totalRebarLength * $rebarQuantity * $totalCourses, 0);
 
@@ -1893,7 +2270,7 @@ class WallController extends Controller
     {
         //   echo "calcularRebarLfTon\n";
         try {
-            $shortTonWlf = isset($rebar_material->shortton_wlf) ? (float)$rebar_material->shortton_wlf : 0;
+            $shortTonWlf = isset($rebar_material->shortton_wlf) ? (float) $rebar_material->shortton_wlf : 0;
             $totalTon = round($shortTonWlf, 2);
 
 
@@ -1908,7 +2285,7 @@ class WallController extends Controller
     {
         //   echo "calcularSqFtFilledGrouted\n";
         try {
-            $bandHeight = isset($formData->band_height) ? (float)$formData->band_height : 0;
+            $bandHeight = isset($formData->band_height) ? (float) $formData->band_height : 0;
 
 
             $total = round($bandHeight * $wallLength, 3);
@@ -1928,7 +2305,7 @@ class WallController extends Controller
     {
         //   echo "calcularDeductedAreaVertically\n";
         try {
-            $bandHeight = isset($formData->band_height) ? (float)$formData->band_height : 0;
+            $bandHeight = isset($formData->band_height) ? (float) $formData->band_height : 0;
 
 
             $total = round($bandHeight * $total_spaces_filled * 0.66, 3);
@@ -1948,8 +2325,8 @@ class WallController extends Controller
     {
         //   echo "calcularTotalSqAreaFilled\n";
         try {
-            $sqFtFilledGrouted = isset($formData->sq_ft_filled_grouted) ? (float)$formData->sq_ft_filled_grouted : 0;
-            $deductedAreaVertically = isset($formData->deducted_area_vertically) ? (float)$formData->deducted_area_vertically : 0;
+            $sqFtFilledGrouted = isset($formData->sq_ft_filled_grouted) ? (float) $formData->sq_ft_filled_grouted : 0;
+            $deductedAreaVertically = isset($formData->deducted_area_vertically) ? (float) $formData->deducted_area_vertically : 0;
 
             $total = round($sqFtFilledGrouted - $deductedAreaVertically, 2);
 
@@ -1972,7 +2349,7 @@ class WallController extends Controller
 
 
 
-            $total = ($sqGroutedPerCy > 0) ?  round($totalSqAreaFilled / $sqGroutedPerCy, 2) : round($totalSqAreaFilled / 90, 2);
+            $total = ($sqGroutedPerCy > 0) ? round($totalSqAreaFilled / $sqGroutedPerCy, 2) : round($totalSqAreaFilled / 90, 2);
             //   echo "totalSqAreaFilled: $totalSqAreaFilled\n";
             //   echo "sqGroutedPerCy: $sqGroutedPerCy\n";
             //   echo "totalSqFillMaterials: $total\n";
@@ -2006,23 +2383,27 @@ class WallController extends Controller
         $index = $matches ? (int) $matches[1] : 0;
         $indexedName = preg_replace('/\[\d+\]/', '', $name); */
         try {
-            $additionalDatas = (object)$updatedFormData->additionalDatas;
+            $additionalDatas = (object) $updatedFormData->additionalDatas;
 
             $additionalDatasFinal = [];
 
-            foreach ($additionalDatas as $index  =>  $additionalData) {
+            foreach ($additionalDatas as $index => $additionalData) {
                 $total_measuring = 0;
                 $total_units = 0;
                 $op_unit = 0;
-                $additionalData = (object)$additionalData;
+                $additionalData = (object) $additionalData;
                 // $additionalDatas->additionalDatas[$index]=$additionalData;
                 // echo "index " . $index . "<br>";
                 // echo "additionalData " . json_encode($additionalData) . "<br>";
 
 
 
-                $additional_material = $additionalData->additional_material;
-                $selectedMaterial = json_decode($additional_material);
+                //$additional_material = $additionalData->additional_material;
+                //$selectedMaterial = json_decode($additional_material);
+                $additional_material = $additionalData->additional_material ?? null;
+                $additionalData->additional_material = $this->resolverMaterialActualizado($additional_material, true);
+                $selectedMaterial = $this->resolverMaterialActualizado($additionalData->additional_material);
+
                 if ($selectedMaterial != null) {
 
 
@@ -2043,7 +2424,8 @@ class WallController extends Controller
 
 
 
-                    $selectedMaterial = json_decode($additional_material);
+                    //$selectedMaterial = json_decode($additional_material);
+                    $selectedMaterial = $this->resolverMaterialActualizado($additionalData->additional_material);
                     $materialLength = $selectedMaterial->length;
                     $materialHeight = $selectedMaterial->height;
                     $additionalData->additional_material_length = $materialLength;
@@ -2057,7 +2439,7 @@ class WallController extends Controller
 
 
 
-                    $calculateTotalUnitSqft = $this->calculateTotalUnitSqfts($additionalData, $updatedFormData->total_square_area);
+                    $calculateTotalUnitSqft = $this->calculateTotalUnitSqfts($additionalData, $updatedFormData->total_square_area, $selectedMaterial->material_type_id);
                     $calculateTotalquantity = $this->calculateTotalquantity1($index, $updatedFormData);
 
                     $calculateTotalTopBottom = $this->calculateTotalTopBottom($index, $updatedFormData, $additionalData);
@@ -2089,7 +2471,7 @@ class WallController extends Controller
                     if (isset($additionalData->spacing_unit_overlap) && isset($additionalData->spacing_total_quantity_per_space)) {
                         $additionalData->spacing_total_overlap = $additionalData->spacing_total * $additionalData->spacing_unit_overlap;
                         $additionalData->spacing_total_ft = $additionalData->spacing_total_overlap * $additionalData->spacing_total_quantity_per_space;
-                        $additionalData->spacing_total_units = round($additionalData->spacing_total_ft / ($materialLength / 12),2);
+                        $additionalData->spacing_total_units = round($additionalData->spacing_total_ft / ($materialLength / 12), 2);
 
                         //$total_measuring = $additionalData->spacing_total_ft;
                         //$total_units = $additionalData->spacing_total_units;
@@ -2100,53 +2482,53 @@ class WallController extends Controller
 
                     // ✅ 1) SPACING
                     if ($type === 'spacing') {
-                        $total_measuring = (float)($additionalData->spacing_total_ft ?? 0);
-                        $op_unit   = 'lf';
-                        $total_units     = (float)($additionalData->spacing_total_units ?? 0);
+                        $total_measuring = (float) ($additionalData->spacing_total_ft ?? 0);
+                        $op_unit = 'lf';
+                        $total_units = (float) ($additionalData->spacing_total_units ?? 0);
                     }
 
                     // ✅ 2) QUANTITY
                     if ($type === 'quantity') {
-                        $total_measuring = (float)($additionalData->total_unit_quantity ?? 0);
-                        $op_unit   = '';
-                        $total_units     = (float)($additionalData->total_unit_quantity ?? 0);
+                        $total_measuring = (float) ($additionalData->total_unit_quantity ?? 0);
+                        $op_unit = '';
+                        $total_units = (float) ($additionalData->total_unit_quantity ?? 0);
                     }
 
                     // ✅ 3) LINEAL
                     if ($type === 'lineal') {
-                        $total_measuring = (float)($additionalData->lineal_total_ft ?? 0);
-                        $op_unit   = 'lf';
-                        $total_units     = (float)($additionalData->lineal_total_units ?? 0);
+                        $total_measuring = (float) ($additionalData->lineal_total_ft ?? 0);
+                        $op_unit = 'lf';
+                        $total_units = (float) ($additionalData->lineal_total_units ?? 0);
                     }
 
                     // ✅ 4) PER SQ FT
                     if ($type === 'pr_sq_ft') {
-                        $total_measuring = (float)($additionalData->total_lineal_per_sq_ft ?? 0);  // base
-                        $op_unit   = 'sqft';
-                        $total_units     = (float)($additionalData->total_unit_per_sq_ft ?? 0);    // units
+                        $total_measuring = (float) ($additionalData->total_lineal_per_sq_ft ?? 0);  // base
+                        $op_unit = 'sqft';
+                        $total_units = (float) ($additionalData->total_unit_per_sq_ft ?? 0);    // units
                     }
 
                     // ✅ 5) TOP & BOTTOM
-                    if ($type === 'top_bottom') {
-                        $total_measuring = (float)($additionalData->top_bottom_total_spaces ?? 0); // base (LF)
-                        $op_unit   = 'lf';
-                        $total_units     = (float)($additionalData->top_bottom_total_units ?? 0);  // units
+                    if ($type === 'top_botton') {
+                        $total_measuring = (float) ($additionalData->top_bottom_total_spaces ?? 0); // base (LF)
+                        $op_unit = 'lf';
+                        $total_units = (float) ($additionalData->top_bottom_total_units ?? 0);  // units
                     }
 
                     // ✅ 6) PR AREA (sides)
                     if ($type === 'pr_area') {
-                        $total_measuring = (float)($additionalData->total_lineal_pr_area ?? 0); // base
-                        $op_unit   = 'sqft';
-                        $total_units     = (float)($additionalData->total_unit_pr_area ?? 0);   // units
+                        $total_measuring = (float) ($additionalData->total_lineal_pr_area ?? 0); // base
+                        $op_unit = 'sqft';
+                        $total_units = (float) ($additionalData->total_unit_pr_area ?? 0);   // units
                     }
-                    
+
                     //Agregar material a la cuenta
                     $Agregarmaterial = new Total_Material();
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $total_measuring;
                     $Agregarmaterial->units = $total_units;
-                    $Agregarmaterial->op_unit   = $op_unit;
+                    $Agregarmaterial->op_unit = $op_unit;
                     $this->addtotalDatas($Agregarmaterial, $updatedFormData);
                 }
                 $additionalDatasFinal[] = $additionalData;
@@ -2184,22 +2566,25 @@ class WallController extends Controller
 
             ];
             if (isset($updatedFormData->adjustmentDatas)) {
-                $adjustmentDatas = (object)$updatedFormData->adjustmentDatas;
+                $adjustmentDatas = (object) $updatedFormData->adjustmentDatas;
             }
 
             $adjustmentDatasFinal = [];
 
-            foreach ($adjustmentDatas as $index  =>  $adjustmentData) {
+            foreach ($adjustmentDatas as $index => $adjustmentData) {
 
-                $adjustmentData = (object)$adjustmentData;
+                $adjustmentData = (object) $adjustmentData;
                 // $adjustmentDatas->adjustmentDatas[$index]=$adjustmentData;
                 // echo "index " . $index . "<br>";
                 // echo "adjustmentData " . json_encode($adjustmentData) . "<br>";
 
 
 
-                $adjustment_material = $adjustmentData->adjustment_material;
-                $selectedMaterial = json_decode($adjustment_material);
+                //$adjustment_material = $adjustmentData->adjustment_material;
+                //$selectedMaterial = json_decode($adjustment_material);
+                $adjustment_material = $adjustmentData->adjustment_material ?? null;
+                $adjustmentData->adjustment_material = $this->resolverMaterialActualizado($adjustment_material, true);
+                $selectedMaterial = $this->resolverMaterialActualizado($adjustmentData->adjustment_material);
                 $adjustment_measured_qty = 0;
                 if ($selectedMaterial != null) {
 
@@ -2208,7 +2593,7 @@ class WallController extends Controller
                     if ($selectedMaterial->unit_measure_value > 0) {
 
                         $adjustment_measured_qty = $adjustmentData->adjustment_qty / $selectedMaterial->unit_measure_value;
-                        $adjustmentData->unit_measure_value =  $selectedMaterial->unit_measure_value;
+                        $adjustmentData->unit_measure_value = $selectedMaterial->unit_measure_value;
                     }
 
                     $adjustmentData->adjustment_measured_qty = $adjustment_measured_qty;
@@ -2223,8 +2608,8 @@ class WallController extends Controller
                     $Agregarmaterial->id_material = $selectedMaterial->id;
                     $Agregarmaterial->material = $selectedMaterial;
                     $Agregarmaterial->measuring = $adjustmentData->adjustment_measured_qty;
-                    $Agregarmaterial->op_unit   = 'sqft';
-                    $Agregarmaterial->units       = (float)$adjustment_measured_qty;
+                    $Agregarmaterial->op_unit = 'sqft';
+                    $Agregarmaterial->units = (float) $adjustment_measured_qty;
                     $this->addtotalDatas($Agregarmaterial, $updatedFormData);
                 }
                 $adjustmentDatasFinal[] = $adjustmentData;
@@ -2258,11 +2643,12 @@ class WallController extends Controller
         // echo "calculateLinealTotalOverlaps<br>";
         // $additionalDatas=(object)$data->additionalDatas[$index];
         try {
-            $additional_material =  json_decode($additionalDatas->additional_material);
+            //$additional_material =  json_decode($additionalDatas->additional_material);
+            $additional_material = $this->resolverMaterialActualizado($additionalDatas->additional_material);
 
             $materialLength = (float) $data->total_wall_height;
             $linealOverlap = (float) $additionalDatas->lineal_unit_overlap;
-            $totalOverlap = round($materialLength  + $linealOverlap, 2);
+            $totalOverlap = round($materialLength + $linealOverlap, 2);
             return $totalOverlap;
         } catch (\Throwable $th) {
             //throw $th;
@@ -2274,8 +2660,8 @@ class WallController extends Controller
     {
         // echo "calculateTotalLinealFts<br>";
         try {
-            $additionalDatas = (object)$data->additionalDatas[$index];
-            $linealQuantity = (float)  $additionalDatas->lineal_quantity;
+            $additionalDatas = (object) $data->additionalDatas[$index];
+            $linealQuantity = (float) $additionalDatas->lineal_quantity;
             $totallinealFt = round($linealQuantity * $totalUnits * $totalOverlap, 2);
             return $totallinealFt;
         } catch (\Throwable $th) {
@@ -2288,7 +2674,7 @@ class WallController extends Controller
     {
         // echo "calculateTotalLinealUnits<br>";
         try {
-            $materialLength = (float)  $additionalDatas->additional_material_length;
+            $materialLength = (float) $additionalDatas->additional_material_length;
             $totalLinealUnit = round($additionalDatas->lineal_total_ft / ($materialLength / 12), 2);
             return $totalLinealUnit;
         } catch (\Throwable $th) {
@@ -2317,7 +2703,7 @@ class WallController extends Controller
 
 
 
-    public function calculateTotalUnitSqfts(&$additionalDatas, $total_square_area)
+    public function calculateTotalUnitSqfts(&$additionalDatas, $total_square_area, $material_type_id)
     {
         // echo "calculateTotalUnitSqfts<br>";
         try {
@@ -2328,7 +2714,13 @@ class WallController extends Controller
             $materialLength_ft = $materialLength / 12;
             $additionalDatas->total_lineal_per_sq_ft = $total_lineal_sqft;
             $totalUnitSq = $total_lineal_sqft / $materialLength_ft;
-            return round($totalUnitSq,2);
+
+            if ($material_type_id == 1) {
+                $totalUnitSq = $total_lineal_sqft;
+            }
+            //dd($totalUnitSq);
+
+            return round($totalUnitSq, 2);
         } catch (\Throwable $th) {
             //throw $th;
             return 0;
@@ -2339,7 +2731,7 @@ class WallController extends Controller
     {
         // echo "calculateTotalquantity1<br>";
         try {
-            $additionalDatas = (object)$data->additionalDatas[$index];
+            $additionalDatas = (object) $data->additionalDatas[$index];
             $total_unit_quantity = (float) isset($additionalDatas->quantity) ? $additionalDatas->quantity : 0;
             return $total_unit_quantity;
         } catch (\Throwable $th) {
@@ -2355,7 +2747,7 @@ class WallController extends Controller
             $top_bottom_spaces = (float) ($additionalDatas->top_bottom_spaces ?? 0);
             $top_bottom_total_spaces = $updatedFormData->wall_length * $top_bottom_spaces;
             $additionalDatas->top_bottom_total_spaces = $top_bottom_total_spaces;
-            $top_bottom_total_units = round(($top_bottom_total_spaces /round(($additionalDatas->additional_material_length/12), 2)), 3);
+            $top_bottom_total_units = round(($top_bottom_total_spaces / round(($additionalDatas->additional_material_length / 12), 2)), 3);
             $additionalDatas->top_bottom_total_units = $top_bottom_total_units;
             return $top_bottom_total_units;
         } catch (\Throwable $th) {
@@ -2371,7 +2763,7 @@ class WallController extends Controller
             $pr_area_sides = (float) ($additionalDatas->pr_area_sides ?? 0);
             $total_lineal_pr_area = $updatedFormData->total_square_area * $pr_area_sides;
             $additionalDatas->total_lineal_pr_area = $total_lineal_pr_area;
-            $total_unit_pr_area = round(($total_lineal_pr_area /$updatedFormData->wall_material_unit), 3);
+            $total_unit_pr_area = round(($total_lineal_pr_area / $updatedFormData->wall_material_unit), 3);
             $additionalDatas->total_unit_pr_area = $total_unit_pr_area;
             return $total_unit_pr_area;
         } catch (\Throwable $th) {
@@ -2408,8 +2800,9 @@ class WallController extends Controller
         preg_match('/\[(\d+)\]/', $name, $matches);
         $index = $matches ? (int) $matches[1] : 0;
         $indexedName = preg_replace('/\[\d+\]/', '', $name); */
+        $totalsDatasFinal = [];
         try {
-            $totalsDatas = (object)$updatedFormData->totalsDatas;
+            $totalsDatas = (object) $updatedFormData->totalsDatas;
         } catch (\Throwable $th) {
             //throw $th;
             return $updatedFormData;
@@ -2417,9 +2810,9 @@ class WallController extends Controller
 
 
 
-        foreach ($totalsDatas as $index  =>  $additionalData) {
+        foreach ($totalsDatas as $index => $additionalData) {
             try {
-                $additionalData = (object)$additionalData;
+                $additionalData = (object) $additionalData;
             } catch (\Throwable $th) {
                 //throw $th;
                 continue;
@@ -2436,7 +2829,7 @@ class WallController extends Controller
     public function Calcula_totalDatas1(&$updatedFormData, $project, $crew, $trade, $takeoff_name)
     {
         $laborInfoArray = $crew[0]['labor_info'] ?? [];
-        
+
         if (!is_array($laborInfoArray)) {
             $laborInfoArray = [];
         }
@@ -2448,12 +2841,12 @@ class WallController extends Controller
         $hours_per_day = 0;
 
         foreach ($laborInfoArray as $labor_row) {
-            $quantity      = isset($labor_row['quantity']) ? (float)$labor_row['quantity'] : 0;
-            $hours_per_day = isset($labor_row['hours_per_day']) ? (float)$labor_row['hours_per_day'] : 0;
+            $quantity = isset($labor_row['quantity']) ? (float) $labor_row['quantity'] : 0;
+            $hours_per_day = isset($labor_row['hours_per_day']) ? (float) $labor_row['hours_per_day'] : 0;
 
-            $crew_cost_total  += isset($labor_row['crew_cost']) ? (float)$labor_row['crew_cost'] : 0;
-            $percentage_total += isset($labor_row['percentage_total']) ? (float)$labor_row['percentage_total'] : 0;
-            $price_total      += isset($labor_row['price_total']) ? (float)$labor_row['price_total'] : 0;
+            $crew_cost_total += isset($labor_row['crew_cost']) ? (float) $labor_row['crew_cost'] : 0;
+            $percentage_total += isset($labor_row['percentage_total']) ? (float) $labor_row['percentage_total'] : 0;
+            $price_total += isset($labor_row['price_total']) ? (float) $labor_row['price_total'] : 0;
         }
 
         // Blindaje de proyecto
@@ -2464,10 +2857,10 @@ class WallController extends Controller
             $project = [];
         }
 
-        $project_tax     = isset($project['tax']) ? (float)$project['tax'] : 0;
-        $project_oh      = isset($project['oh']) ? (float)$project['oh'] : 0;
-        $project_profit  = isset($project['profit']) ? (float)$project['profit'] : 0;
-        $project_weather = isset($project['weather']) ? (float)$project['weather'] : 0;
+        $project_tax = isset($project['tax']) ? (float) $project['tax'] : 0;
+        $project_oh = isset($project['oh']) ? (float) $project['oh'] : 0;
+        $project_profit = isset($project['profit']) ? (float) $project['profit'] : 0;
+        $project_weather = isset($project['weather']) ? (float) $project['weather'] : 0;
 
         $totalsDatasFinal = [];
 
@@ -2500,19 +2893,19 @@ class WallController extends Controller
             }
 
             // Blindaje campos base
-            $additionalData['measuring'] = isset($additionalData['measuring']) ? (float)$additionalData['measuring'] : 0;
+            $additionalData['measuring'] = isset($additionalData['measuring']) ? (float) $additionalData['measuring'] : 0;
 
             // Defaults para evitar undefined index
-            $additionalData['cost2'] = isset($additionalData['cost2']) ? (float)$additionalData['cost2'] : 0;
+            $additionalData['cost2'] = isset($additionalData['cost2']) ? (float) $additionalData['cost2'] : 0;
 
-            $material_height = isset($additionalData['material']['height']) ? (float)$additionalData['material']['height'] : 0;
-            $material_waste  = isset($additionalData['material']['waste']) ? (float)$additionalData['material']['waste'] : 0;
-            $material_price  = isset($additionalData['material']['prices']) ? (float)$additionalData['material']['prices'] : 0;
-            $production_rate = isset($additionalData['material']['production_rate']) ? (float)$additionalData['material']['production_rate'] : 0;
+            $material_height = isset($additionalData['material']['height']) ? (float) $additionalData['material']['height'] : 0;
+            $material_waste = isset($additionalData['material']['waste']) ? (float) $additionalData['material']['waste'] : 0;
+            $material_price = isset($additionalData['material']['prices']) ? (float) $additionalData['material']['prices'] : 0;
+            $production_rate = isset($additionalData['material']['production_rate']) ? (float) $additionalData['material']['production_rate'] : 0;
 
             $unit_measure_value = 0;
             if (isset($additionalData['material']['unit_measure_value'])) {
-                $unit_measure_value = (float)$additionalData['material']['unit_measure_value'];
+                $unit_measure_value = (float) $additionalData['material']['unit_measure_value'];
             }
 
             // =========================================================
@@ -2532,7 +2925,7 @@ class WallController extends Controller
             $units_base = null;
 
             if (isset($additionalData['units']) && is_numeric($additionalData['units'])) {
-                $units_base = (float)$additionalData['units'];
+                $units_base = (float) $additionalData['units'];
             }
 
             // Fallback si NO viene units
@@ -2582,18 +2975,18 @@ class WallController extends Controller
             // 4) Costos
             // =========================================================
             $additionalData['cost_ea'] = round($material_price, 2);
-            $additionalData['cost']    = round($additionalData['units_total'] * $additionalData['cost_ea'], 2);
+            $additionalData['cost'] = round($additionalData['units_total'] * $additionalData['cost_ea'], 2);
 
-            $additionalData['tax']   = round($additionalData['cost'] * ($project_tax / 100), 2);
+            $additionalData['tax'] = round($additionalData['cost'] * ($project_tax / 100), 2);
             $additionalData['cost1'] = round($additionalData['cost'] + $additionalData['tax'], 2);
 
             // =========================================================
             // 5) Labor (days, labor cost)
             // =========================================================
-           //dd([
+            //dd([
             //    'units_total' => $additionalData['units_total'],
-              //  'quantity' => $quantity,
-                //'production_rate' => $production_rate
+            //  'quantity' => $quantity,
+            //'production_rate' => $production_rate
             //]);
             $additionalData['days'] = (
                 $additionalData['units_total'] > 0 &&
@@ -2604,7 +2997,7 @@ class WallController extends Controller
                 : 0;
 
             $additionalData['cost_day'] = $crew_cost_total * $additionalData['days'];
-            $additionalData['burden']   = $percentage_total * $additionalData['days'];
+            $additionalData['burden'] = $percentage_total * $additionalData['days'];
             $additionalData['lab_cost'] = $additionalData['cost_day'] + $additionalData['burden'];
 
             // =========================================================
@@ -2612,7 +3005,7 @@ class WallController extends Controller
             // =========================================================
             $additionalData['sub_total'] = $additionalData['cost'] + $additionalData['cost1'] + $additionalData['lab_cost'] + $additionalData['cost2'];
 
-            $additionalData['oh']     = round($additionalData['sub_total'] * ($project_oh / 100), 2);
+            $additionalData['oh'] = round($additionalData['sub_total'] * ($project_oh / 100), 2);
             $additionalData['profit'] = round($additionalData['sub_total'] * ($project_profit / 100), 2);
             $additionalData['weather'] = round($additionalData['sub_total'] * ($project_weather / 100), 2);
 
@@ -2623,21 +3016,21 @@ class WallController extends Controller
             // =========================================================
             $takeoff_name_final = $takeoff_name;
 
-            if (isset($additionalData['unitario_row_label']) && trim((string)$additionalData['unitario_row_label']) !== '') {
+            if (isset($additionalData['unitario_row_label']) && trim((string) $additionalData['unitario_row_label']) !== '') {
                 $takeoff_name_final = trim($takeoff_name . ' - ' . $additionalData['unitario_row_label']);
             }
 
             $additionalData['takeoff_name'] = $takeoff_name_final;
-            $additionalData['trade_name']       = $trade;
-            $additionalData['project']          = $project;
+            $additionalData['trade_name'] = $trade;
+            $additionalData['project'] = $project;
 
             // Guardamos el fraction para debug si lo ocupas, pero NO lo metemos en "conversion"
-            $additionalData['fraction_sq_ft']   = $fraction_sq_ft;
+            $additionalData['fraction_sq_ft'] = $fraction_sq_ft;
 
-            $additionalData['production']       = $quantity;
-            $additionalData['crew_cost_total']  = $crew_cost_total;
-            $additionalData['hours_per_day']    = $hours_per_day;
-            $additionalData['price_total']      = $price_total;
+            $additionalData['production'] = $quantity;
+            $additionalData['crew_cost_total'] = $crew_cost_total;
+            $additionalData['hours_per_day'] = $hours_per_day;
+            $additionalData['price_total'] = $price_total;
 
             $totalsDatasFinal[] = $additionalData;
         }
@@ -2668,7 +3061,7 @@ class WallController extends Controller
             }
 
             foreach ($laborInfoArray as $item) {
-                $laborTypeId = isset($item['labor_type_id']) ? (int)$item['labor_type_id'] : 0;
+                $laborTypeId = isset($item['labor_type_id']) ? (int) $item['labor_type_id'] : 0;
 
                 if ($laborTypeId > 0) {
                     $laborIds[] = $laborTypeId;
@@ -2704,12 +3097,12 @@ class WallController extends Controller
             $laborInfoEnriquecido = [];
 
             foreach ($laborInfoArray as $item) {
-                $laborTypeId = isset($item['labor_type_id']) ? (int)$item['labor_type_id'] : 0;
+                $laborTypeId = isset($item['labor_type_id']) ? (int) $item['labor_type_id'] : 0;
                 $labor = $laborsById->get($laborTypeId);
 
-                $costPerHour  = $labor ? (float)$labor->cost_per_hour : 0;
-                $hoursPerDay  = isset($item['hours_per_day']) ? (float)$item['hours_per_day'] : 0;
-                $quantity     = isset($item['measuring']) ? (float)$item['measuring'] : 0;
+                $costPerHour = $labor ? (float) $labor->cost_per_hour : 0;
+                $hoursPerDay = isset($item['hours_per_day']) ? (float) $item['hours_per_day'] : 0;
+                $quantity = isset($item['measuring']) ? (float) $item['measuring'] : 0;
 
                 $payPerDayPerPerson = $costPerHour * $hoursPerDay;
 
@@ -2729,8 +3122,8 @@ class WallController extends Controller
                 $priceTotal = 0;
 
                 foreach ($burdensArray as $b) {
-                    $percentage = isset($b['percentage']) ? (float)$b['percentage'] : 0;
-                    $price      = isset($b['price']) ? (float)$b['price'] : 0;
+                    $percentage = isset($b['percentage']) ? (float) $b['percentage'] : 0;
+                    $price = isset($b['price']) ? (float) $b['price'] : 0;
 
                     if ($percentage > 0) {
                         $percentageTotal += $crewCost * ($percentage / 100);
@@ -2745,21 +3138,21 @@ class WallController extends Controller
                     }
                 }
 
-                $item['cost_per_hour'] = $labor ? (float)$labor->cost_per_hour : 0;
-                $item['burdens']       = $burdensArray; // <-- ahora es array
-                $item['total_cost']    = $labor ? (float)$labor->total_cost : 0;
-                $item['pay_per_day']   = round($payPerDayPerPerson, 2);
-                $item['crew_cost']     = round($crewCost, 2);
-                $item['percentage_total']   = round($percentageTotal, 2);
-                $item['price_total']        = round($priceTotal, 2);
+                $item['cost_per_hour'] = $labor ? (float) $labor->cost_per_hour : 0;
+                $item['burdens'] = $burdensArray; // <-- ahora es array
+                $item['total_cost'] = $labor ? (float) $labor->total_cost : 0;
+                $item['pay_per_day'] = round($payPerDayPerPerson, 2);
+                $item['crew_cost'] = round($crewCost, 2);
+                $item['percentage_total'] = round($percentageTotal, 2);
+                $item['price_total'] = round($priceTotal, 2);
 
 
                 $laborInfoEnriquecido[] = $item;
             }
 
             $crewsEnriquecidas[] = [
-                'crew_id'    => $crew->id,
-                'crew_name'  => $crew->name,
+                'crew_id' => $crew->id,
+                'crew_name' => $crew->name,
                 'labor_info' => $laborInfoEnriquecido,
             ];
         }
@@ -3018,23 +3411,115 @@ class WallController extends Controller
         return $html;
     }*/
 
+    private function ajustarMeasuringWallMaterial(&$formData)
+    {
+        if (!isset($formData->total_square_area)) {
+            return;
+        }
+
+        $total_square_area = (float) $formData->total_square_area;
+        $wall_material_square_unit = (float) $formData->wall_material_square_unit;
+
+        $total_courses_sq_ft = 0;
+        if (isset($formData->courses) && is_array($formData->courses)) {
+            foreach ($formData->courses as $course) {
+                $course = (object) $course;
+                $total_courses_sq_ft += isset($course->material_sq_ft)
+                    ? (float) $course->material_sq_ft
+                    : 0;
+            }
+        }
+
+        $control_total_sq_ft = isset($formData->control_total_sq_ft)
+            ? (float) $formData->control_total_sq_ft
+            : 0;
+
+        $nuevo_measuring = $total_square_area - $total_courses_sq_ft - $control_total_sq_ft;
+
+        if ($nuevo_measuring < 0) {
+            $nuevo_measuring = 0;
+        }
+
+        $wall_material_actual = $this->resolverMaterialActualizado($formData->wall_material ?? null);
+        $id_wall_material = isset($wall_material_actual->id) ? (string) $wall_material_actual->id : '';
+
+        if ($id_wall_material === '') {
+            return;
+        }
+
+        $totals_datas = $formData->totalsDatas ?? [];
+
+        if (is_object($totals_datas)) {
+            $totals_datas = (array) $totals_datas;
+        }
+
+        if (!is_array($totals_datas)) {
+            return;
+        }
+
+        foreach ($totals_datas as $indice => $material) {
+            $material = (object) $material;
+
+            $id_material_actual = isset($material->id_material)
+                ? (string) $material->id_material
+                : '';
+
+            $unitario_row_label = isset($material->unitario_row_label)
+                ? trim((string) $material->unitario_row_label)
+                : '';
+
+            if ($id_material_actual === $id_wall_material && $unitario_row_label === '') {
+                $material->measuring = $nuevo_measuring;
+
+                $unit_measure_value = 0;
+
+                if (isset($material->material)) {
+                    $material_obj = $material->material;
+
+                    if (is_string($material_obj)) {
+                        $material_obj = json_decode($material_obj);
+                    }
+
+                    if (is_array($material_obj)) {
+                        $material_obj = (object) $material_obj;
+                    }
+
+                    if (is_object($material_obj) && isset($material_obj->unit_measure_value)) {
+                        $unit_measure_value = (float) $material_obj->unit_measure_value;
+                    }
+                }
+
+                if ($wall_material_square_unit > 0) {
+                    $material->units = round($nuevo_measuring * $wall_material_square_unit, 6);
+                } else {
+                    $material->units = round($nuevo_measuring, 6);
+                }
+
+                $totals_datas[$indice] = $material;
+                break;
+            }
+        }
+
+        $formData->totalsDatas = $totals_datas;
+    }
+
     function agruparMaterialesPorId($materiales)
     {
         $resultadosAgrupados = [];
 
         foreach ($materiales as $material) {
-            $material = (object)$material;
+            $material = (object) $material;
 
             if (!isset($material->id_material)) {
                 continue;
             }
 
-            $id_material_real = (string)$material->id_material;
+            $id_material_real = (string) $material->id_material;
             $etiqueta_unitaria = '';
 
-            if (isset($material->unitario_row_label) && trim((string)$material->unitario_row_label) !== '') {
-                $etiqueta_unitaria = trim((string)$material->unitario_row_label);
-            }  
+            if (isset($material->unitario_row_label) && trim((string) $material->unitario_row_label) !== '') {
+                $etiqueta_unitaria = trim((string) $material->unitario_row_label);
+            }
 
             $clave_agrupacion = $id_material_real;
 
@@ -3071,37 +3556,37 @@ class WallController extends Controller
                 ];
             }
 
-            $resultadosAgrupados[$clave_agrupacion]['measuring'] += isset($material->measuring) ? (float)$material->measuring : 0;
+            $resultadosAgrupados[$clave_agrupacion]['measuring'] += isset($material->measuring) ? (float) $material->measuring : 0;
             $resultadosAgrupados[$clave_agrupacion]['op_unit'] = isset($material->op_unit) ? $material->op_unit : '';
 
-            $resultadosAgrupados[$clave_agrupacion]['waste'] += (float)($material->waste ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['sq_ft'] += (float)($material->sq_ft ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['units'] += (float)($material->units ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['units_total'] += (float)($material->units_total ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['waste'] += (float) ($material->waste ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['sq_ft'] += (float) ($material->sq_ft ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['units'] += (float) ($material->units ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['units_total'] += (float) ($material->units_total ?? 0);
 
-            $resultadosAgrupados[$clave_agrupacion]['cost_ea'] += (float)($material->cost_ea ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['cost'] += (float)($material->cost ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['tax'] += (float)($material->tax ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['cost1'] += (float)($material->cost1 ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['cost_day'] += (float)($material->cost_day ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['burden'] += (float)($material->burden ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['lab_cost'] += (float)($material->lab_cost ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['days'] += (float)($material->days ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['cost2'] += (float)($material->cost2 ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['sub_total'] += (float)($material->sub_total ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['oh'] += (float)($material->oh ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['profit'] += (float)($material->profit ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['weather'] += (float)($material->weather ?? 0);
-            $resultadosAgrupados[$clave_agrupacion]['total'] += (float)($material->total ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['cost_ea'] += (float) ($material->cost_ea ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['cost'] += (float) ($material->cost ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['tax'] += (float) ($material->tax ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['cost1'] += (float) ($material->cost1 ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['cost_day'] += (float) ($material->cost_day ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['burden'] += (float) ($material->burden ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['lab_cost'] += (float) ($material->lab_cost ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['days'] += (float) ($material->days ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['cost2'] += (float) ($material->cost2 ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['sub_total'] += (float) ($material->sub_total ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['oh'] += (float) ($material->oh ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['profit'] += (float) ($material->profit ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['weather'] += (float) ($material->weather ?? 0);
+            $resultadosAgrupados[$clave_agrupacion]['total'] += (float) ($material->total ?? 0);
         }
 
         uasort($resultadosAgrupados, function ($material_izquierdo, $material_derecho) {
-            $id_izquierdo = isset($material_izquierdo['display_id']) ? (int)$material_izquierdo['display_id'] : 0;
-            $id_derecho = isset($material_derecho['display_id']) ? (int)$material_derecho['display_id'] : 0;
+            $id_izquierdo = isset($material_izquierdo['display_id']) ? (int) $material_izquierdo['display_id'] : 0;
+            $id_derecho = isset($material_derecho['display_id']) ? (int) $material_derecho['display_id'] : 0;
 
             if ($id_izquierdo === $id_derecho) {
-                $etiqueta_izquierda = isset($material_izquierdo['unitario_row_label']) ? (string)$material_izquierdo['unitario_row_label'] : '';
-                $etiqueta_derecha = isset($material_derecho['unitario_row_label']) ? (string)$material_derecho['unitario_row_label'] : '';
+                $etiqueta_izquierda = isset($material_izquierdo['unitario_row_label']) ? (string) $material_izquierdo['unitario_row_label'] : '';
+                $etiqueta_derecha = isset($material_derecho['unitario_row_label']) ? (string) $material_derecho['unitario_row_label'] : '';
 
                 return strcasecmp($etiqueta_izquierda, $etiqueta_derecha);
             }
@@ -3112,32 +3597,77 @@ class WallController extends Controller
         return $resultadosAgrupados;
     }
 
+    private function recalcularUnidadesAgrupadas(array $materialesAgrupados): array
+    {
+        foreach ($materialesAgrupados as $clave => $datos) {
+            $material = $datos['material'] ?? null;
+
+            if (is_string($material)) {
+                $material = json_decode($material);
+            }
+
+            if (is_array($material)) {
+                $material = (object) $material;
+            }
+
+            $measuring = isset($datos['measuring']) ? (float) $datos['measuring'] : 0;
+
+            $unit_measure_value = 0;
+            if (is_object($material) && isset($material->unit_measure_value)) {
+                $unit_measure_value = (float) $material->unit_measure_value;
+            }
+
+            if ($unit_measure_value > 0) {
+                $materialesAgrupados[$clave]['units'] = round($measuring / $unit_measure_value, 6);
+            } else {
+                $materialesAgrupados[$clave]['units'] = round($measuring, 6);
+            }
+        }
+
+        return $materialesAgrupados;
+    }
+
     function generarTablaHtml($materialesAgrupados, array $meta = [])
     {
         // Helpers locales
         $num = function ($v) {
-            return is_numeric($v) ? (float)$v : 0.0;
+            return is_numeric($v) ? (float) $v : 0.0;
         };
 
         // ===========================
         // META del reporte (para mÃºltiples reportes en una hoja)
         // ===========================
-        $report_id   = (string)($meta['report_id'] ?? ('rpt_' . substr(sha1(json_encode($meta) . microtime(true)), 0, 10)));
-        $report_type = (string)($meta['report_type'] ?? 'REPORT'); // LENGTH | AREA | PERIMETER
-        $trade_name  = (string)($meta['trade_name'] ?? '');
-        $trade  = (string)($meta['trade'] ?? '');
-        $scope_label = (string)($meta['scope_label'] ?? '');       // ej: "takeoff 11" / "Wall A"
-        $mat_label   = (string)($meta['material_label'] ?? '');    // ej: "CMU5178 â€¢ 8\" light weight"
-        $generated   = (string)($meta['generated_at'] ?? date('Y-m-d H:i'));
+        $report_id = (string) ($meta['report_id'] ?? ('rpt_' . substr(sha1(json_encode($meta) . microtime(true)), 0, 10)));
+        $report_type = (string) ($meta['report_type'] ?? 'REPORT'); // LENGTH | AREA | PERIMETER
+        $trade_name = (string) ($meta['trade_name'] ?? '');
+        $trade = (string) ($meta['trade'] ?? '');
+        $scope_label = (string) ($meta['scope_label'] ?? '');       // ej: "takeoff 11" / "Wall A"
+        $mat_label = (string) ($meta['material_label'] ?? '');    // ej: "CMU5178 â€¢ 8\" light weight"
+        $generated = (string) ($meta['generated_at'] ?? date('Y-m-d H:i'));
 
         $safe_report_id = htmlspecialchars($report_id, ENT_QUOTES, 'UTF-8');
 
         // Columnas a sumar (todas las numÃ©ricas que imprimes)
         $sumCols = [
-            'measuring', 'units', 'waste', 'sq_ft', 'units_total',
-            'cost_ea', 'cost', 'tax', 'cost1',
-            'cost_day', 'burden', 'lab_cost', 'days',
-            'cost2', 'sub_total', 'oh', 'profit', 'weather', 'total'
+            'measuring',
+            'units',
+            'waste',
+            'sq_ft',
+            'units_total',
+            'cost_ea',
+            'cost',
+            'tax',
+            'cost1',
+            'cost_day',
+            'burden',
+            'lab_cost',
+            'days',
+            'cost2',
+            'sub_total',
+            'oh',
+            'profit',
+            'weather',
+            'total'
         ];
 
         // Inicializa totales
@@ -3380,7 +3910,7 @@ class WallController extends Controller
         <tbody>';
         foreach ($materialesAgrupados as $idMaterial => $datos) {
 
-            $material = (object)($datos['material'] ?? []);
+            $material = (object) ($datos['material'] ?? []);
             $measurementUnit = $material->measurement_unit ?? '';
             $defaultUnit = $material->default_unit ?? '';
             $defaultUnitmeasure = $datos['op_unit'] != '' ? $datos['op_unit'] : 'lf';
@@ -3389,25 +3919,25 @@ class WallController extends Controller
             foreach ($sumCols as $col) {
                 $totals[$col] += $num($datos[$col] ?? 0);
             }
-            
+
             $html .= '<tr>';
             $display_id = isset($datos['display_id']) ? $datos['display_id'] : $idMaterial;
-            $html .= '<td class="col-id">' . htmlspecialchars((string)$display_id, ENT_QUOTES, 'UTF-8') . '</td>';
+            $html .= '<td class="col-id">' . htmlspecialchars((string) $display_id, ENT_QUOTES, 'UTF-8') . '</td>';
 
             $matName = trim(($material->name ?? '') . ' ' . ($material->unique_id ?? ''));
-            if (isset($datos['unitario_row_label']) && trim((string)$datos['unitario_row_label']) !== '') {
-                $matName = trim((string)$matName . ' - ' . (string)$datos['unitario_row_label']);
+            if (isset($datos['unitario_row_label']) && trim((string) $datos['unitario_row_label']) !== '') {
+                $matName = trim((string) $matName . ' - ' . (string) $datos['unitario_row_label']);
             }
             $html .= '<td class="material-cell">
                         <span class="material-name-ellipsis">' . htmlspecialchars($matName, ENT_QUOTES, 'UTF-8') . '</span>
                     </td>';
 
-            $html .= '<td class="text-end mono">' . number_format($num($datos['measuring'] ?? 0), 2) . ' ' . htmlspecialchars((string)$defaultUnitmeasure, ENT_QUOTES, 'UTF-8') . '</td>';
-            $html .= '<td class="text-end mono">' . number_format($num($datos['units'] ?? 0), 2) . ' ' . htmlspecialchars((string)$defaultUnit, ENT_QUOTES, 'UTF-8') . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['measuring'] ?? 0), 2) . ' ' . htmlspecialchars((string) $defaultUnitmeasure, ENT_QUOTES, 'UTF-8') . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['units'] ?? 0), 2) . ' ' . htmlspecialchars((string) $defaultUnit, ENT_QUOTES, 'UTF-8') . '</td>';
             //$html .= '<td class="text-end mono">' . number_format($num($datos['quantity'] ?? 0), 2) . '</td>';
             $html .= '<td class="text-end mono">' . number_format($num($datos['waste'] ?? 0), 2) . '</td>';
-            $html .= '<td class="text-end mono">' . number_format($num($datos['sq_ft'] ?? 0), 2) . ' ' . htmlspecialchars((string)$defaultUnitmeasure, ENT_QUOTES, 'UTF-8') . '</td>';
-            $html .= '<td class="text-end mono">' . number_format($num($datos['units_total'] ?? 0), 2) . ' ' . htmlspecialchars((string)$defaultUnit, ENT_QUOTES, 'UTF-8') . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['sq_ft'] ?? 0), 2) . ' ' . htmlspecialchars((string) $defaultUnitmeasure, ENT_QUOTES, 'UTF-8') . '</td>';
+            $html .= '<td class="text-end mono">' . number_format($num($datos['units_total'] ?? 0), 2) . ' ' . htmlspecialchars((string) $defaultUnit, ENT_QUOTES, 'UTF-8') . '</td>';
             $html .= '<td class="text-end mono">' . number_format($num($datos['cost_ea'] ?? 0), 2) . '</td>';
             $html .= '<td class="text-end mono">' . number_format($num($datos['cost'] ?? 0), 2) . '</td>';
             $html .= '<td class="text-end mono">' . number_format($num($datos['tax'] ?? 0), 2) . '</td>';
@@ -3551,21 +4081,21 @@ class Total_Material
 //         $this->unit_measure_value = $this->Unit_measure_value();
 //     }
 
-    
+
 
 //     public function Unit_measure_value()
 //     {
 //         $length=0;
 //         switch ($this->material_type_id) {
-            
+
 //             case 1: //area
-                
+
 //                 $length=($this->length*$this->height)/144;
 //                 break;
 //             case 2: //lenght
-                
+
 //                 $length=$this->length/12;
-                
+
 //                 break;
 //              case 3: //quantity
 //                 $length=1;

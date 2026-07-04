@@ -35,6 +35,7 @@ class Material extends Model
     'weight_lf',
     'sq_ft_per_cy',
     'shortTon_w_l_f',
+    'is_global',
 
   ];
 

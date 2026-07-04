@@ -1,3 +1,7 @@
+@php
+    $return_url = request()->fullUrl();
+@endphp
+
 @extends('user.layouts.app')
 
 @section('title', 'Crews')
@@ -30,79 +34,86 @@
                 </div>
                 <!--end col-->
             </div> --}}
-             <div class="row mt-3">
-                <div class="col-10">
-                    <div class="d-flex align-items-center gap-2">
-                        <button
-                            type="button"
-                            class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                            onclick="goBack()"
-                            aria-label="Go back"
-                            title="Back"
-                            style="line-height:1;"
-                        >
-                            <i class="fa fa-reply"></i>
-                        </button>
-                        <h2 class="text-black fs-4 fw-bold m-0">My Crews @if ($project!=null)
-                            for {{$project->name}}
-                         @endif</h2>
-                    </div>
+            <div class="project-page-header flex-shrink-0 mb-3">
+                <div>
+                    <h1>
+                        @if(isset($project) && $project)
+                            My Crews for {{ $project->name }}
+                        @else
+                            Crews
+                        @endif
+                    </h1>
                 </div>
-                <div class="col-2">
-                    <div class="float-end d-inline-block">
-                        <ol class="breadcrumb mb-1">
-                            <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                            <li class="breadcrumb-item active">Crews</li>
-                        </ol>
-                    </div>
-                    <div class="float-end d-inline-block creat-project-btn">
-                        <a href="{{ route('crew.create') }}" 
-                            class="text-14 fw-bold d-inline-block btn-create-project"
-                        >
-                            <img src="{{ asset('projects') }}/images/plus-icon.svg">
-                            Create Crew
+
+                <div class="project-page-actions">
+                    <div class="creat-project-btn">
+                        <a href="{{ route('crew.create', ['return_url' => $return_url]) }}">
+                            <i class="fa fa-plus"></i>
+                            Create New Crew
                         </a>
-                        
                     </div>
                 </div>
             </div>
-            <!--end row-->
-            <div class="row">
+            <div class="row g-2 mb-3 flex-shrink-0">
                 <div class="col-12">
-                    <div class="w-100 d-inline-block project-table mt-4">
-                        <table class="table table-striped" id="projectTableId">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Crew</th>
-                                    <th>Description</th>
-                                    <th>Created At</th>
-                                    <th>Action</th>
-                                </tr>
-                                <!--end tr-->
-                            </thead>
-                             <tbody>
-                                @php
-                                    $i = 1;
-                                @endphp
-                                @foreach ($crews as $crew)
+                    <div class="card me3co-list-card border-0 shadow-sm mb-2 p-3"
+                        style="border-radius:16px;">
+                        <div class="me3co-table-wrapper flex-grow-1">
+                            <table class="table align-middle me3co-table mb-0" id="projectTableId">
+                                <thead class="thead-light">
                                     <tr>
-                                        <td>{{ $i++ }}</td>
-                                        <td>{{ $crew->name }}</td>
-                                        <td>{{ $crew->description }}</td>
-                                        <td>{{ $crew->created_at->format('d F, Y') }}</td>
-                                        <td>
-                                            <a href="{{ route('crew.edit', ['id' => $crew->id]) }}">
-                                                <img class="edit-icon me-2" src="{{ asset('projects') }}/images/edit-icon.svg">
-                                            </a> 
-                                            <a href="{{ route('crew.delete', ['id' => $crew->id]) }}">
-                                                <img class="edit-icon" src="{{ asset('projects') }}/images/delete-icon.svg">
-                                            </a>
-                                        </td>
+                                        <th>#</th>
+                                        <th>Crew</th>
+                                        <th>Description</th>
+                                        <th>Created At</th>
+                                        <th>Action</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                    <!--end tr-->
+                                </thead>
+                                <tbody>
+                                    @php
+                                        $i = 1;
+                                    @endphp
+                                    @foreach ($crews as $crew)
+                                        <tr>
+                                            <td>{{ $i++ }}</td>
+                                            <td>{{ $crew->name }}</td>
+                                            <td>{{ $crew->description }}</td>
+                                            <td>{{ $crew->created_at->format('d F, Y') }}</td>
+                                            <td class="text-end">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-light btn-sm border text-muted px-2"
+                                                        type="button"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false">
+                                                        <i class="fa fa-ellipsis-v"></i>
+                                                    </button>
+
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                                        <li>
+                                                            <a class="dropdown-item"
+                                                                href="{{ route('crew.edit', ['id' => $crew->id, 'return_url' => $return_url]) }}">
+                                                                <i class="fa fa-pencil me-2 text-primary"></i>
+                                                                Edit
+                                                            </a>
+                                                        </li>
+
+                                                        <li>
+                                                            <a class="dropdown-item text-danger"
+                                                                href="{{ route('crew.delete', ['id' => $crew->id]) }}"
+                                                                onclick="return confirm('Are you sure you want to delete this crew?')">
+                                                                <i class="fa fa-trash me-2"></i>
+                                                                Delete
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,19 +129,43 @@
      <script>
         $(document).ready(function() {
             $('#projectTableId').DataTable({
-                "paging": true,  // Enable pagination
-                "searching": true,  // Enable search
-                // You can customize further options here
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                lengthChange: true,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                scrollY: 'calc(100vh - 420px)',
+                scrollCollapse: false,
+                scrollX: false,
+                dom:
+                    '<"d-flex justify-content-between align-items-center mb-3"l f>' +
+                    't' +
+                    '<"d-flex justify-content-between align-items-center mt-3"i p>',
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search crews...",
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        previous: "Previous",
+                        next: "Next"
+                    }
+                }
             });
+
+            $('.dataTables_filter input')
+                .addClass('form-control form-control-sm me3co-search');
+
+            $('.dataTables_filter label').contents().filter(function(){
+                return this.nodeType === 3;
+            }).remove();
         });
     </script>
     <script>
         function goBack() {
-            if (window.history.length > 1) {
-            window.history.back();
-            return;
-            }
-            window.location.href = "/projects"; // fallback
+            window.location.href = "/project"; // fallback
         }
         $(document).ready(function(x) {
             window.fs_test = $('.test').fSelect();

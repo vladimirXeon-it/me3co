@@ -29,7 +29,9 @@ use Illuminate\Http\Request;
 use App\Models\MaterialClass;
 use App\Models\MaterialDivision;
 use App\Models\Wall;
+use App\Models\DrawingTemplate;
 use App\Http\Controllers\WallController;
+use App\Services\StorageService;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
@@ -38,10 +40,10 @@ use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfReader\PdfReader;
-use Illuminate\Support\Facades\DB;   
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;   // si validas
-use App\Models\CourseBand;   
-use Illuminate\Support\Arr; 
+use App\Models\CourseBand;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -53,6 +55,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use Illuminate\Database\QueryException;
 
 class ApiController extends Controller
 {
@@ -305,7 +308,7 @@ class ApiController extends Controller
             $sReport = $this->_serializeReport($reports);
             $totalReport = [
                 'material' => round($totalCosts, 2),
-                'crew' =>  round($totalCrewCostPerLabor, 2),
+                'crew' => round($totalCrewCostPerLabor, 2),
                 'equipment' => isset($equipmentReport) ? round($equipmentReport['totalCost'], 2) : 0,
                 'project_total' => round($totalCosts + $totalCrewCostPerLabor + isset($equipmentReport) ? $equipmentReport['totalCost'] : 0, 2)
 
@@ -366,7 +369,7 @@ class ApiController extends Controller
         // print_r($equipment_id);
         foreach ($equipment_id as $id) {
             $equipment = Equipment::find($id);
-            $reports[] =  [
+            $reports[] = [
                 'name' => $equipment->name,
                 'id' => $equipment->unique_id,
                 'cost_per_day' => round($equipment->cost_per_day, 2),
@@ -424,9 +427,9 @@ class ApiController extends Controller
 
         $required_unit = $total_area / $material_dimension;
 
-        $day_required =  $required_unit / $wall_material['production_rate'];
+        $day_required = $required_unit / $wall_material['production_rate'];
 
-        $cost = $required_unit *  ((float) $wall_material['prices'] + (float) $wall_material['cleaning_subed_out'] + (float) $wall_material['cleaning_cost'] + (float) $wall_material['production_subed_out_cost']);
+        $cost = $required_unit * ((float) $wall_material['prices'] + (float) $wall_material['cleaning_subed_out'] + (float) $wall_material['cleaning_cost'] + (float) $wall_material['production_subed_out_cost']);
 
         $material_class = MaterialClass::find($wall_material['material_class_id'])->name;
         $reports[] = ['cost' => round($cost, 2), 'unique_id' => $wall_material['unique_id'], 'description' => $wall_material['description'], 'unitPrice' => $wall_material['prices'], 'name' => $wall_material['name'], 'totalUnits' => $required_unit, 'class' => $material_class, 'days' => $day_required];
@@ -457,7 +460,7 @@ class ApiController extends Controller
         $materials = Material::where('user_id', Auth::id())->whereIn('name', $used_materials)->get();
 
         foreach ($materials as $material) {
-            $cost = $counts['count'] *  ((int) $material->prices + (int) $material->cleaning_subbed + (int) $material->cleaning_cost + (int) $material->production_subed_out_cost);
+            $cost = $counts['count'] * ((int) $material->prices + (int) $material->cleaning_subbed + (int) $material->cleaning_cost + (int) $material->production_subed_out_cost);
             $totalUnits = $counts['count'];
             $name = $material->name;
             $material_class = $material->material_class->name;
@@ -495,7 +498,7 @@ class ApiController extends Controller
 
         $perimeter_material = Material::where(['user_id' => Auth::id(), 'name' => $used_perimeter_material])->first();
         $perimeter_material_required = ($perimeter_material->length ?? 0) / $required_perimeter;
-        $perimeter_cost = (int) $perimeter_material->prices *  $perimeter_material_required;
+        $perimeter_cost = (int) $perimeter_material->prices * $perimeter_material_required;
         $perimeter_class = $perimeter_material->material_class->name;
         $perimeter_material_days = $perimeter_material_required / $perimeter_material->production_rate;
         $totalCost += $perimeter_cost;
@@ -550,7 +553,7 @@ class ApiController extends Controller
                 'user_id' => Auth::id(),
                 'name' => $item['name']
             ])->first();
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0) * ($main_material->height ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['thickness'] / 12);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0) * ($main_material->height ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['thickness'] / 12);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -562,7 +565,7 @@ class ApiController extends Controller
                 'user_id' => Auth::id(),
                 'name' => $item['name']
             ])->first();
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['quantity']);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['quantity']);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -574,7 +577,7 @@ class ApiController extends Controller
                 'user_id' => Auth::id(),
                 'name' => $item['name']
             ])->first();
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['required']);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['required']);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -617,7 +620,7 @@ class ApiController extends Controller
             if ($material == null) {
                 continue;
             }
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0) * ($main_material->height ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['thickness'] / 12);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0) * ($main_material->height ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['thickness'] / 12);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -632,7 +635,7 @@ class ApiController extends Controller
             if ($material == null) {
                 continue;
             }
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['quantity']);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['quantity']);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -647,7 +650,7 @@ class ApiController extends Controller
             if ($material == null) {
                 continue;
             }
-            $required =  (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['required']);
+            $required = (($main_material->length ?? 0) * ($main_material->width ?? 0)) / (int) $requestBody['meta']['area'] * ((int) $item['required']);
             $cost = $required * (int) $material->prices;
             $days = @($required / $material->production_rate) ? @($required / $material->production_rate) : 0;
             $totalCost += $cost;
@@ -711,7 +714,7 @@ class ApiController extends Controller
 
         $perimeter_material = Material::where(['user_id' => Auth::id(), 'name' => $used_perimeter_material])->first();
         $perimeter_material_required = ($perimeter_material->length ?? 0) / $required_perimeter;
-        $perimeter_cost = (int) $perimeter_material->prices *  $perimeter_material_required;
+        $perimeter_cost = (int) $perimeter_material->prices * $perimeter_material_required;
         $perimeter_class = $perimeter_material->material_class->name;
         $perimeter_material_days = $perimeter_material_required / $perimeter_material->production_rate;
         $totalCost += $perimeter_cost;
@@ -768,12 +771,12 @@ class ApiController extends Controller
         $labors = [];
         $totalCost = 0;
         $totalDays = 0;
-        $requestBody =  $request->all();
+        $requestBody = $request->all();
         $used_materials = array_merge([$requestBody['meta']['main_material']], $requestBody['meta']['additional_material']);
         $materials = Material::where('user_id', Auth::id())->whereIn('name', $used_materials)->get();
 
         foreach ($materials as $material) {
-            $cost = count($requestBody['path']) *  ((int) $material->prices + (int) $material->cleaning_subbed + (int) $material->cleaning_cost + (int) $material->production_subed_out_cost);
+            $cost = count($requestBody['path']) * ((int) $material->prices + (int) $material->cleaning_subbed + (int) $material->cleaning_cost + (int) $material->production_subed_out_cost);
             $totalUnits = count($requestBody['path']);
             $name = $material->name;
             $material_class = $material->material_class->name;
@@ -943,9 +946,11 @@ class ApiController extends Controller
     }
     public function material_divisions()
     {
-        $material_divisions = MaterialDivision::orderBy('id', 'desc')->get()->load(['materials' => function ($query) {
-            $query->where('user_id', Auth::id());
-        }]);
+        $material_divisions = MaterialDivision::orderBy('id', 'desc')->get()->load([
+            'materials' => function ($query) {
+                $query->where('user_id', Auth::id());
+            }
+        ]);
         return $material_divisions;
     }
     public function material_from_division($id)
@@ -987,9 +992,9 @@ class ApiController extends Controller
             'sq_ft_per_cy',
         )
             ->where('user_id', Auth::id())->orderBy('name', 'asc')->where('project_id', $project_id)->withCasts([
-                'prices' => 'json',
-                'associated_products' => 'json'
-            ])->get();
+                    'prices' => 'json',
+                    'associated_products' => 'json'
+                ])->get();
 
         return $materials;
     }
@@ -1053,7 +1058,7 @@ class ApiController extends Controller
         }
 
         // Guardar PDF recortado
-        $pdf->Output( 'F', $outputPdf);
+        $pdf->Output('F', $outputPdf);
 
         return $outputPdf;
     }
@@ -1077,30 +1082,21 @@ class ApiController extends Controller
             $file = $request->file('file');
 
             // Carpeta destino
-            $directory = public_path("uploads/projects/project{$project_id}/");
+            $directory = "projects/project{$project_id}";
 
-            if (!File::isDirectory($directory)) {
-                File::makeDirectory($directory, 0777, true, true);
-            }
-
-            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Nombre final = nombre original del PDF
+            // Nombre final = nombre original del PDF
             $originalName = $file->getClientOriginalName();
 
-            // (opcional pero recomendado) sanitiza nombre para Windows/servidor
+            // sanitiza nombre para Windows/servidor
             $safeName = preg_replace('/[\\\\\\/\\:\\*\\?\\"\\<\\>\\|]+/', '-', $originalName);
 
-            // Si quieres evitar colisiones (mismo nombre), agrega timestamp sin cambiar el nombre base:
-            // $safeName = pathinfo($safeName, PATHINFO_FILENAME) . '_' . time() . '.pdf';
-
-            $finalPdfPath = $directory . $safeName;
-
-            // Guardar directo (sin FPDI)
-            $file->move($directory, $safeName);
+            // Guardar con el nuevo StorageService
+            StorageService::putFileAs($directory, $file, $safeName, 'public');
 
             return response()->json([
-                'status'   => 200,
-                'message'  => "PDF recibido correctamente",
-                'pdf_path' => "uploads/projects/project{$project_id}/{$safeName}",
+                'status' => 200,
+                'message' => "PDF recibido correctamente",
+                'pdf_path' => StorageService::url($directory . '/' . $safeName),
             ]);
 
         } catch (\Exception $e) {
@@ -1257,20 +1253,39 @@ class ApiController extends Controller
             return [];
         }
 
-        // Ruta en public/
-        $path = public_path("uploads/projects/project{$id}");
+        $directory = "projects/project{$id}";
 
-        if (!is_dir($path)) {
-            return [];
+        if (StorageService::useS3()) {
+            $cleanDir = StorageService::cleanPath($directory);
+            if (!Storage::disk('s3')->exists($cleanDir)) {
+                return [];
+            }
+            // Obtenemos archivos del disco s3
+            $files = Storage::disk('s3')->files($cleanDir);
+            
+            // Excluir directorios como thumb o full, scandir en local solo trae archivos directos de esa carpeta
+            $response = [];
+            foreach ($files as $file) {
+                $filename = basename($file);
+                // Si es un archivo directo (los subdirectorios en Flysystem se listan si son paths completos, pero files() solo trae archivos)
+                $response[] = StorageService::url($file);
+            }
+        } else {
+            // Ruta en public/
+            $path = public_path("uploads/" . $directory);
+
+            if (!is_dir($path)) {
+                return [];
+            }
+
+            // Leer archivos reales
+            $files = array_values(array_diff(scandir($path), ['.', '..']));
+
+            // Convertir a rutas accesibles desde frontend
+            $response = array_map(function ($file) use ($id) {
+                return "uploads/projects/project{$id}/{$file}";
+            }, $files);
         }
-
-        // Leer archivos reales
-        $files = array_values(array_diff(scandir($path), ['.', '..']));
-
-        // Convertir a rutas accesibles desde frontend
-        $response = array_map(function($file) use ($id) {
-            return "uploads/projects/project{$id}/{$file}";
-        }, $files);
 
         return $response;
     }
@@ -1286,19 +1301,43 @@ class ApiController extends Controller
             ]);
         }
 
-        // Asegurar que la ruta SIEMPRE sea: uploads/projects/project{id}
+        // Asegurar que la ruta SIEMPRE sea: projects/project{id}
         $directory = "project" . $project->id;
 
-        $relativePath = public_path("uploads/projects/$directory");
+        $relativePath = "projects/$directory";
 
-        if (File::exists($relativePath)) {
-            File::cleanDirectory($relativePath);
+        DB::beginTransaction();
+
+        try {
+            // ✅ 1. Eliminar archivos físicos en local o S3
+            StorageService::deleteDirectory($relativePath);
+
+            // ✅ 2. Eliminar WALLS por project_id + user_id
+            Wall::where('project_id', $project->id)
+                ->where('user_id', auth()->id())
+                ->delete();
+
+            // ✅ 3. Eliminar DRAWINGS por path
+            DB::table('drawings')
+                ->where('path', 'like', '%/project' . $project->id . '/%')
+                ->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'All Files Deleted!'
+            ]);
+
+        } catch (\Throwable $throwable) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error deleting data',
+                'error' => $throwable->getMessage()
+            ]);
         }
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'All Files Deleted!'
-        ]);
     }
 
     public function serialize_form(Request $request)
@@ -1314,7 +1353,7 @@ class ApiController extends Controller
     {
         $path = $request->post('path');
 
-        @unlink(public_path("uploads/$path"));
+        StorageService::delete($path);
 
         return \json_encode([
             'status' => 200
@@ -1324,8 +1363,8 @@ class ApiController extends Controller
     {
         $path = $request->post('path');
         $directory = Project::find($request->post('project_id'))->document->directory;
-        $relativePath = "uploads/projects/$directory$path";
-        File::deleteDirectory(public_path($relativePath));
+        $relativePath = "projects/$directory$path";
+        StorageService::deleteDirectory($relativePath);
 
         return \json_encode([
             'status' => 200,
@@ -1347,12 +1386,12 @@ class ApiController extends Controller
     // }
     public function current_location(Request $request)
     {
-        $currentpath =  $request->all();
+        $currentpath = $request->all();
         $fileLocation = $currentpath['fileLocation'];
         $windowLocation = $currentpath['windowLocation'];
         $user = User::find(Auth::id())->update([
-            'current_location_file' =>  $fileLocation,
-            'current_location' =>  $windowLocation,
+            'current_location_file' => $fileLocation,
+            'current_location' => $windowLocation,
         ]);
         return [
             'status' => true
@@ -1360,9 +1399,9 @@ class ApiController extends Controller
     }
     public function sync_local_db(Request $request)
     {
-        $data =  $request->json()->all();
+        $data = $request->json()->all();
         $user = User::find(Auth::id())->update([
-            'local_db' =>  $data
+            'local_db' => $data
         ]);
 
         return [
@@ -1375,13 +1414,13 @@ class ApiController extends Controller
         $document = Document::where('directory', $projectFolder)->first();
         // dd($document);
         if ($document != null) {
-            $data =  $request->json()->all();
+            $data = $request->json()->all();
             $document = Document::where('directory', $projectFolder)->update([
-                'local_db' =>  $data
+                'local_db' => $data
             ]);
         } else {
-            $data =  $request->json()->all();
-            $project_id = str_replace("project", "",  $projectFolder);
+            $data = $request->json()->all();
+            $project_id = str_replace("project", "", $projectFolder);
             $doc = new Document();
             $doc->local_db = $data;
             $doc->project_id = $project_id;
@@ -1403,7 +1442,7 @@ class ApiController extends Controller
     }
     public function get_project_local_db($data)
     {
-        $data = str_replace("project", "",  $data);
+        $data = str_replace("project", "", $data);
         // echo $data;
         $document = Document::where('project_id', $data)->first();
         if ($document != null) {
@@ -1490,10 +1529,11 @@ class ApiController extends Controller
     }
     public function saveLineTemplate(Request $request)
     {
-        $data =  $request->all();
+        $data = $request->all();
         $templateName = $data['template_name'];
         $tradeName = json_decode($data['trade_name'])->name;
         $templateType = $data['template_type'];
+        $isGlobal = isset($data['is_global']) ? (int) $data['is_global'] : 0;
         // $formData =  $request->json()->all();
         $formData = json_encode($data['formData']);
         // dd($formData);
@@ -1518,6 +1558,7 @@ class ApiController extends Controller
             $lineTemplate->template_name = $templateName;
             $lineTemplate->trade_name = $tradeName;
             $lineTemplate->local_db = $formData;
+            $lineTemplate->is_global = $isGlobal;
             $lineTemplate->template_type = $templateType;
             $lineTemplate->save();
 
@@ -1533,7 +1574,50 @@ class ApiController extends Controller
         }
     }
 
-    public function CalculateData(Request $request)
+    private function generarIdUniqueWall($wall): string
+    {
+        $nombre_takeoff = trim((string) ($wall->name ?? ''));
+
+        if ($nombre_takeoff === '') {
+            $nombre_takeoff = 'takeoff';
+        }
+
+        return $wall->id . '_' . Str::slug($nombre_takeoff, '_');
+    }
+
+    private function asegurarIdUniqueWall($wall)
+    {
+        if (!$wall) {
+            return null;
+        }
+
+        if (empty($wall->idUnique)) {
+            $wall->idUnique = $this->generarIdUniqueWall($wall);
+            $wall->save();
+        }
+
+        return $wall;
+    }
+
+    private function buscarWallPorIdUnique(int $userId, int $projectId, string $idUnique = '')
+    {
+        if ($idUnique === '') {
+            return null;
+        }
+
+        $wall = Wall::where('user_id', $userId)
+            ->where('project_id', $projectId)
+            ->where('idUnique', $idUnique)
+            ->first();
+
+        if ($wall) {
+            return $this->asegurarIdUniqueWall($wall);
+        }
+
+        return null;
+    }
+
+    /*public function CalculateData(Request $request)
     {
         try {
             $procesado=false;
@@ -1550,6 +1634,7 @@ class ApiController extends Controller
             $userId = $user->id;
             $existing_wall = Wall::where('user_id', $userId)
                 ->where('name', $templateName)
+                ->where('project_id', $projectId)
                 ->first();
             // dd($checkTemplate);
 
@@ -1559,7 +1644,7 @@ class ApiController extends Controller
             $data['formData']['project_id'] = $projectId;
             $data['formData']['type'] = $type;
             $data['formData']['formData'] = $formData;
-            
+
             try {
                 if (!isset($existing_wall->id)) {
 
@@ -1588,14 +1673,15 @@ class ApiController extends Controller
             }
             $existing_wall = Wall::where('user_id', $userId)
                 ->where('name', $templateName)
+                ->where('project_id', $projectId)
                 ->first();
-            
+
             $wc =   new WallController;
             $status = 200;
 
             if (isset($existing_wall->id)) {
                 $resultado = $wc->recalculate($existing_wall->id);
-            
+
                 try {
                     //code...
                     $procesado=true;
@@ -1605,11 +1691,11 @@ class ApiController extends Controller
                     $resultado = $th->getMessage();
                 }
             } else {
-                
+
                 $resultado = $data['formData'];
             }
 
-        
+
 
             return json_encode([
                 'status' => $status,
@@ -1628,9 +1714,136 @@ class ApiController extends Controller
                 'line' => $e->getLine(),
             ], 500);
         }
+    }*/
+
+    private function convertirMaterialesAString(array $formData): array
+    {
+        $campos_materiales = [
+            'wall_material',
+            'top_wall_material',
+            'fill_material',
+            'reinforcing_material',
+            'jamb_material',
+            'header_material',
+            'other_fill',
+            'trade'
+        ];
+
+        foreach ($campos_materiales as $campo_material) {
+            if (isset($formData[$campo_material]) && is_array($formData[$campo_material])) {
+                $formData[$campo_material] = json_encode($formData[$campo_material]);
+            }
+
+            if (isset($formData[$campo_material]) && is_object($formData[$campo_material])) {
+                $formData[$campo_material] = json_encode($formData[$campo_material]);
+            }
+        }
+
+        return $formData;
     }
 
-    public function ObtenData(Request $request)
+    public function CalculateData(Request $request)
+    {
+        try {
+            $procesado = false;
+            $data = $request->all();
+
+            $projectId = (int) ($data['projectId'] ?? 0);
+            $templateName = trim((string) ($data['template_name'] ?? ''));
+            $type = ($data['type'] ?? "length") ?: "length";
+            $user = auth()->user();
+            $userId = (int) $user->id;
+
+            $formDataRecibida = $data['formData'] ?? [];
+            $idUnique = trim((string) ($formDataRecibida['idUnique'] ?? ''));
+
+            // SOLO busca por idUnique
+            $existing_wall = $this->buscarWallPorIdUnique(
+                $userId,
+                $projectId,
+                $idUnique
+            );
+
+            $data['formData']['user_id'] = $userId;
+            $data['formData']['project_id'] = $projectId;
+            $data['formData']['type'] = $type;
+            $data['formData'] = $this->convertirMaterialesAString($data['formData']);
+
+            try {
+                if (!isset($existing_wall->id)) {
+                    $nuevoWall = Wall::create($data['formData']);
+
+                    $nuevoWall->idUnique = $this->generarIdUniqueWall($nuevoWall);
+                    $data['formData']['idUnique'] = $nuevoWall->idUnique;
+                    $nuevoWall->formData = json_encode($data['formData']);
+                    $nuevoWall->save();
+
+                    $existing_wall = $nuevoWall;
+                } else {
+                    $data['formData']['idUnique'] = $existing_wall->idUnique;
+                    $data['formData']['formData'] = json_encode($data['formData']);
+                    $existing_wall->update($data['formData']);
+                    $existing_wall->refresh();
+                }
+            } catch (QueryException $e) {
+                return response()->json([
+                    'status' => 400,
+                    'error' => 'QueryException during save',
+                    'message' => $e->getMessage(),
+                    'sql' => $e->getSql(),
+                    'bindings' => $e->getBindings(),
+                ], 400);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'status' => 400,
+                    'error' => 'Throwable during save',
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ], 400);
+            }
+
+            $data['formData']['formData'] = json_encode($data['formData']);
+
+            $wall_para_calculo = (object) $data['formData'];
+
+            $wc = new WallController();
+            $status = 200;
+
+            if (isset($existing_wall->id)) {
+                $resultado = $wc->recalculate($existing_wall->id, $wall_para_calculo);
+
+                try {
+                    $resultado->idUnique = $existing_wall->idUnique;
+                    $procesado = true;
+                } catch (\Throwable $th) {
+                    $status = 400;
+                    $resultado = $th->getMessage();
+                }
+            } else {
+                $resultado = (object) $data['formData'];
+            }
+
+            return json_encode([
+                'status' => $status,
+                'resultado' => $resultado,
+                'procesado' => $procesado,
+                'templateName' => $templateName,
+                'idUnique' => $existing_wall->idUnique ?? '',
+                'userId' => $userId,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'error' => 'Unhandled exception',
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
+        }
+    }
+
+    /*public function ObtenData(Request $request)
     {
         $data =  $request->all();
         $projectId = $data['projectId'];
@@ -1643,6 +1856,7 @@ class ApiController extends Controller
         $userId = $user->id;
         $existing_wall = Wall::where('user_id', $userId)
             ->where('name', $tradeName)
+            ->where('project_id', $projectId)
             ->orderByDesc('id')
             ->first();
         // dd($checkTemplate);
@@ -1654,6 +1868,7 @@ class ApiController extends Controller
 
         $existing_wall = Wall::where('user_id', $userId)
             ->where('name', $tradeName)
+            ->where('project_id', $projectId)
             ->orderByDesc('id')
             ->first();
 
@@ -1684,13 +1899,57 @@ class ApiController extends Controller
             'tradeName' => $tradeName,
             'userId' => $userId,
         ]);
+    }*/
+    public function ObtenData(Request $request)
+    {
+        $data = $request->all();
+
+        $projectId = (int) ($data['projectId'] ?? 0);
+        $templateName = trim((string) ($data['template_name'] ?? ''));
+        $idUnique = trim((string) ($data['idUnique'] ?? ''));
+
+        $user = auth()->user();
+        $userId = (int) $user->id;
+
+        $existing_wall = $this->buscarWallPorIdUnique(
+            $userId,
+            $projectId,
+            $idUnique
+        );
+
+        $wc = new WallController();
+        $status = 200;
+
+        if (isset($existing_wall->id)) {
+            $resultado = $wc->recalculate($existing_wall->id);
+
+            try {
+                $resultado->idUnique = $existing_wall->idUnique;
+            } catch (\Throwable $th) {
+                $status = 400;
+                $resultado = $th->getMessage();
+            }
+        } else {
+            $resultado = null;
+        }
+
+        return json_encode([
+            'status' => $status,
+            'resultado' => $resultado,
+            'templateName' => $templateName,
+            'idUnique' => $existing_wall->idUnique ?? $idUnique,
+            'userId' => $userId,
+        ]);
     }
     public function getLineTemplate(Request $request)
     {
         $type = $request->query('type_template');
         $user = auth()->user();
         $userId = $user->id;
-        $query = LineTemplate::where('user_id', $userId);
+        $query = LineTemplate::where(function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+                ->orWhere('is_global', 1);
+        });
         if (!empty($type)) {
             $query->where('template_type', $type);
         }
@@ -1776,12 +2035,18 @@ class ApiController extends Controller
 
     public function api_course_bands_index(Request $request)
     {
-        $q = DB::table('course_band')
-            ->select('id', 'id_local', 'id_user', 'data', 'created_at', 'updated_at');
+        $usuario = auth()->user();
 
-        if ($request->filled('id_user')) {
+        $q = DB::table('course_band')
+            ->select('id', 'id_local', 'id_user', 'data', 'is_global', 'created_at', 'updated_at');
+
+        /*if ($request->filled('id_user')) {
             $q->where('id_user', (int) $request->query('id_user'));
-        }
+        }*/
+        $q->where(function ($query) use ($usuario) {
+            $query->where('id_user', $usuario->id)
+                ->orWhere('is_global', 1);
+        });
 
         if ($request->filled('updated_after')) {
             $dt = Carbon::parse($request->query('updated_after'));
@@ -1809,9 +2074,11 @@ class ApiController extends Controller
     public function api_course_bands_upsert(Request $request)
     {
         $payload = $request->all();
-        $items   = Arr::get($payload, 'items');
-        $userId  = auth()->id();
-        $now     = Carbon::now();
+        $items = Arr::get($payload, 'items');
+        $userId = auth()->id();
+        $now = Carbon::now();
+        $usuario = auth()->user();
+        $is_global = ((int) $usuario->role === 1) ? 1 : 0;
 
         if (is_null($items)) {
             $items = [$payload]; // normaliza objeto plano -> arreglo
@@ -1827,7 +2094,7 @@ class ApiController extends Controller
         foreach ($items as $row) {
             // id_local opcional; si no llega, generamos uno (UUID)
             $idLocal = (string) Arr::get($row, 'id_local', Str::uuid()->toString());
-            $data    = Arr::get($row, 'data', []);
+            $data = Arr::get($row, 'data', []);
 
             // si data llega como string JSON, decodifica; si es array, lo dejamos
             if (is_string($data)) {
@@ -1851,23 +2118,23 @@ class ApiController extends Controller
                 // UPDATE (con CAST a JSON para columnas JSON)
                 DB::statement(
                     "UPDATE course_band
-                    SET data = CAST(? AS JSON), updated_at = ?
+                    SET data = CAST(? AS JSON), updated_at = ?, is_global = ?
                     WHERE id = ? AND id_user = ?",
-                    [$dataJson, $now, $existing->id, $userId]
+                    [$dataJson, $now, $is_global, $existing->id, $userId]
                 );
 
                 $results['updated']++;
                 $results['items'][] = [
-                    'id'       => $existing->id,
-                    'id_user'  => $userId,
+                    'id' => $existing->id,
+                    'id_user' => $userId,
                     'id_local' => $idLocal,
                 ];
             } else {
                 // INSERT
                 DB::statement(
-                    "INSERT INTO course_band (id_user, id_local, data, created_at, updated_at)
-                    VALUES (?, ?, CAST(? AS JSON), ?, ?)",
-                    [$userId, $idLocal, $dataJson, $now, $now]
+                    "INSERT INTO course_band (id_user, id_local, data, created_at, updated_at, is_global)
+                    VALUES (?, ?, CAST(? AS JSON), ?, ?, ?)",
+                    [$userId, $idLocal, $dataJson, $now, $now, $is_global]
                 );
 
                 // recupera el id insertado
@@ -1875,17 +2142,17 @@ class ApiController extends Controller
 
                 $results['inserted']++;
                 $results['items'][] = [
-                    'id'       => (int)$newId,
-                    'id_user'  => $userId,
+                    'id' => (int) $newId,
+                    'id_user' => $userId,
                     'id_local' => $idLocal,
                 ];
             }
         }
 
         return response()->json([
-            'ok'      => true,
+            'ok' => true,
             'message' => 'Upsert completado',
-            'result'  => $results
+            'result' => $results
         ]);
     }
 
@@ -1896,7 +2163,9 @@ class ApiController extends Controller
     public function api_course_bands_update(Request $request, $id)
     {
         $userId = auth()->id();
-        $now    = Carbon::now();
+        $now = Carbon::now();
+        $usuario = auth()->user();
+        $is_global = ((int) $usuario->role === 1) ? 1 : 0;
 
         // validar existencia y propiedad del registro
         $row = DB::table('course_band')
@@ -1909,7 +2178,7 @@ class ApiController extends Controller
             return response()->json(['ok' => false, 'message' => 'No encontrado'], 404);
         }
 
-        $data    = Arr::get($request->all(), 'data', []);
+        $data = Arr::get($request->all(), 'data', []);
         $idLocal = Arr::get($request->all(), 'id_local'); // opcional
 
         if (is_string($data)) {
@@ -1921,22 +2190,22 @@ class ApiController extends Controller
         $dataJson = json_encode($data, JSON_UNESCAPED_UNICODE);
 
         // si mandan id_local nuevo, ÃƒÆ’Ã‚Âºsalo; si no, conserva el actual
-        $idLocalNew = $idLocal ? (string)$idLocal : $row->id_local;
+        $idLocalNew = $idLocal ? (string) $idLocal : $row->id_local;
 
         // OJO: si cambias id_local, asegÃƒÆ’Ã‚Âºrate de no romper el UNIQUE (id_user,id_local)
         DB::statement(
             "UPDATE course_band
-            SET id_local = ?, data = CAST(? AS JSON), updated_at = ?
+            SET id_local = ?, data = CAST(? AS JSON), updated_at = ?, is_global = ?
             WHERE id = ? AND id_user = ?",
-            [$idLocalNew, $dataJson, $now, $row->id, $userId]
+            [$idLocalNew, $dataJson, $now, $is_global, $row->id, $userId]
         );
 
         return response()->json([
-            'ok'      => true,
+            'ok' => true,
             'message' => 'Actualizado',
-            'item'    => [
-                'id'       => (int)$row->id,
-                'id_user'  => $userId,
+            'item' => [
+                'id' => (int) $row->id,
+                'id_user' => $userId,
                 'id_local' => $idLocalNew,
             ]
         ]);
@@ -1945,11 +2214,15 @@ class ApiController extends Controller
     public function api_course_bands_show($id)
     {
         $userId = auth()->id();
+        $usuario = auth()->user();
 
         $row = DB::table('course_band')
             ->select('id', 'id_local', 'id_user', 'data', 'created_at', 'updated_at')
-            ->where('id', (int)$id)
-            ->where('id_user', $userId)
+            ->where('id', (int) $id)
+            ->where(function ($query) use ($usuario) {
+                $query->where('id_user', $usuario->id)
+                    ->orWhere('is_global', 1);
+            })
             ->first();
 
         if (!$row) {
@@ -1969,7 +2242,7 @@ class ApiController extends Controller
 
         $row = DB::table('course_band')
             ->select('id')
-            ->where('id', (int)$id)
+            ->where('id', (int) $id)
             ->where('id_user', $userId)
             ->first();
 
@@ -1978,14 +2251,14 @@ class ApiController extends Controller
         }
 
         DB::table('course_band')
-            ->where('id', (int)$id)
+            ->where('id', (int) $id)
             ->where('id_user', $userId)
             ->delete();
 
         return response()->json([
             'ok' => true,
             'message' => 'Eliminado',
-            'deleted_id' => (int)$id,
+            'deleted_id' => (int) $id,
         ]);
     }
 
@@ -2011,43 +2284,45 @@ class ApiController extends Controller
         ]);
 
         $projectId = $request->project_id;
-        $fileName  = $request->file_name;
+        $fileName = $request->file_name;
 
-        $directory = public_path("uploads/projects/project{$projectId}/");
+        $directory = "projects/project{$projectId}";
 
-        if (!File::isDirectory($directory)) {
-            File::makeDirectory($directory, 0777, true, true);
-        }
-
-        // Guardar PNG final
-        $request->file('image')->move($directory, $fileName);
+        // Guardar PNG final con el nuevo StorageService
+        StorageService::putFileAs($directory, $request->file('image'), $fileName, 'public');
 
         return response()->json([
             "status" => 200,
             "message" => "PNG guardada correctamente",
-            "path" => "uploads/projects/project{$projectId}/{$fileName}"
+            "path" => StorageService::url($directory . '/' . $fileName)
         ]);
     }
 
     public function convert(Request $request)
     {
-        $pdfRelative = $request->input('pdf');   // ejemplo: projects/myproject/file.pdf
-        $outputDir   = dirname($pdfRelative);    // carpeta donde dejaremos los PNG
-        $pdfPath     = public_path('uploads/' . $pdfRelative);
+        $pdfRelative = $request->input('pdf');   // ejemplo: projects/myproject/file.pdf o uploads/projects/...
+        $outputDir = dirname(StorageService::cleanPath($pdfRelative));    // carpeta donde dejaremos los PNG, ej: projects/project123
 
-        if (!file_exists($pdfPath)) {
-            return response()->json(['error' => 'PDF not found'], 404);
-        }
+        $useS3 = StorageService::useS3();
+        $pdfPath = '';
 
-        $outputPath = public_path('uploads/' . $outputDir);
-
-        // Crear directorio si no existe
-        if (!file_exists($outputPath)) {
-            mkdir($outputPath, 0777, true);
+        if ($useS3) {
+            $cleanPdfPath = StorageService::cleanPath($pdfRelative);
+            if (!Storage::disk('s3')->exists($cleanPdfPath)) {
+                return response()->json(['error' => 'PDF not found in S3'], 404);
+            }
+            // Descargar temporalmente para Imagick
+            $pdfPath = tempnam(sys_get_temp_dir(), 'pdf_');
+            file_put_contents($pdfPath, Storage::disk('s3')->get($cleanPdfPath));
+        } else {
+            $pdfPath = public_path('uploads/' . StorageService::cleanPath($pdfRelative));
+            if (!file_exists($pdfPath)) {
+                return response()->json(['error' => 'PDF not found'], 404);
+            }
         }
 
         // Cargar PDF completo
-        $imagick = new Imagick();
+        $imagick = new \Imagick();
         $imagick->setResolution(200, 200);
         $imagick->readImage($pdfPath);
 
@@ -2055,19 +2330,42 @@ class ApiController extends Controller
         $pageIndex = 0;
         $generated = [];
 
-        foreach ($imagick as $index => $page) {
+        // Directorio temporal de salida para los PNGs si es S3
+        $localOutputDir = $useS3 ? (sys_get_temp_dir() . '/pngs_' . uniqid()) : public_path('uploads/' . $outputDir);
+        if (!file_exists($localOutputDir)) {
+            mkdir($localOutputDir, 0777, true);
+        }
 
+        foreach ($imagick as $index => $page) {
             $page->setImageFormat('png');
 
             // Nombre del PNG
             $pngName = pathinfo($pdfRelative, PATHINFO_FILENAME) . "-page-$index.png";
-            $pngFullPath = $outputPath . '/' . $pngName;
+            $pngFullPath = $localOutputDir . '/' . $pngName;
 
-            // Guardar PNG
+            // Guardar PNG localmente
             $page->writeImage($pngFullPath);
 
-            $generated[] = $outputDir . '/' . $pngName;
+            if ($useS3) {
+                // Subir a S3
+                $s3Path = $outputDir . '/' . $pngName;
+                Storage::disk('s3')->put($s3Path, file_get_contents($pngFullPath), 'public');
+                $generated[] = StorageService::url($s3Path);
+                // Eliminar archivo PNG local temporal
+                @unlink($pngFullPath);
+            } else {
+                $generated[] = $outputDir . '/' . $pngName;
+            }
             $pageIndex++;
+        }
+
+        // Limpiar archivos temporales
+        $imagick->clear();
+        $imagick->destroy();
+
+        if ($useS3) {
+            @unlink($pdfPath); // Eliminar PDF temporal
+            @rmdir($localOutputDir); // Eliminar carpeta temporal de PNGs
         }
 
         return response()->json([
@@ -2093,7 +2391,7 @@ class ApiController extends Controller
     public function listPlanImages(Request $request)
     {
         $projectId = $request->query('project');
-        $prefix    = $request->query('prefix');
+        $prefix = $request->query('prefix');
 
         if (!$projectId || !$prefix) {
             return response()->json([
@@ -2101,41 +2399,61 @@ class ApiController extends Controller
             ], 400);
         }
 
-        $folderPath = public_path("uploads/projects/project{$projectId}/thumb");
+        $files = [];
 
-        if (!File::exists($folderPath)) {
-            return response()->json([]);
+        if (StorageService::useS3()) {
+            $cleanDir = "projects/project{$projectId}/thumb";
+            $allFiles = Storage::disk('s3')->files($cleanDir);
+
+            foreach ($allFiles as $filePath) {
+                $filename = basename($filePath);
+
+                if (
+                    str_starts_with($filename, $prefix) &&
+                    preg_match('/\.(png|webp)$/i', $filename)
+                ) {
+                    $files[] = "projects/project{$projectId}/thumb/{$filename}";
+                }
+            }
+        } else {
+            $folderPath = public_path("uploads/projects/project{$projectId}/thumb");
+            if (File::exists($folderPath)) {
+                $localFilesPng = glob($folderPath . '/' . $prefix . '*.png') ?: [];
+                $localFilesWebp = glob($folderPath . '/' . $prefix . '*.webp') ?: [];
+                $localFiles = array_merge($localFilesPng, $localFilesWebp);
+                foreach ($localFiles as $path) {
+                    $files[] = "projects/project{$projectId}/thumb/" . basename($path);
+                }
+            }
         }
-
-        // Trae TODO lo que empiece con el prefix, sin asumir formato
-        $files = glob($folderPath . '/' . $prefix . '*.png') ?: [];
 
         $rows = [];
 
-        foreach ($files as $path) {
-            $base = basename($path);
+        foreach ($files as $relativePath) {
+            $base = basename($relativePath);
 
-            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Tu regla de orden: siempre por "__P{n}" al final
-            // Ej: "...__P1.png"
             $page = PHP_INT_MAX;
-            if (preg_match('/__P(\d+)\.png$/i', $base, $m)) {
-                $page = (int)$m[1];
+            if (preg_match('/__P(\d+)\.(png|webp)$/i', $base, $m)) {
+                $page = (int) $m[1];
             }
 
             $rows[] = [
                 'page' => $page,
-                'path' => $path,
+                'path' => $relativePath,
             ];
         }
 
-        // Orden numÃƒÆ’Ã‚Â©rico por pÃƒÆ’Ã‚Â¡gina
+        // Orden numérico por página
         usort($rows, function ($a, $b) {
             return $a['page'] <=> $b['page'];
         });
 
-        // Devuelve rutas relativas para React
+        // Devuelve URLs resueltas (de S3 en producción o local path en local)
         $result = array_map(function ($row) {
-            return ltrim(str_replace(public_path(), '', $row['path']), '/\\');
+            if (StorageService::useS3()) {
+                return StorageService::url($row['path']);
+            }
+            return 'uploads/' . $row['path'];
         }, $rows);
 
         return response()->json($result);
@@ -2165,7 +2483,7 @@ class ApiController extends Controller
     {
         // Busca "__P12.png" al final
         if (preg_match('/__P(\d+)\.png$/i', $filename, $m)) {
-            return (int)$m[1];
+            return (int) $m[1];
         }
         return PHP_INT_MAX;
     }
@@ -2234,25 +2552,25 @@ class ApiController extends Controller
                 'model' => 'gpt-5-nano',
                 'input' => [
                     [
-                    'role' => 'user',
-                    'content' => [
-                        [
-                        'type' => 'input_file',
-                        'filename' => $pdfName,
-                        'file_data' => $pdfDataUrl, // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ ESTE ES EL BUENO
+                        'role' => 'user',
+                        'content' => [
+                            [
+                                'type' => 'input_file',
+                                'filename' => $pdfName,
+                                'file_data' => $pdfDataUrl, // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ ESTE ES EL BUENO
+                            ],
+                            [
+                                'type' => 'input_text',
+                                'text' => $prompt,
+                            ],
                         ],
-                        [
-                        'type' => 'input_text',
-                        'text' => $prompt,
-                        ],
-                    ],
                     ],
                 ],
             ];
 
             $resp = Http::withToken($apiKey)
-            ->timeout(120)
-            ->post('https://api.openai.com/v1/responses', $payload);
+                ->timeout(120)
+                ->post('https://api.openai.com/v1/responses', $payload);
 
             if (!$resp->ok()) {
                 return response()->json([
@@ -2327,17 +2645,19 @@ class ApiController extends Controller
                     continue;
                 }
 
-                $page = isset($row['page']) ? (int)$row['page'] : null;
+                $page = isset($row['page']) ? (int) $row['page'] : null;
 
                 $code = $row['code'] ?? null;
                 if ($code !== null) {
-                    $code = $this->sanitizeForFilename((string)$code);
-                    if ($code === '') $code = null;
+                    $code = $this->sanitizeForFilename((string) $code);
+                    if ($code === '')
+                        $code = null;
                 }
 
                 $source = $row['source'] ?? 'mixed';
-                $source = $this->sanitizeForFilename((string)$source);
-                if ($source === '') $source = 'mixed';
+                $source = $this->sanitizeForFilename((string) $source);
+                if ($source === '')
+                    $source = 'mixed';
 
                 $out[] = [
                     'page' => $page,
@@ -2368,14 +2688,18 @@ class ApiController extends Controller
 
         if (!empty($data['output']) && is_array($data['output'])) {
             foreach ($data['output'] as $item) {
-                if (!is_array($item)) continue;
-                if (($item['type'] ?? '') !== 'message') continue;
+                if (!is_array($item))
+                    continue;
+                if (($item['type'] ?? '') !== 'message')
+                    continue;
 
                 $content = $item['content'] ?? [];
-                if (!is_array($content)) continue;
+                if (!is_array($content))
+                    continue;
 
                 foreach ($content as $c) {
-                    if (!is_array($c)) continue;
+                    if (!is_array($c))
+                        continue;
 
                     // Normalmente viene: { type: "output_text", text: "..." }
                     if (!empty($c['text']) && is_string($c['text'])) {
@@ -2398,39 +2722,47 @@ class ApiController extends Controller
     // =========================================================
     public function uploadPdfPngs(Request $request)
     {
-        $request->validate([
+        /*$request->validate([
             'project_id' => 'required',
             'file' => 'required|file|mimes:pdf',
             'pngs' => 'nullable|array',
             'pngs.*' => 'file|mimes:png',
             'page_codes' => 'nullable|string',
+        ]);*/
+
+        $request->validate([
+            'project_id' => 'required',
+            'file' => 'required|file|mimes:pdf|max:102400',
+            'pngs' => 'nullable|array',
+            'pngs.*' => 'nullable|file|mimes:png|max:102400',
+            'page_codes' => 'nullable|string',
         ]);
 
-        $projectId = (string)$request->input('project_id');
-        $dir = $this->projectDir($projectId);
-        $this->ensureDir($dir);
+        $projectId = (string) $request->input('project_id');
+        $directory = "projects/project" . $this->sanitizeForFilename($projectId);
 
         // Guarda PDF (recortado)
         $pdf = $request->file('file');
         $pdfName = $this->sanitizeForFilename($pdf->getClientOriginalName() ?: 'document.pdf');
-        $pdf->move($dir, $pdfName);
+        StorageService::putFileAs($directory, $pdf, $pdfName, 'public');
 
         // Guarda PNGs (ya renombrados en frontend)
         $saved = [];
         if ($request->hasFile('pngs')) {
             foreach ($request->file('pngs') as $png) {
                 $pngName = $this->sanitizeForFilename($png->getClientOriginalName() ?: uniqid('page_') . '.png');
-                if (!Str::endsWith(Str::lower($pngName), '.png')) continue;
+                if (!Str::endsWith(Str::lower($pngName), '.png'))
+                    continue;
 
-                $png->move($dir, $pngName);
-                $saved[] = "uploads/projects/project{$this->sanitizeForFilename($projectId)}/{$pngName}";
+                StorageService::putFileAs($directory, $png, $pngName, 'public');
+                $saved[] = StorageService::url($directory . '/' . $pngName);
             }
         }
 
         return response()->json([
             'ok' => true,
             'project_id' => $projectId,
-            'pdf_saved_as' => "uploads/projects/project{$this->sanitizeForFilename($projectId)}/{$pdfName}",
+            'pdf_saved_as' => StorageService::url($directory . '/' . $pdfName),
             'pngs_saved' => $saved
         ]);
     }
@@ -2439,36 +2771,33 @@ class ApiController extends Controller
     {
         $request->validate([
             'project_id' => 'required',
-            'pdf_name'   => 'required|string',
-            'pages'      => 'required|string', // JSON: [1,2,3...]
-            'pngs'       => 'required',
-            'pngs.*'     => 'file|mimes:png|max:20480', // 20MB c/u (ajusta)
+            'pdf_name' => 'required|string',
+            'pages' => 'required|string', // JSON: [1,2,3...]
+            'pngs' => 'required',
+            'pngs.*' => 'file|mimetypes:image/webp|max:20480', // 20MB c/u (ajusta)
         ]);
 
-        $projectId = (string)$request->project_id;
+        $projectId = (string) $request->project_id;
 
         $pdfName = $request->input('pdf_name');
         $pdfBase = preg_replace('/\.pdf$/i', '', $pdfName);
         $pdfBase = $this->sanitizeForFilename($pdfBase);
 
-        $outDir = public_path("uploads/projects/project{$projectId}/thumb");
-        if (!File::isDirectory($outDir)) {
-            File::makeDirectory($outDir, 0777, true, true);
-        }
+        $outDir = "projects/project{$projectId}/thumb";
 
         $saved = [];
 
         foreach ($request->file('pngs', []) as $file) {
-            // Conserva el nombre que mandÃƒÆ’Ã‚Â³ el frontend (ya viene con cÃƒÆ’Ã‚Â³digo)
+            // Conserva el nombre que mandó el frontend (ya viene con código)
             $name = $this->sanitizeForFilename($file->getClientOriginalName());
 
-            // seguridad: si por alguna razÃƒÆ’Ã‚Â³n viene vacÃƒÆ’Ã‚Â­o
+            // seguridad: si por alguna razón viene vacío
             if ($name === '') {
                 $name = $pdfBase . '__UNKNOWN__' . uniqid() . '.png';
             }
 
-            $file->move($outDir, $name);
-            $saved[] = "uploads/projects/project{$projectId}/thumb/{$name}";
+            StorageService::putFileAs($outDir, $file, $name, 'public');
+            $saved[] = StorageService::url($outDir . '/' . $name);
         }
 
         return response()->json([
@@ -2489,33 +2818,37 @@ class ApiController extends Controller
         }
 
         $safe = $this->sanitizeForFilename($file);
-        $path = public_path("uploads/projects/project{$projectId}/full/{$safe}");
+        $safePng = preg_replace('/\.(webp|jpg|jpeg)$/i', '.png', $safe);
+        $path = "projects/project{$projectId}/full/{$safePng}";
 
-        return response()->json(['exists' => File::exists($path)]);
+        return response()->json([
+            'exists' => StorageService::exists($path),
+            'url' => StorageService::exists($path)
+                ? StorageService::url($path)
+                : null,
+        ]);
     }
 
     public function uploadFullPage(Request $request)
     {
         $request->validate([
             'project_id' => 'required',
-            'png'        => 'required|file|mimes:png|max:51200',
+            'png' => 'required|file|mimes:png|max:51200',
         ]);
 
-        $projectId = (string)$request->project_id;
+        $projectId = (string) $request->project_id;
 
-        $outDir = public_path("uploads/projects/project{$projectId}/full");
-        if (!File::isDirectory($outDir)) {
-            File::makeDirectory($outDir, 0777, true, true);
-        }
+        $outDir = "projects/project{$projectId}/full";
 
         $file = $request->file('png');
         $name = $this->sanitizeForFilename($file->getClientOriginalName());
 
-        $file->move($outDir, $name);
+        StorageService::putFileAs($outDir, $file, $name, 'public');
 
         return response()->json([
             'ok' => true,
-            'path' => "uploads/projects/project{$projectId}/full/{$name}",
+            'path' => "{$outDir}/{$name}",
+            'url' => StorageService::url("{$outDir}/{$name}"),
         ]);
     }
 
@@ -2605,7 +2938,8 @@ class ApiController extends Controller
 
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ params opcionales (recomendado)
         $params = $request->input('params', []);
-        if (!is_array($params)) $params = [];
+        if (!is_array($params))
+            $params = [];
 
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ lÃƒÆ’Ã‚Â­mite de filas (si no trae LIMIT, lo agregamos)
         $maxRows = 500;
@@ -2632,15 +2966,15 @@ class ApiController extends Controller
 
     public function bulk(Request $request)
     {
-        $path = trim((string)$request->input('path', ''));
-        $projectId = trim((string)$request->input('projectId', ''));
+        $path = trim((string) $request->input('path', ''));
+        $projectId = trim((string) $request->input('projectId', ''));
 
         if ($path === '/' && $projectId !== '') {
             $path = '/projects/project' . $projectId . '/';
         }
-        
+
         $basePath = $this->obtenerPathProyecto($path);
-        $projectId = trim((string)$request->input('projectId', ''));
+        $projectId = trim((string) $request->input('projectId', ''));
 
         if ($basePath === '') {
             return response()->json([
@@ -2677,34 +3011,60 @@ class ApiController extends Controller
         }
 
         $user = auth()->user();
-        $userId = (int)$user->id;
+        $userId = (int) $user->id;
 
-        // 1) juntamos TRADES de TODOS los takeoffs (NO meta.name a ciegas)
-        $tradeNames = [];
+        // 1) juntamos combinaciones únicas de trade_name + idunique
+        $combinaciones_takeoff = [];
 
         foreach ($lines as $lineItem) {
-            $trade = $this->extractTradeNameFromTakeoff($lineItem);
-            if ($trade !== '') $tradeNames[] = $trade;
+            $trade_name = $this->extractTradeNameFromTakeoff($lineItem);
+            $idunique = $this->extractIdUniqueFromTakeoff($lineItem);
+
+            if ($trade_name !== '' && $idunique !== '') {
+                $clave = mb_strtolower(trim($trade_name)) . '||' . trim($idunique);
+                $combinaciones_takeoff[$clave] = [
+                    'trade_name' => $trade_name,
+                    'idunique' => $idunique,
+                ];
+            }
         }
 
         foreach ($perimeters as $perimeterItem) {
-            $trade = $this->extractTradeNameFromTakeoff($perimeterItem);
-            if ($trade !== '') $tradeNames[] = $trade;
+            $trade_name = $this->extractTradeNameFromTakeoff($perimeterItem);
+            $idunique = $this->extractIdUniqueFromTakeoff($perimeterItem);
+
+            if ($trade_name !== '' && $idunique !== '') {
+                $clave = mb_strtolower(trim($trade_name)) . '||' . trim($idunique);
+                $combinaciones_takeoff[$clave] = [
+                    'trade_name' => $trade_name,
+                    'idunique' => $idunique,
+                ];
+            }
         }
 
         foreach ($areas as $areaItem) {
-            $trade = $this->extractTradeNameFromTakeoff($areaItem);
-            if ($trade !== '') $tradeNames[] = $trade;
+            $trade_name = $this->extractTradeNameFromTakeoff($areaItem);
+            $idunique = $this->extractIdUniqueFromTakeoff($areaItem);
+
+            if ($trade_name !== '' && $idunique !== '') {
+                $clave = mb_strtolower(trim($trade_name)) . '||' . trim($idunique);
+                $combinaciones_takeoff[$clave] = [
+                    'trade_name' => $trade_name,
+                    'idunique' => $idunique,
+                ];
+            }
         }
 
-        // dedupe
-        $tradeNames = array_values(array_unique($tradeNames));
-
-        // 2) pool global: acumular materialesAgrupados de TODOS los TRADES usados en el drawing
+        // 2) pool global: acumular materialesAgrupados de TODOS los takeoffs usados en el drawing
         $pool_materiales = [];
 
-        foreach ($tradeNames as $tradeName) {
-            $materiales = $this->obtenerMaterialesDeWall($userId, $tradeName, $projectId);
+        foreach ($combinaciones_takeoff as $takeoff_data) {
+            $materiales = $this->obtenerMaterialesDeWall(
+                $userId,
+                $takeoff_data['trade_name'],
+                $projectId,
+                $takeoff_data['idunique']
+            );
 
             if (is_array($materiales) && count($materiales)) {
                 foreach ($materiales as $item) {
@@ -2719,7 +3079,10 @@ class ApiController extends Controller
             'ok' => true,
             'message' => 'Reports generated',
             'path' => $path,
-            'trades_used' => $tradeNames,
+            'trades_used' => array_values(array_unique(array_map(function ($item) {
+                return $item['trade_name'];
+            }, $combinaciones_takeoff))),
+            'takeoffs_used' => array_values($combinaciones_takeoff),
             'reports' => $reports,
         ]);
     }
@@ -2731,13 +3094,16 @@ class ApiController extends Controller
 
     private function safeJson($value, $default)
     {
-        if ($value === null || $value === '') return $default;
+        if ($value === null || $value === '')
+            return $default;
 
         // ya viene como array/obj
-        if (is_array($value) || is_object($value)) return $value;
+        if (is_array($value) || is_object($value))
+            return $value;
 
-        $decoded = json_decode((string)$value, true);
-        if (json_last_error() !== JSON_ERROR_NONE) return $default;
+        $decoded = json_decode((string) $value, true);
+        if (json_last_error() !== JSON_ERROR_NONE)
+            return $default;
 
         return $decoded;
     }
@@ -2756,32 +3122,58 @@ class ApiController extends Controller
 
     private function extractTradeNameFromTakeoff($takeoffItem): string
     {
-        if (!is_array($takeoffItem)) return '';
+        if (!is_array($takeoffItem))
+            return '';
 
         $meta = (isset($takeoffItem['meta']) && is_array($takeoffItem['meta'])) ? $takeoffItem['meta'] : [];
 
         // 1) Primero lo correcto (trade)
         $trade =
-            trim((string)($meta['trade_name'] ?? '')) ?:
-            trim((string)($meta['tradeName'] ?? '')) ?:
-            trim((string)($takeoffItem['trade_name'] ?? '')) ?:
-            trim((string)($takeoffItem['tradeName'] ?? ''));
+            trim((string) ($meta['trade_name'] ?? '')) ?:
+            trim((string) ($meta['tradeName'] ?? '')) ?:
+            trim((string) ($takeoffItem['trade_name'] ?? '')) ?:
+            trim((string) ($takeoffItem['tradeName'] ?? ''));
 
-        if ($trade !== '') return $trade;
+        if ($trade !== '')
+            return $trade;
 
         // 2) Fallback: algunos te lo guardan en name (pero NO siempre)
         $fallback =
-            trim((string)($meta['name'] ?? '')) ?:
-            trim((string)($takeoffItem['name'] ?? ''));
+            trim((string) ($meta['name'] ?? '')) ?:
+            trim((string) ($takeoffItem['name'] ?? ''));
 
         return $fallback;
     }
 
-    private function obtenerMaterialesDeWall(int $userId, string $tradeName, $projectId): array
+    private function extractIdUniqueFromTakeoff($takeoffItem): string
     {
-        $tradeName = trim((string)$tradeName);
+        if (!is_array($takeoffItem))
+            return '';
+
+        $meta = (isset($takeoffItem['meta']) && is_array($takeoffItem['meta'])) ? $takeoffItem['meta'] : [];
+
+        $idunique =
+            trim((string) ($meta['idunique'] ?? '')) ?:
+            trim((string) ($meta['id_unique'] ?? '')) ?:
+            trim((string) ($meta['idUnique'] ?? '')) ?:
+            trim((string) ($takeoffItem['idunique'] ?? '')) ?:
+            trim((string) ($takeoffItem['id_unique'] ?? '')) ?:
+            trim((string) ($takeoffItem['idUnique'] ?? ''));
+
+        return $idunique;
+    }
+
+    private function obtenerMaterialesDeWall(int $userId, string $tradeName, $projectId, string $idunique): array
+    {
+        $tradeName = trim((string) $tradeName);
+        $idunique = trim((string) $idunique);
+
+        if ($tradeName === '' || $idunique === '') {
+            return [];
+        }
 
         $existing_wall = Wall::where('name', $tradeName)
+            ->where('idunique', $idunique)
             ->where('project_id', $projectId)
             ->orderByDesc('id')
             ->first();
@@ -2822,86 +3214,227 @@ class ApiController extends Controller
 
     private function generarReportesPorMaterialDesdePool(array $pool_materiales): array
     {
-        // 1) agrupar por material (trade + class + material_id)
         $gruposPorMaterial = [];
 
         foreach ($pool_materiales as $item) {
-            if (!is_array($item)) continue;
+            if (!is_array($item)) {
+                continue;
+            }
 
-            $tradeName = (string)($item['trade_name'] ?? 'TRADE');
-
-            $material = isset($item['material']) && is_array($item['material']) ? $item['material'] : [];
-            $materialId = (string)($material['id'] ?? ($item['material_id'] ?? ''));
-            $materialClassId = (string)($material['material_class_id'] ?? ($item['material_class_id'] ?? ''));
-            $materialNombre = (string)($material['name'] ?? ($item['material_name'] ?? 'Material'));
-
-            $materialClassNombre = (string)($item['material_class_name'] ?? 'CLASS');
-
-            if ($materialId === '') continue;
-
-            $grupoKey = $tradeName . '|' . $materialClassId . '|' . $materialId;
+            $canon = $this->buildMaterialCanonicalData($item);
+            $grupoKey = $canon['group_key'];
 
             if (!isset($gruposPorMaterial[$grupoKey])) {
                 $gruposPorMaterial[$grupoKey] = [
-                    'trade_name' => $tradeName,
-                    'material_class_name' => $materialClassNombre,
-                    'material' => $material,
-                    'material_name' => $materialNombre,
+                    'group_key' => $grupoKey,
+
+                    'trade_name' => $canon['trade_display'],
+                    'trade_sort_key' => $canon['trade_key'],
+
+                    'material_class_name' => $canon['class_display'],
+                    'material_class_sort_key' => $canon['class_key'],
+
+                    'material' => $canon['material'],
+                    'material_name' => $canon['material_display'],
+                    'material_sort_key' => $canon['material_key'],
+
                     'items' => [],
                 ];
+            } else {
+                // Si el grupo ya existe, conserva el display más completo
+                if (
+                    mb_strlen($canon['trade_display']) > mb_strlen($gruposPorMaterial[$grupoKey]['trade_name'])
+                ) {
+                    $gruposPorMaterial[$grupoKey]['trade_name'] = $canon['trade_display'];
+                }
+
+                if (
+                    mb_strlen($canon['class_display']) > mb_strlen($gruposPorMaterial[$grupoKey]['material_class_name'])
+                ) {
+                    $gruposPorMaterial[$grupoKey]['material_class_name'] = $canon['class_display'];
+                }
+
+                if (
+                    mb_strlen($canon['material_display']) > mb_strlen($gruposPorMaterial[$grupoKey]['material_name'])
+                ) {
+                    $gruposPorMaterial[$grupoKey]['material_name'] = $canon['material_display'];
+                }
+
+                if (
+                    empty($gruposPorMaterial[$grupoKey]['material']) &&
+                    !empty($canon['material'])
+                ) {
+                    $gruposPorMaterial[$grupoKey]['material'] = $canon['material'];
+                }
             }
 
             $gruposPorMaterial[$grupoKey]['items'][] = $item;
         }
 
-        // 2) por cada material: agrupar por takeoff_name y sumar columnas
+        // Ordenar items dentro de cada material por takeoff alfabéticamente
+        foreach ($gruposPorMaterial as &$grupo) {
+            usort($grupo['items'], function ($itemIzquierdo, $itemDerecho) {
+                $takeoffIzquierdo = $this->buildTakeoffCanonicalName(is_array($itemIzquierdo) ? $itemIzquierdo : []);
+                $takeoffDerecho = $this->buildTakeoffCanonicalName(is_array($itemDerecho) ? $itemDerecho : []);
+
+                return $this->compareNaturalAlphabetic($takeoffIzquierdo, $takeoffDerecho);
+            });
+        }
+        unset($grupo);
+
+        // Ordenar grupos finales alfabéticamente:
+        // 1. trade
+        // 2. class
+        // 3. material
+        uasort($gruposPorMaterial, function ($grupoIzquierdo, $grupoDerecho) {
+            $comparacionTrade = $this->compareNaturalAlphabetic(
+                (string) ($grupoIzquierdo['trade_name'] ?? ''),
+                (string) ($grupoDerecho['trade_name'] ?? '')
+            );
+
+            if ($comparacionTrade !== 0) {
+                return $comparacionTrade;
+            }
+
+            $comparacionClase = $this->compareNaturalAlphabetic(
+                (string) ($grupoIzquierdo['material_class_name'] ?? ''),
+                (string) ($grupoDerecho['material_class_name'] ?? '')
+            );
+
+            if ($comparacionClase !== 0) {
+                return $comparacionClase;
+            }
+
+            return $this->compareNaturalAlphabetic(
+                (string) ($grupoIzquierdo['material_name'] ?? ''),
+                (string) ($grupoDerecho['material_name'] ?? '')
+            );
+        });
+
         $reports = [];
 
         foreach ($gruposPorMaterial as $grupo) {
             $takeoffs = [];
 
             foreach ($grupo['items'] as $item) {
-                $takeoffName = (string)($item['takeoff_name'] ?? 'takeoff');
-                if ($takeoffName === '') $takeoffName = 'takeoff';
+                if (!is_array($item)) {
+                    continue;
+                }
 
-                if (!isset($takeoffs[$takeoffName])) {
-                    $takeoffs[$takeoffName] = [
+                $takeoffName = $this->buildTakeoffCanonicalName($item);
+                $takeoffKey = $this->normalizeTextKey($takeoffName);
+
+                if (!isset($takeoffs[$takeoffKey])) {
+                    $takeoffs[$takeoffKey] = [
                         'takeoff_name' => $takeoffName,
-                        'quantity' => 0, 'waste' => 0, 'sq_ft' => 0, 'units' => 0,
-                        'cost' => 0, 'tax' => 0, 'sub_total' => 0, 'oh' => 0, 'profit' => 0, 'total' => 0,
+                        'quantity' => 0,
+                        'waste' => 0,
+                        'sq_ft' => 0,
+                        'units' => 0,
+                        'units_total' => 0,
+                        'measuring' => 0,
+                        'cost' => 0,
+                        'tax' => 0,
+                        'cost1' => 0,
+                        'cost_day' => 0,
+                        'burden' => 0,
+                        'lab_cost' => 0,
+                        'days' => 0,
+                        'cost2' => 0,
+                        'sub_total' => 0,
+                        'oh' => 0,
+                        'profit' => 0,
+                        'weather' => 0,
+                        'total' => 0,
+                        'op_unit' => $item['op_unit'] ?? '',
                     ];
                 }
 
-                // suma (toma lo que venga del item)
-                //$takeoffs[$takeoffName]['quantity'] += (float)($item['quantity'] ?? 0);
-                $takeoffs[$takeoffName]['waste'] += (float)($item['waste'] ?? 0);
-                $takeoffs[$takeoffName]['sq_ft'] += (float)($item['sq_ft'] ?? 0);
-                $takeoffs[$takeoffName]['units'] += (float)($item['units'] ?? 0);
+                $takeoffs[$takeoffKey]['quantity'] += (float) ($item['quantity'] ?? 0);
+                $takeoffs[$takeoffKey]['waste'] += (float) ($item['waste'] ?? 0);
+                $takeoffs[$takeoffKey]['sq_ft'] += (float) ($item['sq_ft'] ?? 0);
+                $takeoffs[$takeoffKey]['units'] += (float) ($item['units'] ?? 0);
+                $takeoffs[$takeoffKey]['units_total'] += (float) ($item['units_total'] ?? 0);
+                $takeoffs[$takeoffKey]['measuring'] += (float) ($item['measuring'] ?? 0);
 
-                $takeoffs[$takeoffName]['cost'] += (float)($item['cost'] ?? 0);
-                $takeoffs[$takeoffName]['tax'] += (float)($item['tax'] ?? 0);
-                $takeoffs[$takeoffName]['sub_total'] += (float)($item['sub_total'] ?? 0);
-                $takeoffs[$takeoffName]['oh'] += (float)($item['oh'] ?? 0);
-                $takeoffs[$takeoffName]['profit'] += (float)($item['profit'] ?? 0);
+                $takeoffs[$takeoffKey]['cost'] += (float) ($item['cost'] ?? 0);
+                $takeoffs[$takeoffKey]['tax'] += (float) ($item['tax'] ?? 0);
+                $takeoffs[$takeoffKey]['cost1'] += (float) ($item['cost1'] ?? ((float) ($item['cost'] ?? 0) + (float) ($item['tax'] ?? 0)));
+                $takeoffs[$takeoffKey]['cost_day'] += (float) ($item['cost_day'] ?? 0);
+                $takeoffs[$takeoffKey]['burden'] += (float) ($item['burden'] ?? 0);
+                $takeoffs[$takeoffKey]['lab_cost'] += (float) ($item['lab_cost'] ?? 0);
+                $takeoffs[$takeoffKey]['days'] += (float) ($item['days'] ?? 0);
+                $takeoffs[$takeoffKey]['cost2'] += (float) ($item['cost2'] ?? 0);
+                $takeoffs[$takeoffKey]['sub_total'] += (float) ($item['sub_total'] ?? 0);
+                $takeoffs[$takeoffKey]['oh'] += (float) ($item['oh'] ?? 0);
+                $takeoffs[$takeoffKey]['profit'] += (float) ($item['profit'] ?? 0);
+                $takeoffs[$takeoffKey]['weather'] += (float) ($item['weather'] ?? 0);
 
-                $valorTotal = isset($item['total']) ? (float)$item['total'] : 0;
+                $valorTotal = isset($item['total']) ? (float) $item['total'] : 0;
                 if ($valorTotal == 0) {
-                    $valorTotal = (float)($item['sub_total'] ?? 0) + (float)($item['oh'] ?? 0) + (float)($item['profit'] ?? 0);
+                    $valorTotal =
+                        (float) ($item['sub_total'] ?? 0) +
+                        (float) ($item['oh'] ?? 0) +
+                        (float) ($item['profit'] ?? 0) +
+                        (float) ($item['weather'] ?? 0);
                 }
-                $takeoffs[$takeoffName]['total'] += $valorTotal;
+
+                $takeoffs[$takeoffKey]['total'] += $valorTotal;
+
+                if (($takeoffs[$takeoffKey]['op_unit'] ?? '') === '' && !empty($item['op_unit'])) {
+                    $takeoffs[$takeoffKey]['op_unit'] = $item['op_unit'];
+                }
             }
 
-            $grupo['rows'] = array_values($takeoffs);
+            $rows = array_values($takeoffs);
+
+            usort($rows, function ($filaIzquierda, $filaDerecha) {
+                return $this->compareNaturalAlphabetic(
+                    (string) ($filaIzquierda['takeoff_name'] ?? ''),
+                    (string) ($filaDerecha['takeoff_name'] ?? '')
+                );
+            });
+
+            $grupo['rows'] = $rows;
 
             $html = $this->generarTablaHtmlPorMaterial($grupo);
 
             if (trim($html) !== '') {
                 $reports[] = [
-                    'title' => (string)$grupo['trade_name'] . ' - ' . (string)$grupo['material_name'],
-                    'html'  => $html,
+                    'title' => (string) $grupo['trade_name'] . ' - ' . (string) $grupo['material_name'],
+                    'trade_name' => (string) $grupo['trade_name'],
+                    'material_class_name' => (string) $grupo['material_class_name'],
+                    'material_name' => (string) $grupo['material_name'],
+                    'html' => $html,
                 ];
             }
         }
+
+        // Blindaje extra: ordenar el array final también
+        usort($reports, function ($reporteIzquierdo, $reporteDerecho) {
+            $comparacionTrade = $this->compareNaturalAlphabetic(
+                (string) ($reporteIzquierdo['trade_name'] ?? ''),
+                (string) ($reporteDerecho['trade_name'] ?? '')
+            );
+
+            if ($comparacionTrade !== 0) {
+                return $comparacionTrade;
+            }
+
+            $comparacionClase = $this->compareNaturalAlphabetic(
+                (string) ($reporteIzquierdo['material_class_name'] ?? ''),
+                (string) ($reporteDerecho['material_class_name'] ?? '')
+            );
+
+            if ($comparacionClase !== 0) {
+                return $comparacionClase;
+            }
+
+            return $this->compareNaturalAlphabetic(
+                (string) ($reporteIzquierdo['material_name'] ?? ''),
+                (string) ($reporteDerecho['material_name'] ?? '')
+            );
+        });
 
         return $reports;
     }
@@ -2909,31 +3442,46 @@ class ApiController extends Controller
     private function generarTablaHtmlPorMaterial(array $grupo): string
     {
         $num = function ($v) {
-            return is_numeric($v) ? (float)$v : 0.0;
+            return is_numeric($v) ? (float) $v : 0.0;
         };
 
         $money = function ($v) use ($num) {
             return '$ ' . number_format($num($v), 2);
         };
 
-        $trade = htmlspecialchars((string)($grupo['trade_name'] ?? 'TRADE'), ENT_QUOTES, 'UTF-8');
+        $trade = htmlspecialchars((string) ($grupo['trade_name'] ?? 'TRADE'), ENT_QUOTES, 'UTF-8');
 
         $material = isset($grupo['material']) && is_array($grupo['material']) ? $grupo['material'] : [];
-        $materialNombre = htmlspecialchars((string)($grupo['material_name'] ?? ($material['name'] ?? 'Material')), ENT_QUOTES, 'UTF-8');
-        $materialClassLabel = htmlspecialchars((string)($grupo['material_class_name'] ?? 'CLASS'), ENT_QUOTES, 'UTF-8');
+        $materialNombre = htmlspecialchars((string) ($grupo['material_name'] ?? ($material['name'] ?? 'Material')), ENT_QUOTES, 'UTF-8');
+        $materialClassLabel = htmlspecialchars((string) ($grupo['material_class_name'] ?? 'CLASS'), ENT_QUOTES, 'UTF-8');
 
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AQUÃƒÆ’Ã‚Â: usar items (no rows)
-        $items = isset($grupo['items']) && is_array($grupo['items']) ? $grupo['items'] : [];
-        if (!count($items)) {
+        $rows = isset($grupo['rows']) && is_array($grupo['rows']) ? $grupo['rows'] : [];
+        if (!count($rows)) {
             return '';
         }
 
         // mismas columnas numÃƒÆ’Ã‚Â©ricas que generarTablaHtml()
         $sumCols = [
-            'measuring', 'units', 'waste', 'sq_ft', 'units_total',
-            'cost_ea', 'cost', 'tax', 'cost1',
-            'cost_day', 'burden', 'lab_cost', 'days',
-            'cost2', 'sub_total', 'oh', 'profit', 'weather', 'total'
+            'measuring',
+            'units',
+            'waste',
+            'sq_ft',
+            'units_total',
+            'cost_ea',
+            'cost',
+            'tax',
+            'cost1',
+            'cost_day',
+            'burden',
+            'lab_cost',
+            'days',
+            'cost2',
+            'sub_total',
+            'oh',
+            'profit',
+            'weather',
+            'total'
         ];
         $tot = array_fill_keys($sumCols, 0.0);
 
@@ -2992,69 +3540,70 @@ class ApiController extends Controller
         ';
 
         $i = 1;
-        foreach ($items as $item) {
-            if (!is_array($item)) continue;
+        foreach ($rows as $item) {
+            if (!is_array($item))
+                continue;
 
-            $takeoffName = htmlspecialchars((string)($item['takeoff_name'] ?? 'takeoff'), ENT_QUOTES, 'UTF-8');
+            $takeoffName = htmlspecialchars((string) ($item['takeoff_name'] ?? 'takeoff'), ENT_QUOTES, 'UTF-8');
 
             $measuring = $num($item['measuring'] ?? 0);
-            $units     = $num($item['units'] ?? 0);
+            $units = $num($item['units'] ?? 0);
             //$quantity  = $num($item['quantity'] ?? 0);
-            $waste     = $num($item['waste'] ?? 0);
-            $sqFt      = $num($item['sq_ft'] ?? 0);
-            $units_total     = $num($item['units_total'] ?? 0);
+            $waste = $num($item['waste'] ?? 0);
+            $sqFt = $num($item['sq_ft'] ?? 0);
+            $units_total = $num($item['units_total'] ?? 0);
 
-            $costEa   = $num($item['cost_ea'] ?? 0);
-            $cost     = $num($item['cost'] ?? 0);
-            $tax      = $num($item['tax'] ?? 0);
+            $costEa = $num($item['cost_ea'] ?? 0);
+            $cost = $num($item['cost'] ?? 0);
+            $tax = $num($item['tax'] ?? 0);
 
-            $cost1    = $num($item['cost1'] ?? ($cost + $tax));
-            $costDay  = $num($item['cost_day'] ?? 0);
-            $burden   = $num($item['burden'] ?? 0);
-            $labCost  = $num($item['lab_cost'] ?? 0);
-            $days     = $num($item['days'] ?? 0);
-            $cost2    = $num($item['cost2'] ?? 0);
+            $cost1 = $num($item['cost1'] ?? ($cost + $tax));
+            $costDay = $num($item['cost_day'] ?? 0);
+            $burden = $num($item['burden'] ?? 0);
+            $labCost = $num($item['lab_cost'] ?? 0);
+            $days = $num($item['days'] ?? 0);
+            $cost2 = $num($item['cost2'] ?? 0);
 
             $subTotal = $num($item['sub_total'] ?? 0);
-            $oh       = $num($item['oh'] ?? 0);
-            $profit   = $num($item['profit'] ?? 0);
-            $weather  = $num($item['weather'] ?? 0);
-            $total    = $num($item['total'] ?? ($subTotal + $oh + $profit + $weather));
+            $oh = $num($item['oh'] ?? 0);
+            $profit = $num($item['profit'] ?? 0);
+            $weather = $num($item['weather'] ?? 0);
+            $total = $num($item['total'] ?? ($subTotal + $oh + $profit + $weather));
 
             // acumular
             $tot['measuring'] += $measuring;
-            $tot['op_unit']  = $item['op_unit'] != '' ? $item['op_unit'] : 'lf';
-            $tot['units']     += $units;
-            $tot['waste']     += $waste;
-            $tot['sq_ft']     += $sqFt;
-            $tot['units_total']     += $units_total;
+            $tot['op_unit'] = $item['op_unit'] != '' ? $item['op_unit'] : 'lf';
+            $tot['units'] += $units;
+            $tot['waste'] += $waste;
+            $tot['sq_ft'] += $sqFt;
+            $tot['units_total'] += $units_total;
 
-            $tot['cost_ea']   += $costEa;
-            $tot['cost']      += $cost;
-            $tot['tax']       += $tax;
-            $tot['cost1']     += $cost1;
+            $tot['cost_ea'] += $costEa;
+            $tot['cost'] += $cost;
+            $tot['tax'] += $tax;
+            $tot['cost1'] += $cost1;
 
-            $tot['cost_day']  += $costDay;
-            $tot['burden']    += $burden;
-            $tot['lab_cost']  += $labCost;
-            $tot['days']      += $days;
+            $tot['cost_day'] += $costDay;
+            $tot['burden'] += $burden;
+            $tot['lab_cost'] += $labCost;
+            $tot['days'] += $days;
 
-            $tot['cost2']     += $cost2;
+            $tot['cost2'] += $cost2;
             $tot['sub_total'] += $subTotal;
-            $tot['oh']        += $oh;
-            $tot['profit']    += $profit;
-            $tot['weather']   += $weather;
-            $tot['total']     += $total;
+            $tot['oh'] += $oh;
+            $tot['profit'] += $profit;
+            $tot['weather'] += $weather;
+            $tot['total'] += $total;
 
             $html .= '
                 <tr>
                     <td class="col-id">' . $i . '</td>
                     <td class="col-takeoff">' . $takeoffName . '</td>
-                    <td class="xeon-right">' . number_format($measuring, 2) . ' ' . htmlspecialchars((string)$item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
-                    <td class="xeon-right">' . number_format($units, 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($measuring, 2) . ' ' . htmlspecialchars((string) $item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($units, 2) . ' ' . htmlspecialchars((string) $material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
                     <td class="xeon-right">' . number_format($waste, 2) . '</td>
-                    <td class="xeon-right">' . number_format($sqFt, 2) . ' ' . htmlspecialchars((string)$item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
-                    <td class="xeon-right">' . number_format($units_total, 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($sqFt, 2) . ' ' . htmlspecialchars((string) $item['op_unit'] != '' ? $item['op_unit'] : 'lf', ENT_QUOTES, 'UTF-8') . '</td>
+                    <td class="xeon-right">' . number_format($units_total, 2) . ' ' . htmlspecialchars((string) $material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
                     <td class="xeon-right">' . $money($costEa) . '</td>
                     <td class="xeon-right">' . $money($cost) . '</td>
                     <td class="xeon-right">' . $money($tax) . '</td>
@@ -3079,11 +3628,11 @@ class ApiController extends Controller
                     <tfoot>
                         <tr class="xeon-total-row">
                             <td colspan="2">Total</td>
-                            <td class="xeon-right">' . number_format($tot['measuring'], 2) . ' ' . htmlspecialchars((string)$tot['op_unit'], ENT_QUOTES, 'UTF-8') .'</td>
-                            <td class="xeon-right">' . number_format($tot['units'], 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['measuring'], 2) . ' ' . htmlspecialchars((string) $tot['op_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['units'], 2) . ' ' . htmlspecialchars((string) $material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
                             <td class="xeon-right">' . number_format($tot['waste'], 2) . '</td>
-                            <td class="xeon-right">' . number_format($tot['sq_ft'], 2) . ' ' . htmlspecialchars((string)$tot['op_unit'], ENT_QUOTES, 'UTF-8') . '</td>
-                            <td class="xeon-right">' . number_format($tot['units_total'], 2) . ' ' . htmlspecialchars((string)$material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['sq_ft'], 2) . ' ' . htmlspecialchars((string) $tot['op_unit'], ENT_QUOTES, 'UTF-8') . '</td>
+                            <td class="xeon-right">' . number_format($tot['units_total'], 2) . ' ' . htmlspecialchars((string) $material['default_unit'], ENT_QUOTES, 'UTF-8') . '</td>
                             <td class="xeon-right">' . $money($tot['cost_ea']) . '</td>
                             <td class="xeon-right">' . $money($tot['cost']) . '</td>
                             <td class="xeon-right">' . $money($tot['tax']) . '</td>
@@ -3110,8 +3659,20 @@ class ApiController extends Controller
 
     public function bulkExcel(Request $request)
     {
-        $path = trim((string)$request->input('path', ''));
-        $projectId = trim((string)$request->input('projectId', ''));
+        $path = trim((string) $request->input('path', ''));
+        $projectId = trim((string) $request->input('projectId', ''));
+
+        $selectedColumns = $request->input('selected_columns', []);
+
+        if (!is_array($selectedColumns)) {
+            $selectedColumns = [];
+        }
+
+        $selectedColumns = array_map('intval', $selectedColumns);
+
+        $selectedColumns = array_values(array_filter($selectedColumns, function ($columnIndex) {
+            return $columnIndex > 0;
+        }));
 
         if ($path === '') {
             return response()->json(['ok' => false, 'message' => 'Missing path'], 422);
@@ -3139,11 +3700,15 @@ class ApiController extends Controller
 
         foreach ($bulkResponse['reports'] as $report) {
 
-            $title = trim((string)($report['title'] ?? 'Report'));
-            $html  = (string)($report['html'] ?? '');
+            $title = trim((string) ($report['title'] ?? 'Report'));
+            $html = (string) ($report['html'] ?? '');
 
             if ($html === '') {
                 continue;
+            }
+
+            if (count($selectedColumns) > 0) {
+                $html = $this->filterHtmlTableColumns($html, $selectedColumns);
             }
 
             // ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¦ TÃƒÆ’Ã‚Â­tulo del bloque (tipo card header)
@@ -3172,14 +3737,15 @@ class ApiController extends Controller
 
             // Detectar filas reales (sin NBSP)
             $firstDataRow = null;
-            $lastDataRow  = null;
+            $lastDataRow = null;
 
-            $tmpMaxRow = (int)$tmpSheet->getHighestRow();
+            $tmpMaxRow = (int) $tmpSheet->getHighestRow();
             $tmpMaxCol = Coordinate::columnIndexFromString($tmpSheet->getHighestColumn());
 
             for ($r = 1; $r <= $tmpMaxRow; $r++) {
                 if ($this->rowHasRealContent($tmpSheet, $r, $tmpMaxCol)) {
-                    if ($firstDataRow === null) $firstDataRow = $r;
+                    if ($firstDataRow === null)
+                        $firstDataRow = $r;
                     $lastDataRow = $r;
                 }
             }
@@ -3211,13 +3777,91 @@ class ApiController extends Controller
 
         $filename = 'sheet-reports-' . date('Ymd_His') . '.xlsx';
         $dir = storage_path('app/tmp');
-        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+        if (!is_dir($dir))
+            @mkdir($dir, 0777, true);
 
         $filePath = $dir . DIRECTORY_SEPARATOR . $filename;
 
         (new Xlsx($spreadsheet))->save($filePath);
 
         return response()->download($filePath, $filename)->deleteFileAfterSend(true);
+    }
+
+    private function filterHtmlTableColumns(string $html, array $selectedColumns): string
+    {
+        if (trim($html) === '') {
+            return $html;
+        }
+
+        libxml_use_internal_errors(true);
+
+        $dom = new \DOMDocument();
+
+        $dom->loadHTML(
+            '<html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+        );
+
+        $xpath = new \DOMXPath($dom);
+        $rows = $xpath->query('//tr');
+
+        foreach ($rows as $row) {
+            $realColumnIndex = 1;
+            $cells = [];
+
+            foreach ($row->childNodes as $childNode) {
+                if ($childNode->nodeName === 'td' || $childNode->nodeName === 'th') {
+                    $cells[] = $childNode;
+                }
+            }
+
+            foreach ($cells as $cell) {
+                $originalColspan = (int) $cell->getAttribute('colspan');
+
+                if ($originalColspan <= 0) {
+                    $originalColspan = 1;
+                }
+
+                $coveredColumns = [];
+
+                for ($i = 0; $i < $originalColspan; $i++) {
+                    $coveredColumns[] = $realColumnIndex + $i;
+                }
+
+                $visibleCoveredColumns = array_values(array_filter($coveredColumns, function ($columnIndex) use ($selectedColumns) {
+                    return in_array($columnIndex, $selectedColumns, true);
+                }));
+
+                if (count($visibleCoveredColumns) === 0) {
+                    if ($cell->parentNode) {
+                        $cell->parentNode->removeChild($cell);
+                    }
+                } else {
+                    if (count($visibleCoveredColumns) === 1) {
+                        $cell->removeAttribute('colspan');
+                    }
+
+                    if (count($visibleCoveredColumns) > 1) {
+                        $cell->setAttribute('colspan', count($visibleCoveredColumns));
+                    }
+                }
+
+                $realColumnIndex += $originalColspan;
+            }
+        }
+
+        $body = $dom->getElementsByTagName('body')->item(0);
+        $filteredHtml = '';
+
+        if ($body) {
+            foreach ($body->childNodes as $childNode) {
+                $filteredHtml .= $dom->saveHTML($childNode);
+            }
+        }
+
+        libxml_clear_errors();
+
+        return $filteredHtml;
     }
 
     public function bulkExcelFromHtml(Request $request)
@@ -3242,12 +3886,14 @@ class ApiController extends Controller
         $htmlReader = new HtmlReader();
 
         foreach ($reports as $report) {
-            if (!is_array($report)) continue;
+            if (!is_array($report))
+                continue;
 
-            $title = trim((string)($report['title'] ?? 'Report'));
-            $html  = (string)($report['html'] ?? '');
+            $title = trim((string) ($report['title'] ?? 'Report'));
+            $html = (string) ($report['html'] ?? '');
 
-            if ($html === '') continue;
+            if ($html === '')
+                continue;
 
             // TÃƒÆ’Ã‚Â­tulo del bloque (tipo card header)
             $sheet->setCellValue("A{$currentRow}", $title);
@@ -3272,14 +3918,15 @@ class ApiController extends Controller
 
             // Detectar filas reales (sin NBSP)
             $firstDataRow = null;
-            $lastDataRow  = null;
+            $lastDataRow = null;
 
-            $tmpMaxRow = (int)$tmpSheet->getHighestRow();
+            $tmpMaxRow = (int) $tmpSheet->getHighestRow();
             $tmpMaxCol = Coordinate::columnIndexFromString($tmpSheet->getHighestColumn());
 
             for ($r = 1; $r <= $tmpMaxRow; $r++) {
                 if ($this->rowHasRealContent($tmpSheet, $r, $tmpMaxCol)) {
-                    if ($firstDataRow === null) $firstDataRow = $r;
+                    if ($firstDataRow === null)
+                        $firstDataRow = $r;
                     $lastDataRow = $r;
                 }
             }
@@ -3313,7 +3960,8 @@ class ApiController extends Controller
 
         $filename = 'sheet-reports-' . date('Ymd_His') . '.xlsx';
         $dir = storage_path('app/tmp');
-        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+        if (!is_dir($dir))
+            @mkdir($dir, 0777, true);
 
         $filePath = $dir . DIRECTORY_SEPARATOR . $filename;
         (new Xlsx($spreadsheet))->save($filePath);
@@ -3334,7 +3982,7 @@ class ApiController extends Controller
         int $srcStartRow = 1,
         ?int $srcEndRow = null
     ): int {
-        $srcEndRow = $srcEndRow ?? (int)$srcSheet->getHighestRow();
+        $srcEndRow = $srcEndRow ?? (int) $srcSheet->getHighestRow();
         $srcMaxCol = Coordinate::columnIndexFromString($srcSheet->getHighestColumn());
 
         $dstRow = $startRowDestino;
@@ -3366,11 +4014,12 @@ class ApiController extends Controller
         for ($r = $startRow; $r <= $endRow; $r++) {
             $highestCol = $sheet->getHighestColumn($r); // ej. "U"
             $colIndex = Coordinate::columnIndexFromString($highestCol);
-            if ($colIndex > $maxColIndex) $maxColIndex = $colIndex;
+            if ($colIndex > $maxColIndex)
+                $maxColIndex = $colIndex;
         }
 
         $startCol = 'A';
-        $endCol   = Coordinate::stringFromColumnIndex($maxColIndex);
+        $endCol = Coordinate::stringFromColumnIndex($maxColIndex);
 
         // 1) Bordes + wrap para TODO el bloque
         $sheet->getStyle("{$startCol}{$startRow}:{$endCol}{$endRow}")->applyFromArray([
@@ -3390,8 +4039,8 @@ class ApiController extends Controller
         // (porque columna A es "ID", columna B es "Takeoff")
         $headerRow = null;
         for ($r = $startRow; $r <= min($endRow, $startRow + 15); $r++) {
-            $b = strtoupper(trim((string)$sheet->getCell("B{$r}")->getValue()));
-            $a = strtoupper(trim((string)$sheet->getCell("A{$r}")->getValue()));
+            $b = strtoupper(trim((string) $sheet->getCell("B{$r}")->getValue()));
+            $a = strtoupper(trim((string) $sheet->getCell("A{$r}")->getValue()));
             if ($b === 'TAKEOFF' || $a === 'ID') {
                 $headerRow = $r;
                 break;
@@ -3401,7 +4050,7 @@ class ApiController extends Controller
         // 3) Detectar TOTAL: sigue en la primera columna del tfoot ("Total")
         $totalRow = null;
         for ($r = $endRow; $r >= max($startRow, $endRow - 20); $r--) {
-            $val = strtoupper(trim((string)$sheet->getCell("A{$r}")->getValue()));
+            $val = strtoupper(trim((string) $sheet->getCell("A{$r}")->getValue()));
             if ($val === 'TOTAL') {
                 $totalRow = $r;
                 break;
@@ -3463,7 +4112,7 @@ class ApiController extends Controller
 
     private function normalizeCellValue($v): string
     {
-        $s = (string)($v ?? '');
+        $s = (string) ($v ?? '');
         $s = str_replace(["\xC2\xA0", "\xA0"], ' ', $s);
         $s = preg_replace('/\s+/u', ' ', $s);
         return trim($s);
@@ -3478,6 +4127,474 @@ class ApiController extends Controller
             }
         }
         return false;
+    }
+
+    private function normalizeTextKey($value): string
+    {
+        $texto = is_scalar($value) ? (string) $value : '';
+
+        $texto = trim($texto);
+        $texto = preg_replace('/\s+/u', ' ', $texto);
+        $texto = mb_strtoupper($texto, 'UTF-8');
+
+        // Quitar acentos
+        $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+        if ($texto === false) {
+            $texto = '';
+        }
+
+        $texto = preg_replace('/[^A-Z0-9]+/', ' ', $texto);
+        $texto = preg_replace('/\s+/u', ' ', $texto);
+
+        return trim($texto);
+    }
+
+    private function cleanDisplayText($value, string $fallback = ''): string
+    {
+        $texto = is_scalar($value) ? (string) $value : '';
+        $texto = trim($texto);
+        $texto = preg_replace('/\s+/u', ' ', $texto);
+
+        return $texto !== '' ? $texto : $fallback;
+    }
+
+    private function firstNotEmptyText(array $sources, string $fallback = ''): string
+    {
+        foreach ($sources as $value) {
+            if (is_string($value) || is_numeric($value)) {
+                $texto = trim((string) $value);
+                if ($texto !== '') {
+                    return $texto;
+                }
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function firstNotEmptyNumber(array $sources, $fallback = 0)
+    {
+        foreach ($sources as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            if (is_numeric($value)) {
+                return $value + 0;
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function buildMaterialCanonicalData(array $item): array
+    {
+        $material = isset($item['material']) && is_array($item['material']) ? $item['material'] : [];
+
+        $tradeDisplay = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $item['trade_name'] ?? null,
+                $item['tradeName'] ?? null,
+                $item['trade'] ?? null,
+                $item['division_name'] ?? null,
+            ], 'TRADE'),
+            'TRADE'
+        );
+
+        $classDisplay = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $item['material_class_name'] ?? null,
+                $item['class'] ?? null,
+                $item['material_class'] ?? null,
+                $material['material_class_name'] ?? null,
+                $material['class'] ?? null,
+            ], 'CLASS'),
+            'CLASS'
+        );
+
+        $materialDisplay = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $material['name'] ?? null,
+                $item['material_name'] ?? null,
+                $item['name'] ?? null,
+                $item['description'] ?? null,
+            ], 'Material'),
+            'Material'
+        );
+
+        $materialId = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $material['id'] ?? null,
+                $item['material_id'] ?? null,
+            ], '')
+        );
+
+        $materialUniqueId = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $material['unique_id'] ?? null,
+                $item['material_unique_id'] ?? null,
+                $item['unique_id'] ?? null,
+            ], '')
+        );
+
+        $classId = $this->cleanDisplayText(
+            $this->firstNotEmptyText([
+                $material['material_class_id'] ?? null,
+                $item['material_class_id'] ?? null,
+            ], '')
+        );
+
+        $tradeKey = $this->normalizeTextKey($tradeDisplay);
+        $classKey = $this->normalizeTextKey($classDisplay);
+        $materialKey = $this->normalizeTextKey($materialDisplay);
+        $descriptionKey = $this->normalizeTextKey($item['description'] ?? '');
+
+        // Prioridad:
+        // 1. unique_id
+        // 2. id
+        // 3. nombre normalizado
+        $materialIdentityKey = '';
+        if ($materialUniqueId !== '') {
+            $materialIdentityKey = 'UNIQUE:' . $this->normalizeTextKey($materialUniqueId);
+        }
+
+        if ($materialIdentityKey === '' && $materialId !== '') {
+            $materialIdentityKey = 'ID:' . $this->normalizeTextKey($materialId);
+        }
+
+        if ($materialIdentityKey === '') {
+            $materialIdentityKey = 'NAME:' . $materialKey;
+        }
+
+        // Si la clase no viene, usa nombre de clase; si tampoco, CLASS
+        $classIdentityKey = $classId !== ''
+            ? 'CLASSID:' . $this->normalizeTextKey($classId)
+            : 'CLASSNAME:' . $classKey;
+
+        $groupKey = implode('|', [
+            $tradeKey !== '' ? $tradeKey : 'TRADE',
+            $classIdentityKey !== '' ? $classIdentityKey : 'CLASS',
+            $materialIdentityKey !== '' ? $materialIdentityKey : 'MATERIAL',
+        ]);
+
+        return [
+            'group_key' => $groupKey,
+
+            'trade_display' => $tradeDisplay,
+            'trade_key' => $tradeKey !== '' ? $tradeKey : 'TRADE',
+
+            'class_display' => $classDisplay,
+            'class_key' => $classKey !== '' ? $classKey : 'CLASS',
+
+            'material_display' => $materialDisplay,
+            'material_key' => $materialKey !== '' ? $materialKey : 'MATERIAL',
+
+            'material_id' => $materialId,
+            'material_unique_id' => $materialUniqueId,
+            'description_key' => $descriptionKey,
+
+            'material' => $material,
+        ];
+    }
+
+    private function buildTakeoffCanonicalName(array $item): string
+    {
+        $takeoffName = $this->firstNotEmptyText([
+            $item['takeoff_name'] ?? null,
+            $item['takeoff'] ?? null,
+            $item['name'] ?? null,
+            $item['description'] ?? null,
+        ], 'takeoff');
+
+        return $this->cleanDisplayText($takeoffName, 'takeoff');
+    }
+
+    private function compareNaturalAlphabetic(string $textoA, string $textoB): int
+    {
+        return strnatcasecmp(
+            $this->normalizeTextKey($textoA),
+            $this->normalizeTextKey($textoB)
+        );
+    }
+
+    public function deleteTemplate(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer',
+        ]);
+
+        $userId = auth()->id();
+
+        $deleted = LineTemplate::where('id', $request->id)
+            ->where('user_id', $userId)
+            ->delete();
+
+        if (!$deleted) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Template not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Template deleted successfully',
+        ]);
+    }
+
+    public function uploadAnnotationPhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|file|mimes:jpg,jpeg,png,webp|max:10240',
+            'project_id' => 'required|integer',
+        ]);
+
+        try {
+            $projectId = (int) $request->project_id;
+            $file = $request->file('photo');
+
+            $directory = "projects/project{$projectId}/photos";
+
+            $extension = $file->getClientOriginalExtension();
+            $fileName = 'annotation_photo_' . time() . '_' . Str::random(8) . '.' . $extension;
+
+            StorageService::putFileAs($directory, $file, $fileName, 'public');
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Photo uploaded successfully',
+                'path' => StorageService::url($directory . '/' . $fileName),
+            ]);
+        } catch (\Throwable $throwable) {
+            return response()->json([
+                'status' => false,
+                'message' => $throwable->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function currentUser(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'status' => 200,
+            'user' => $user,
+            'role' => (int) $user->role,
+        ]);
+    }
+
+    public function updateLineTemplate(Request $request)
+    {
+        $data = $request->all();
+
+        $id = $data['id'] ?? null;
+
+        if (!$id) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Template id is required',
+            ]);
+        }
+
+        $template = LineTemplate::find($id);
+
+        if (!$template) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Template not found',
+            ]);
+        }
+
+        $templateName = $data['template_name'] ?? '';
+        $templateType = $data['template_type'] ?? 'length';
+        $isGlobal = isset($data['is_global']) ? (int) $data['is_global'] : 0;
+
+        $tradeName = '';
+
+        if (isset($data['trade_name'])) {
+            if (is_array($data['trade_name'])) {
+                $tradeName = $data['trade_name']['name'] ?? '';
+            }
+
+            if (is_string($data['trade_name'])) {
+                $tradeDecoded = json_decode($data['trade_name']);
+                $tradeName = $tradeDecoded->name ?? $data['trade_name'];
+            }
+        }
+
+        $formData = $data['formData'] ?? [];
+
+        $template->template_name = $templateName;
+        $template->trade_name = $tradeName;
+        $template->template_type = $templateType;
+        $template->local_db = json_encode($formData);
+        $template->is_global = $isGlobal;
+        $template->save();
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Template updated successfully',
+            'template' => $template,
+        ]);
+    }
+
+    public function saveDrawingTemplate(Request $request)
+    {
+        $data = $request->all();
+        $user = auth()->user();
+
+        $templateId = $data['template_id'] ?? null;
+
+        if (!$templateId) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'template_id is required',
+            ]);
+        }
+
+        DrawingTemplate::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'template_id' => $templateId,
+            ],
+            [
+                'template_name' => $data['template_name'] ?? null,
+                'color' => $data['color'] ?? '#000000',
+            ]
+        );
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Drawing template saved',
+        ]);
+    }
+
+    public function getDrawingTemplate($template_id)
+    {
+        $user = auth()->user();
+
+        $drawingTemplate = DrawingTemplate::where('user_id', $user->id)
+            ->where('template_id', $template_id)
+            ->first();
+
+        return response()->json([
+            'status' => 200,
+            'drawing_template' => $drawingTemplate,
+        ]);
+    }
+
+    public function getLineTemplateById($id)
+    {
+        try {
+            $template = LineTemplate::where('id', $id)
+                ->where('template_type', 'length')
+                ->first();
+
+            if (!$template) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Template not found',
+                    'template' => null,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'template' => $template,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => $e->getMessage(),
+                'template' => null,
+            ]);
+        }
+    }
+
+    public function templatesLite()
+    {
+        try {
+            $templates = LineTemplate::select(
+                    'id',
+                    'template_name',
+                    'trade_name',
+                    'template_type',
+                    'is_global',
+                    'user_id'
+                )
+                ->orderBy('template_type', 'asc')
+                ->orderBy('trade_name', 'asc')
+                ->orderBy('template_name', 'asc')
+                ->get();
+
+            return response()->json([
+                'status' => 200,
+                'template' => $templates,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => $e->getMessage(),
+                'template' => [],
+            ]);
+        }
+    }
+
+    public function getAreaTemplateById($id)
+    {
+        try {
+            $template = LineTemplate::where('id', $id)
+                ->where('template_type', 'area')
+                ->first();
+
+            if (!$template) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Template not found',
+                    'template' => null,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'template' => $template,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => $e->getMessage(),
+                'template' => null,
+            ]);
+        }
+    }
+
+    public function getPerimeterTemplateById($id)
+    {
+        try {
+            $template = LineTemplate::where('id', $id)
+                ->where('template_type', 'perimeter')
+                ->first();
+
+            if (!$template) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Template not found',
+                    'template' => null,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'template' => $template,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => $e->getMessage(),
+                'template' => null,
+            ]);
+        }
     }
 
 }

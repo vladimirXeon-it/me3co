@@ -69,7 +69,7 @@
         </div>   
     </div>
 </header>
-    <header class="w-100 bg-sticky d-inline-block">
+<header class="w-100 bg-sticky d-inline-block">
 	<div class="container">
       <div class="row mt-2">
           <div class="col-xl-2 col-5 col-sm-5 col-md-5 col-lg-5">

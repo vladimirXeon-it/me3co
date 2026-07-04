@@ -2,168 +2,112 @@
 @section('title', 'Labors')
 
 @section('content')
-    <div class="page-content-tab">
-        <div class="container-fluid">
-            <!-- Page-Title -->
-            {{-- <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-self-center">
-                                <h4 class="page-title pb-md-0">My Labor</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Labor</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
+            
+            <div class="project-page-header flex-shrink-0 mb-2">
+                <div>
+                    <h1 class="fw-bold m-0" style="font-size: 24px; color: #0f172a;">Labors</h1>
+                </div>
+                <div class="project-page-actions">
+                    <div class="creat-project-btn">
+                        <a href="{{ route('labor.create') }}"
+                            class="btn btn-primary fw-bold d-flex align-items-center gap-2 px-3 py-2"
+                            style="border-radius: 6px; background-color: #0052ff; border: none; font-size: 13px;">
+                                <i class="fa fa-plus"></i>
+                                Create New Labor
+                        </a>
                     </div>
-                    <!--end page-title-box-->
                 </div>
-                <!--end col-->
-            </div> --}}
-            <!--end row-->
+            </div>
 
-    <div class="row mt-3">
-        <div class="col-10">
-            <div class="d-flex align-items-center gap-2">
-                <button
-                    type="button"
-                    class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                    onclick="goBack()"
-                    aria-label="Go back"
-                    title="Back"
-                    style="line-height:1;"
-                >
-                    <i class="fa fa-reply"></i>
-                </button>
-                <h2 class="text-black fs-4 fw-bold m-0">My Labor @if ($project!=null)
-                   for {{$project->name}}
-                @endif</h2>
-            </div>
-        </div>
-        <div class="col-2">
-            <div class="float-end d-inline-block">
-                <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                    <li class="breadcrumb-item active">Labor</li>
-                </ol>
-            </div>
-            <div class="float-end d-inline-block creat-project-btn">
-                <a 
-                    href="{{ route('labor.create') }}" 
-                    class="text-14 fw-bold d-inline-block btn-create-project"
-                >
-                <img src="{{ asset('projects') }}/images/plus-icon.svg">
-                    Create Labor
-                </a>
-            </div>
-        </div>
-    </div>
-     <div class="row">
-            <div class="col-12">
-                <div class="w-100 d-inline-block project-table mt-4">
-                    <table class="table table-striped" id="projectTableId">
-                        <thead class="thead-light">
-                            <tr>
-                                <th scope="col" data-sortable="" style="width: 5.58912%;"><a
-                                        href="#" class="dataTable-sorter">#</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Labor
-                                        Id</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Labor
-                                        Class</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Labor
-                                        Type</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Cost
-                                        Per Hour</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Burdens</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Total
-                                        Cost</a></th>
-                                <th scope="col" data-sortable=""><a href="#"
-                                        class="dataTable-sorter">Actions</a></th>
-                            </tr>
-                            <!--end tr-->
-                        </thead>
-                        <tbody>
-                            @php
-                                $i = 1;
-                            @endphp
-                            @foreach ($labors as $labor)
+            <div class="card me3co-list-card border-0 shadow-sm mb-2 p-3"
+                style="border-radius:16px;">
+                <div class="card-body p-0 ">
+                
+                    <div class="me3co-table-wrapper flex-grow-1">
+                        <table class="table align-middle me3co-table mb-0" id="projectTableId">
+                            <thead>
                                 <tr>
-                                    <td>{{ $i++ }}</td>
-                                    <td>{{ $labor->unique_id }}</td>
-                                    <td>{{ $labor->labor_class->name }}</td>
-                                    <td>{{ $labor->labor_type }}</td>
-                                    <td>{{ $labor->cost_per_hour }}$</td>
-                                    <td>
-                                        @php
-                                            $burdens = json_decode($labor->burdens);
-                                        @endphp
-                                        <ul>
-                                            @foreach ($burdens as $burden)
-                                                <li><b>{{ $burden->name }}</b>({{ $burden->percentage ? $burden->percentage : '0' }}%,
-                                                    {{ $burden->price ? $burden->price : '0' }}$)
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </td>
-                                    <td>{{ $labor->total_cost }}$</td>
-                                    <td class="text-nowrap">
-                                        <a type="button" class="delete-button"
-                                            href="{{ route('labor.delete', ['id' => $labor->id]) }}"
-                                        >
-                                        <img class="edit-icon" src="{{ asset('projects') }}/images/delete-icon.svg">
-                                        </a>
-                                        <a type="button" class="edit-button"
-                                            href="{{ route('labor.edit', ['id' => $labor->id]) }}"
-                                        >
-                                            <img class="edit-icon me-2" src="{{ asset('projects') }}/images/edit-icon.svg">
-                                        </a>
-                                    </td>
+                                    <th scope="col" style="width: 50px; background-color: #ffffff; font-size: 13px;">#</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Labor Id</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Labor Class</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Labor Type</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Cost Per Hour</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Burdens</th>
+                                    <th scope="col" style="background-color: #ffffff; font-size: 13px;">Total Cost</th>
+                                    <th scope="col" class="text-end pe-3" style="background-color: #ffffff; font-size: 13px;">Actions</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @php $i = 1; @endphp
+                                @foreach ($labors as $labor)
+                                    <tr>
+                                        <td class="fw-bold text-muted ps-2" style="font-size: 13px;">{{ $i++ }}</td>
+                                        <td class="fw-semibold text-dark" style="font-size: 13px;">{{ $labor->unique_id }}</td>
+                                        <td style="font-size: 13px;">{{ $labor->labor_class->name }}</td>
+                                        <td style="font-size: 13px;"><span class="badge bg-light text-dark border px-2 py-1">{{ $labor->labor_type }}</span></td>
+                                        <td class="fw-medium" style="font-size: 13px;">{{ number_format($labor->cost_per_hour, 2) }}$</td>
+                                        <td>
+                                            @php $burdens = json_decode($labor->burdens); @endphp
+                                            <div class="d-flex flex-column gap-1">
+                                                @foreach($burdens as $burden)
+                                                    <small class="text-muted">
+                                                        <strong class="text-dark">{{ $burden->name }}</strong>
+                                                        ({{ $burden->percentage ?: 0 }}%, {{ $burden->price ?: 0 }}$)
+                                                    </small>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="fw-bold text-dark" style="font-size: 13px;">{{ number_format($labor->total_cost, 2) }}$</td>
+                                        <td class="text-end" style="width:80px;">
+                                            <div class="dropdown">
+                                                <button class="btn btn-light btn-sm border text-muted px-2"
+                                                    type="button"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false">
+                                                    <i class="fa fa-ellipsis-v"></i>
+                                                </button>
+
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                                    <li>
+                                                        <a class="dropdown-item"
+                                                            href="{{ route('labor.edit', ['id' => $labor->id]) }}">
+                                                            <i class="fa fa-pencil me-2 text-primary"></i>
+                                                            Edit
+                                                        </a>
+                                                    </li>
+
+                                                    <li>
+                                                        <a class="dropdown-item text-danger"
+                                                            href="{{ route('labor.delete', ['id' => $labor->id]) }}"
+                                                            onclick="return confirm('Are you sure you want to delete this labor?')">
+                                                            <i class="fa fa-trash me-2"></i>
+                                                            Delete
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+
         </div>
-
-        </div><!-- container -->
     </div>
-
 @endsection()
 
 @section('script')
     <script>
-        $(document).ready(function() {
-            $('#projectTableId').DataTable({
-                "paging": true,  // Enable pagination
-                "searching": true,  // Enable search
-                // You can customize further options here
-            });
-
-        });
-    </script>
-    <script>
         function goBack() {
-            if (window.history.length > 1) {
-            window.history.back();
-            return;
-            }
-            window.location.href = "/projects"; // fallback
+            window.location.href = "/project";
         }
+
+        // Función global de cálculo de costos
         let totalBurdens = 0;
         let totalBurdenPrice = 0;
         const calculateTotalCost = () => {
@@ -181,66 +125,117 @@
             let totalCost = cost_per_hour + (cost_per_hour * totalBurdens / 100) + totalBurdenPrice;
             $('.total_cost').val(totalCost.toFixed(2))
         }
+
         $(document).ready(function() {
-            var max_fields = 50; //maximum input boxes allowed
-            var wrapper = $(".more-burdon"); //Fields wrapper
-            var add_button = $(".btn-bur"); //Add button ID
+            // 1. Inicialización ÚNICA de DataTables corrigiendo duplicados
+            /*if ($.fn.DataTable.isDataTable('#projectTableId')) {
+                $('#projectTableId').DataTable().destroy();
+            }*/
 
-            var x = 1; //initlal box count
+            $('#projectTableId').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                lengthChange: true,
 
-            $(add_button).click(function(e) { //on add input button click
-                e.preventDefault();
-                if (x < max_fields) { //max input box allowed
-                    x++; //text box increment
-                    $(wrapper).append(
-                        `<div class="form-group row"><div class="col-sm-4"><input type="text" name="burdens[${x+1}][name]" class="form-control" placeholder="Burden"></div><div class="col-sm-3"><input type="number" step="0.001" name="burdens[${x+1}][percentage]" class="form-control burden_percentage" placeholder="%"></div><div class="col-sm-3"><input type="number" step="0.001" name="burdens[${x+1}][price]" class="form-control burden_price" placeholder="$"></div><div class="col-md-1"><div class="form-group"><button class="btn btn-danger btn-sm remove" style=""><i class="fa fa-trash"></i></button></div></div></div>`
-                    ); //add input box
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+
+                scrollY: 'calc(100vh - 430px)',
+                scrollCollapse: false,
+
+                dom:
+                    '<"d-flex justify-content-between align-items-center mb-3"l f>' +
+                    't' +
+                    '<"d-flex justify-content-between align-items-center mt-3"i p>',
+
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search labor...",
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        previous: "Previous",
+                        next: "Next"
+                    }
                 }
             });
 
-            $(wrapper).on("click", ".remove", function(e) { //user click on remove text
+            $('.dataTables_filter input')
+                .addClass('form-control form-control-sm me3co-search');
+
+            $('.dataTables_filter label')
+                .contents()
+                .filter(function () {
+                    return this.nodeType === 3;
+                })
+                .remove();
+
+            // 2. Lógica para añadir inputs dinámicos de Burdens
+            var max_fields = 50; 
+            var wrapper = $(".more-burdon"); 
+            var add_button = $(".btn-bur"); 
+            var x = 1; 
+
+            $(add_button).click(function(e) {
+                e.preventDefault();
+                if (x < max_fields) { 
+                    x++; 
+                    $(wrapper).append(
+                        `<div class="form-group row"><div class="col-sm-4"><input type="text" name="burdens[${x+1}][name]" class="form-control" placeholder="Burden"></div><div class="col-sm-3"><input type="number" step="0.001" name="burdens[${x+1}][percentage]" class="form-control burden_percentage" placeholder="%"></div><div class="col-sm-3"><input type="number" step="0.001" name="burdens[${x+1}][price]" class="form-control burden_price" placeholder="$"></div><div class="col-md-1"><div class="form-group"><button class="btn btn-danger btn-sm remove"><i class="fa fa-trash"></i></button></div></div></div>`
+                    ); 
+                }
+            });
+
+            $(wrapper).on("click", ".remove", function(e) {
                 e.preventDefault();
                 $(this).parents(".form-group").remove();
                 x--;
                 calculateTotalCost();
-            })
-        });
-        $('#create-new').click(function() {
-            $('.new-project').show();
-            $('.my-project').hide();
-        });
-        $('#back').click(function() {
-            $('.new-project').hide();
-            $('.my-project').show();
-        });
+            });
 
-        $(document).ready(function() {
+            // 3. Listeners para el cálculo automático en tiempo real
             $('.hourly_cost').on('input', function() {
                 calculateTotalCost();
-            })
+            });
             $('body').on('input', '.burden_percentage', function() {
                 calculateTotalCost();
             });
             $('body').on('input', '.burden_price', function() {
                 calculateTotalCost();
-            })
-        })
-        let importButton = document.querySelector('.import_button');
-        importButton.addEventListener('click',async (e) => {
-            let importItems = document.querySelectorAll('.import-item');
-            let importCount = document.querySelectorAll('.import-item  input:checked');
-            if(importCount.length == 0) {
-                alert('Please select an Item to import!')
-                return false;
+            });
+
+            // Control de vistas manuales secundarias si existen
+            $('#create-new').click(function() {
+                $('.new-project').show();
+                $('.my-project').hide();
+            });
+            $('#back').click(function() {
+                $('.new-project').hide();
+                $('.my-project').show();
+            });
+
+            // Listener asíncrono para importación
+            let importButton = document.querySelector('.import_button');
+            if(importButton) {
+                importButton.addEventListener('click', async (e) => {
+                    let importItems = document.querySelectorAll('.import-item');
+                    let importCount = document.querySelectorAll('.import-item input:checked');
+                    if(importCount.length == 0) {
+                        alert('Please select an Item to import!');
+                        return false;
+                    }
+                    for await(item of importItems) {
+                        let checkStatus = item.querySelector('input:checked');
+                        if(checkStatus) {
+                            let url = item.querySelector('a').href;
+                            await fetch(url);
+                        }
+                    }
+                    window.location.reload();
+                });
             }
-            for await(item of importItems) {
-                let checkStatus = item.querySelector('input:checked');
-                if(checkStatus) {
-                    let url = item.querySelector('a').href;
-                    await fetch(url);
-                }
-            }
-            window.location.reload()
-        })
+        });
     </script>
 @endsection()

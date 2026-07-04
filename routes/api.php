@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Wall;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,6 +18,25 @@ use App\Http\Controllers\Wall;
 */
 Route::post('login', [ApiController::class, 'login']);
 Route::post('/sendPasswordResetEmail', [ApiController::class, 'sendPasswordResetEmail']);
+Route::get('/s3-test', function () {
+
+        Storage::disk('s3')->put(
+            'test/test.txt',
+            'Hola Paco desde Laravel'
+        );
+
+        return Storage::disk('s3')->exists('test/test.txt')
+            ? 'OK'
+            : 'FAIL';
+    });
+Route::get('/s3-env-test', function () {
+    return [
+        'bucket' => env('AWS_BUCKET2'),
+        'region' => env('AWS_DEFAULT_REGION'),
+        'storage_on_s3' => env('STORAGE_ON_S3'),
+        'config_bucket' => config('filesystems.disks.s3.bucket'),
+    ];
+});
 Route::middleware('auth.token')->group(function() {
     Route::get('me', [ApiController::class, 'me']);
 
@@ -96,5 +116,33 @@ Route::middleware('auth.token')->group(function() {
     Route::post('/takeoffs/reports/bulk', [ApiController::class, 'bulk']);
     Route::post('/takeoffs/reports/bulk-excel', [ApiController::class, 'bulkExcel']);
     Route::post('/takeoffs/reports/bulk-excel-html', [ApiController::class, 'bulkExcelFromHtml']);
+
+    Route::post('/delete-template', [ApiController::class, 'deleteTemplate']);
+    Route::post('/upload-annotation-photo', [ApiController::class, 'uploadAnnotationPhoto']);
+
+    Route::get('/user', [ApiController::class, 'currentUser']);
+    Route::post('/update-line-template', [ApiController::class, 'updateLineTemplate']);
+
+    Route::post('/save-drawing-template', [ApiController::class, 'saveDrawingTemplate']);
+    Route::get('/drawing-template/{template_id}', [ApiController::class, 'getDrawingTemplate']);
+
+    Route::get('/uploads/{path}', function ($path) {
+        $cleanPath = StorageService::cleanPath($path);
+
+        if (StorageService::useS3()) {
+            if (!StorageService::exists($cleanPath)) {
+                abort(404);
+            }
+
+            return redirect(StorageService::url($cleanPath));
+        }
+
+        abort(404);
+    })->where('path', '.*');
+
+    Route::get('/get-line-template-by-id/{id}', [ApiController::class, 'getLineTemplateById']);
+    Route::get('/get-area-template-by-id/{id}', [ApiController::class, 'getAreaTemplateById']);
+    Route::get('/get-perimeter-template-by-id/{id}', [ApiController::class, 'getPerimeterTemplateById']);
+    Route::get('/templates-lite', [ApiController::class, 'templatesLite']);
 
 });

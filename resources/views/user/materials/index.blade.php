@@ -1,145 +1,140 @@
+@php
+    $return_url = request()->fullUrl();
+@endphp
+
 @extends('user.layouts.app')
 
 @section('title', 'Materials')
 
 @section('content')
 
-    <div class="page-content-tab" data-select2-id="11">
-        <div class="container-fluid" data-select2-id="10">
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
             <!-- Page-Title -->
-            {{-- <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-self-center">
-                                <h4 class="page-title pb-md-0">My Materials</h4>
+            <div class="project-page-header flex-shrink-0 mb-3">
+                <div>
+                    <h1>
+                        @if ($project)
+                            My Materials for {{ $project->name }}
+                        @else
+                            Materials
+                        @endif
+                    </h1>
+                </div>
 
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Materials</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div> --}}
-            <div class="row mt-3">
-                <div class="col-10">
-                    <div class="d-flex align-items-center gap-2">
-                        <button
-                            type="button"
-                            class="btn btn-link btn-back-icon p-0 m-0 text-dark"
-                            onclick="goBack()"
-                            aria-label="Go back"
-                            title="Back"
-                            style="line-height:1;"
-                        >
-                            <i class="fa fa-reply"></i>
-                        </button>
-                        <h2 class="text-black fs-4 fw-bold m-0">My Materials @if ($project != null)
-                                for {{ $project->name }}
-                            @endif
-                        </h2>
-                    </div>
-                </div>
-                <div class="col-2">
-                    <div class="float-end d-inline-block">
-                        <ol class="breadcrumb mb-1">
-                            <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                            <li class="breadcrumb-item active">Materials</li>
-                        </ol>
-                    </div>
-                    <div class="float-end d-inline-block creat-project-btn">
-                        <a href="{{ route('material.add') }}" class="text-14 fw-bold d-inline-block btn-create-project">
-                            <img src="{{ asset('projects') }}/images/plus-icon.svg">
+                <div class="project-page-actions">
+                    <div class="creat-project-btn">
+                        <a href="{{ route('material.add', ['return_url' => $return_url]) }}"
+                        class="btn-create-project">
+                            <i class="fa fa-plus"></i>
                             Create Material
                         </a>
                     </div>
                 </div>
             </div>
             <!--end row-->
-            <div class="row">
-               
+            <div class="card border-0 shadow-sm mb-3 p-3" style="border-radius:16px;">
                 <form method="post" action="{{ route('material.division') }}">
                     @csrf()
-                    <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                        <div class="form-group input-project">
-                            <label class="text-14">Division: <span class="text-danger">*</span></label>
-                            <select class="form-control" name="material_division_id" id="material_division_id" >
+
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold mb-1">
+                                Division <span class="text-danger">*</span>
+                            </label>
+
+                            <select class="form-control" name="material_division_id" id="material_division_id">
                                 <option value="">All Divisions</option>
+
                                 @php
                                     $material_divisions = get_material_divisions();
                                 @endphp
+
                                 @foreach ($material_divisions as $material_division)
-                                    @php
-                                    $selected="";
-                                    if($material_division->id == $material_division_id)
-                                        $selected="selected";
-                                    @endphp
-                                    <option value="{{ $material_division->id }}" {{$selected}}>
-                                        {{ $material_division->name }}</option>
+                                    <option value="{{ $material_division->id }}"
+                                        {{ $material_division->id == $material_division_id ? 'selected' : '' }}>
+                                        {{ $material_division->name }}
+                                    </option>
                                 @endforeach
                             </select>
-                            <button class="btn save-btn text-white">Filter</button>
                         </div>
 
+                        <div class="col-md-auto">
+                            <button class="btn fw-bold text-white px-4"
+                                style="height:38px;border-radius:8px;background:#0D5EFF;border:0;">
+                                Filter
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="row">
                 <div class="col-12">
-                    <div class="w-100 d-inline-block project-table mt-4">
-                        <table class="table table-striped" id="projectTableId">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th class="border-top-0">#</th>
-                                    <th class="border-top-0">Material</th>
-                                    <th class="border-top-0">Type</th>
-                                    <th class="border-top-0">Division</th>
-                                    <th class="border-top-0">Class</th>
-                                    <th class="border-top-0">Material Id</th>
-                                    <th class="border-top-0">Created At</th>
-                                    <th class="border-top-0">Action</th>
-                                </tr>
-                                <!--end tr-->
-                            </thead>
-                            <tbody>
-                                @php
-                                    $i = 1;
-                                @endphp
-
-                                @foreach ($materials as $material)
+                    <div class="card me3co-list-card border-0 shadow-sm mb-2 p-3"
+                        style="border-radius:16px;">
+                        <div class="me3co-table-wrapper">
+                            <table class="table align-middle me3co-table mb-0" id="projectTableId">
+                                <thead>
                                     <tr>
-                                        <td>{{ $i++ }}</td>
-                                        <td>{{ $material->name }}</td>
-                                        <td>{{ $material->material_type->name }}</td>
-                                        <td>{{ $material->material_division->name }}</td>
-                                        <td>{{ $material->material_class->name }}</td>
-                                        <td>{{ $material->unique_id }}</td>
-                                        <td>{{ $material->created_at->format('d F, Y') }}</td>
-                                        <td class="text-nowrap">
-                                            <a type="button" class="delete-button"
-                                                href="{{ route('material.delete', ['id' => $material->id]) }}">
-                                                <img class="edit-icon"
-                                                    src="{{ asset('projects') }}/images/delete-icon.svg">
-                                            </a>
-                                            <a type="button" class="edit-button"
-                                                href="{{ route('material.edit', ['id' => $material->id]) }}">
-                                                <img class="edit-icon me-2"
-                                                    src="{{ asset('projects') }}/images/edit-icon.svg">
-                                            </a>
-                                        </td>
+                                        <th class="border-top-0">#</th>
+                                        <th class="border-top-0">Material</th>
+                                        <th class="border-top-0">Type</th>
+                                        <th class="border-top-0">Division</th>
+                                        <th class="border-top-0">Class</th>
+                                        <th class="border-top-0">Material Id</th>
+                                        <th class="border-top-0">Created At</th>
+                                        <th class="border-top-0">Action</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                    <!--end tr-->
+                                </thead>
+                                <tbody>
+                                    @php
+                                        $i = 1;
+                                    @endphp
+
+                                    @foreach ($materials as $material)
+                                        <tr>
+                                            <td>{{ $i++ }}</td>
+                                            <td>{{ $material->name }}</td>
+                                            <td>{{ $material->material_type->name }}</td>
+                                            <td>{{ $material->material_division->name }}</td>
+                                            <td>{{ $material->material_class->name }}</td>
+                                            <td>{{ $material->unique_id }}</td>
+                                            <td>{{ $material->created_at->format('d F, Y') }}</td>
+                                            <td class="text-end">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-light btn-sm border text-muted px-2"
+                                                        type="button"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false">
+                                                        <i class="fa fa-ellipsis-v"></i>
+                                                    </button>
+
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                                        <li>
+                                                            <a class="dropdown-item"
+                                                            href="{{ route('material.edit', ['id' => $material->id, 'return_url' => $return_url]) }}">
+                                                                <i class="fa fa-pencil me-2 text-primary"></i>
+                                                                Edit
+                                                            </a>
+                                                        </li>
+
+                                                        <li>
+                                                            <a class="dropdown-item text-danger"
+                                                            href="{{ route('material.delete', ['id' => $material->id]) }}"
+                                                            onclick="return confirm('Are you sure you want to delete this material?')">
+                                                                <i class="fa fa-trash me-2"></i>
+                                                                Delete
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,19 +148,46 @@
     <script>
         $(document).ready(function() {
             $('#projectTableId').DataTable({
-                "paging": true, // Enable pagination
-                "searching": true, // Enable search
-                // You can customize further options here
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                lengthChange: true,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+
+                scrollY: 'calc(100vh - 420px)',
+                scrollCollapse: false,
+                scrollX: false,
+
+                dom:
+                    '<"d-flex justify-content-between align-items-center mb-3"l f>' +
+                    't' +
+                    '<"d-flex justify-content-between align-items-center mt-3"i p>',
+
+                language: {
+                    search: "",
+                    searchPlaceholder: "Search materials...",
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        previous: "Previous",
+                        next: "Next"
+                    }
+                }
             });
+
+            $('.dataTables_filter input')
+                .addClass('form-control form-control-sm me3co-search');
+
+            $('.dataTables_filter label').contents().filter(function(){
+                return this.nodeType === 3;
+            }).remove();
         });
     </script>
     <script>
         function goBack() {
-            if (window.history.length > 1) {
-            window.history.back();
-            return;
-            }
-            window.location.href = "/projects"; // fallback
+            window.location.href = "/project"; // fallback
         }
         let oldValue = ''
         $('#create-new').click(function() {
@@ -195,19 +217,21 @@
         });
         const materialDivision = document.querySelector('#material_division_id');
         const materialClass = document.querySelector('#material_class_id');
-        materialDivision.addEventListener('change', async (e) => {
-            let value = e.target.value;
-            let url = `{{ route('material_class') }}/${value}`;
+        if (materialDivision && materialClass) {
+            materialDivision.addEventListener('change', async (e) => {
+                let value = e.target.value;
+                let url = `{{ route('material_class') }}/${value}`;
 
-            let response = await fetch(url);
-            let data = await response.json();
+                let response = await fetch(url);
+                let data = await response.json();
 
-            materialClass.innerHTML = '<option value="" selected hidden>Choose Class</option>';
-            data.forEach((material_class) => {
-                materialClass.innerHTML +=
-                    `<option value="${material_class.id}">${material_class.name}</option>`
-            })
-        })
+                materialClass.innerHTML = '<option value="" selected hidden>Choose Class</option>';
+                data.forEach((material_class) => {
+                    materialClass.innerHTML +=
+                        `<option value="${material_class.id}">${material_class.name}</option>`
+                });
+            });
+        }
 
         const fractions = document.querySelectorAll('.fraction-input');
         fractions.forEach(frac => {

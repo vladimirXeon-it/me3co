@@ -107,6 +107,7 @@ class Wall extends Model
         'lineTemplate',
         'type',
         'formData',
+        'idUnique',
 
     ];
 
