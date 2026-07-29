@@ -14,9 +14,13 @@ class WallController extends Controller
 {
     public $totalsDatasFinal = [];
     public $current_project_id = null;
+    private $catalogoMateriales = [];
+    private $current_user_id = null;
 
     function recalculate($wall_id = null, $wall_data = null)
     {
+        $this->totalsDatasFinal = [];
+        $this->catalogoMateriales = [];
         /*  $lineTemplate = LineTemplate::find($project_id);
         $json = json_decode($lineTemplate->local_db);
 
@@ -24,12 +28,12 @@ class WallController extends Controller
  */
         if ($wall_data !== null) {
             $wall = $wall_data;
-        }
-
-        if ($wall_data === null) {
+        }else{
             $wall = Wall::find($wall_id);
         };
         $this->current_project_id = $wall->project_id;
+        $this->current_user_id = (int) $wall->user_id;
+        $this->cargarCatalogoMateriales($wall->project_id);
 
         $project = Project::where('id', $wall->project_id)->select('tax', 'oh', 'profit', 'weather')->first();
         $wall->project = $project;
@@ -59,57 +63,553 @@ class WallController extends Controller
     }
     function processOpening($data)
     {
-
+        $project = $data->project;
+        $project_id = $data->project_id;
         $data = json_decode($data->formData);
         $this->limpiarMaterialesNoPertenecientesAlProyecto($data);
 
-        $data->top_elevation = 0;
-        $data->material_sq_ft = 0;
-        $data->sq_area = 0; // Numeric
-        $data->total_units = 0; // Numeric
-        $data->total = 0; // Numeric
-        $data->total_sq_ft = 0; // Numeric
-        $data->total_units_opening = 0; // Numeric
-        $data->total_area = 0; // Numeric
-        $data->total_cy = 0; // Numeric
-        $data->header_reinforcing = 0; // Select (Material)
-        $data->total_reinforcing = 0; // Numeric
+        $quantity = max(1, (int) ($data->quantity ?? 1));
+        $shape = strtolower((string) ($data->shape ?? 'rectangular'));
+        $width = max(0, (float) ($data->width ?? $data->length ?? 0));
+        $height = max(0, (float) ($data->height ?? 0));
+        $diameter = max(0, (float) ($data->diameter ?? 0));
+        $bearing = max(0, (float) ($data->header_bearing_each_side ?? 0));
 
-        $data->total_materials = 0; // Numeric
-        $data->total_units = 0; // Numeric
-        $data->total_length = 0; // Numeric
-        $data->jamb_total_area = 0; // Numeric
-        $data->jamb_total_units = 0; // Numeric
-        $data->total_cubic_area = 0; // Numeric
-        $data->area_cubic_yards = 0; // Numeric
-        $data->total_cy_jamb = 0; // Numeric
-        $data->reinforcing_spacing = 0; // Numeric
-        $data->total_spaces = 0; // Numeric
-        $data->total_lf = 0; // Numeric
-        $data->total_material_units = 0; // Numeric
-        $data->sq_area_wall = 0; // Numeric
-        $data->total_grout_fill_cy = 0; // Numeric
+        if ($shape === 'round') {
+            $opening_area = pi() * pow($diameter / 2, 2);
+            $opening_perimeter = pi() * $diameter;
+            $header_length = $diameter + (2 * $bearing);
+        } else {
+            $opening_area = $width * $height;
+            $opening_perimeter = 2 * ($width + $height);
+            $header_length = $width + (2 * $bearing);
+        }
 
-        $data->other_fill = 0; // Select (Material)
-        $data->total_sq_area = 0; // Numeric
-        $data->total_cy_other_fill = 0; // Numeric
+        $data->width = round($width, 4);
+        $data->length = round($width, 4); // Compatibilidad con datos anteriores.
+        $data->quantity = $quantity;
+        $data->sq_area = round($opening_area, 4);
+        $data->total_sq_ft = round($opening_area * $quantity, 4);
+        $data->total_area = $data->total_sq_ft;
+        $data->perimeter = round($opening_perimeter, 4);
+        $data->total_perimeter = round($opening_perimeter * $quantity, 4);
+        $data->header_length = round($header_length, 4);
+        $data->total_header_length = round($header_length * $quantity, 4);
+        $data->top_elevation = (($data->applicable_to ?? 'wall') === 'wall')
+            ? round((float) ($data->bottom_elevation ?? $data->sill_height ?? 0) + $height, 4)
+            : null;
 
+        /*
+         * El material principal se descuenta por área. Los materiales de header
+         * y perímetro se agregan por longitud. Todos se resuelven nuevamente
+         * contra la BD para conservar precios y unidades actualizados.
+         */
+        $openingName = trim((string) ($data->name ?? $data->template_name ?? 'Opening'));
+        $openingName = $openingName !== '' ? $openingName : 'Opening';
 
+        /*
+         * En el reporte propio del opening la deducción se muestra positiva.
+         * La resta real se aplica únicamente al calcular el takeoff vinculado.
+         */
+        $this->addOpeningMaterial(
+            $data,
+            $data->deduction_material ?? null,
+            $data->total_sq_ft,
+            'sqft',
+            'Opening deduction',
+            true,
+            $openingName,
+            'Deduction'
+        );
 
+        $headerMaterials = $this->normalizarReglasOpening(
+            $data->header_materials
+            ?? $data->headerMaterials
+            ?? []
+        );
+
+        foreach ($headerMaterials as $rule) {
+            $rule = (object) $rule;
+            $factor = max(0, (float) ($rule->factor ?? 1));
+            $this->addOpeningMaterial(
+                $data,
+                $rule->material ?? null,
+                $data->total_header_length * $factor,
+                'lf',
+                $rule->description ?? 'Header',
+                false,
+                $openingName,
+                'Header'
+            );
+        }
+
+        $perimeterMaterials = $this->normalizarReglasOpening(
+            $data->perimeter_materials
+            ?? $data->perimeterMaterials
+            ?? []
+        );
+
+        foreach ($perimeterMaterials as $rule) {
+            $rule = (object) $rule;
+            $factor = max(0, (float) ($rule->factor ?? 1));
+            $this->addOpeningMaterial(
+                $data,
+                $rule->material ?? null,
+                $data->total_perimeter * $factor,
+                'lf',
+                $rule->description ?? 'Opening perimeter',
+                false,
+                $openingName,
+                'Perimeter'
+            );
+        }
+
+        $this->handleChangeadjustmentDatas($data);
 
         if (isset($data->totalsDatas)) {
+            $this->regenerarProductosAsociados($data);
             $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
-
-            //print_r($data->totalsDatas);
-            //print_r($materialesAgrupados);
-            $data->totales_html = $this->generarTablaHtml($materialesAgrupados);
+            $crew = $this->addCrew($project_id);
+            $trade = $this->extraerObjetoJson($data->trade ?? null);
+            $materialesAgrupados = $this->Calcula_totalDatas1(
+                $materialesAgrupados,
+                $project,
+                $crew,
+                $trade->name ?? '',
+                $data->name ?? ''
+            );
+            $data->materialesAgrupados = $materialesAgrupados;
+            $data->totales_html = $this->generarTablaHtml($materialesAgrupados, [
+                'report_id' => 'opening_' . ($data->wall_id ?? '') . '_' . time(),
+                'report_type' => 'OPENING',
+                'trade_name' => $data->trade_name ?? '',
+                'trade' => $trade->name ?? '',
+                'scope_label' => $data->name ?? '',
+                'generated_at' => date('Y-m-d H:i'),
+            ]);
         } else {
             $data->totales_html = "";
         }
 
-        $this->handleChangeadjustmentDatas($data);
         return $data;
     }
+
+    private function extraerObjetoJson($value)
+    {
+        if (is_object($value)) {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            return (object) $value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return json_decode($value) ?: (object) [];
+        }
+
+        return (object) [];
+    }
+
+    private function addOpeningMaterial(
+        &$data,
+        $material,
+        float $measuring,
+        string $unit,
+        string $description,
+        bool $reportOnly = false,
+        string $openingName = '',
+        string $origin = ''
+    )
+    {
+        if (empty($material) || $measuring == 0) {
+            return;
+        }
+
+        $selectedMaterial = $this->resolverMaterialActualizado($material);
+
+        if ($selectedMaterial === null) {
+            return;
+        }
+
+        $unitMeasureValue = max(0, (float) ($selectedMaterial->unit_measure_value ?? 0));
+        $units = $unitMeasureValue > 0 ? $measuring / $unitMeasureValue : 0;
+
+        $totalMaterial = new Total_Material();
+        $totalMaterial->id_material = $selectedMaterial->id;
+        $totalMaterial->material = $selectedMaterial;
+        $totalMaterial->measuring = round($measuring, 4);
+        $totalMaterial->op_unit = $unit;
+        $totalMaterial->units = round($units, 4);
+        $totalMaterial->description = $description;
+        $totalMaterial->opening_report_only = $reportOnly;
+
+        if ($openingName !== '') {
+            $materialName = trim((string) ($selectedMaterial->name ?? ''));
+
+            if ($materialName === '') {
+                $materialName = trim((string) (
+                    $selectedMaterial->unique_id
+                    ?? $selectedMaterial->id
+                    ?? 'Material'
+                ));
+            }
+
+            $rowLabel = $materialName . ' - Opening - ' . $openingName;
+
+            if ($origin !== '') {
+                $rowLabel .= ' - ' . $origin;
+            }
+
+            $totalMaterial->unitario_row_label = $rowLabel;
+        }
+        $this->addtotalDatas($totalMaterial, $data);
+    }
+
+    private function normalizarReglasOpening($rules): array
+    {
+        if (is_string($rules) && trim($rules) !== '') {
+            $rules = json_decode($rules, true);
+        }
+
+        if (is_object($rules)) {
+            $rules = (array) $rules;
+        }
+
+        if (!is_array($rules)) {
+            return [];
+        }
+
+        /*
+         * También acepta una sola regla guardada como objeto asociativo,
+         * además del arreglo de reglas utilizado por OpeningPopup.
+         */
+        if (
+            isset($rules['material'])
+            || isset($rules['material_id'])
+        ) {
+            return [$rules];
+        }
+
+        return array_values($rules);
+    }
+
+    private function normalizarConfiguracionOpening($opening): object
+    {
+        $normalizar = function ($value) {
+            if (is_string($value) && trim($value) !== '') {
+                $decoded = json_decode($value);
+                return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+            }
+
+            if (is_array($value)) {
+                return (object) $value;
+            }
+
+            return is_object($value) ? $value : null;
+        };
+
+        $opening = $normalizar($opening) ?: (object) [];
+        $configuraciones = [$opening];
+
+        /*
+         * Según la versión del front, las reglas del template pueden quedar
+         * directamente en el count o anidadas dentro de alguno de estos
+         * campos. Se recorren de afuera hacia adentro y los datos del count
+         * siempre tienen prioridad.
+         */
+        foreach ([
+            'opening_template',
+            'openingTemplate',
+            'template',
+            'local_db',
+            'localDb',
+            'formData',
+        ] as $campo) {
+            if (!isset($opening->{$campo})) {
+                continue;
+            }
+
+            $configuracion = $normalizar($opening->{$campo});
+            if ($configuracion) {
+                $configuraciones[] = $configuracion;
+
+                if (isset($configuracion->local_db)) {
+                    $localDb = $normalizar($configuracion->local_db);
+                    if ($localDb) {
+                        $configuraciones[] = $localDb;
+                    }
+                }
+
+                if (isset($configuracion->formData)) {
+                    $formData = $normalizar($configuracion->formData);
+                    if ($formData) {
+                        $configuraciones[] = $formData;
+                    }
+                }
+            }
+        }
+
+        $resultado = (object) [];
+
+        /*
+         * Se combinan primero los objetos internos y al final el count.
+         * Así width, height, name y demás valores editados en el takeoff
+         * reemplazan los valores originales del template.
+         */
+        foreach (array_reverse($configuraciones) as $configuracion) {
+            foreach (get_object_vars($configuracion) as $campo => $valor) {
+                if ($valor !== null && $valor !== '') {
+                    $resultado->{$campo} = $valor;
+                }
+            }
+        }
+
+        return $resultado;
+    }
+
+    private function obtenerReglasMaterialOpening(
+        object $opening,
+        array $campos
+    ): array {
+        foreach ($campos as $campo) {
+            if (!isset($opening->{$campo})) {
+                continue;
+            }
+
+            $reglas = $this->normalizarReglasOpening($opening->{$campo});
+            if (!empty($reglas)) {
+                return $reglas;
+            }
+        }
+
+        return [];
+    }
+
+    private function descontarOpeningDelMaterialPrincipal(&$data, $material, float $area): bool
+    {
+        if ($area <= 0 || empty($material)) {
+            return false;
+        }
+
+        $selectedMaterial = $this->resolverMaterialActualizado($material);
+        $materialId = isset($selectedMaterial->id) ? (string) $selectedMaterial->id : '';
+        if ($materialId === '') {
+            return false;
+        }
+
+        $totalsDatas = $data->totalsDatas ?? [];
+        if (is_object($totalsDatas)) {
+            $totalsDatas = array_values((array) $totalsDatas);
+        }
+        if (!is_array($totalsDatas)) {
+            return false;
+        }
+
+        foreach ($totalsDatas as $index => $rowData) {
+            $row = is_object($rowData) ? $rowData : (object) $rowData;
+            $rowMaterialId = isset($row->id_material) ? (string) $row->id_material : '';
+            $rowLabel = trim((string) ($row->unitario_row_label ?? ''));
+
+            if ($rowMaterialId !== $materialId || $rowLabel !== '') {
+                continue;
+            }
+
+            $currentMeasuring = (float) ($row->measuring ?? 0);
+            $currentUnits = (float) ($row->units ?? 0);
+            $newMeasuring = max(0, $currentMeasuring - $area);
+            $row->measuring = round($newMeasuring, 4);
+
+            if ($currentMeasuring > 0) {
+                $row->units = round($currentUnits * ($newMeasuring / $currentMeasuring), 6);
+            } else {
+                $unitMeasureValue = max(0, (float) ($selectedMaterial->unit_measure_value ?? 0));
+                $row->units = $unitMeasureValue > 0
+                    ? round($newMeasuring / $unitMeasureValue, 6)
+                    : round($newMeasuring, 6);
+            }
+
+            $totalsDatas[$index] = $row;
+            $data->totalsDatas = $totalsDatas;
+            return true;
+        }
+
+        return false;
+    }
+
+    private function aplicarOpeningsVinculados(&$data): void
+    {
+        $linkedOpenings = $data->linked_openings ?? [];
+
+        if (is_object($linkedOpenings)) {
+            $linkedOpenings = array_values((array) $linkedOpenings);
+        }
+
+        if (!is_array($linkedOpenings) || count($linkedOpenings) === 0) {
+            $data->openings_applied = [];
+            return;
+        }
+
+        $applied = [];
+
+        foreach ($linkedOpenings as $openingData) {
+            $opening = $this->normalizarConfiguracionOpening($openingData);
+
+            $quantity = max(1, (int) ($opening->quantity ?? 1));
+            $shape = strtolower(trim((string) ($opening->shape ?? 'rectangular')));
+            $width = max(0, (float) ($opening->width ?? $opening->length ?? 0));
+            $height = max(0, (float) ($opening->height ?? 0));
+            $diameter = max(0, (float) ($opening->diameter ?? 0));
+            $bearing = max(
+                0,
+                (float) ($opening->header_bearing_each_side ?? 0)
+            );
+
+            if (in_array($shape, ['round', 'circle', 'circular'], true)) {
+                $area = pi() * pow($diameter / 2, 2);
+                $perimeter = pi() * $diameter;
+                $headerLength = $diameter + (2 * $bearing);
+            } else {
+                $area = $width * $height;
+                $perimeter = 2 * ($width + $height);
+                $headerLength = $width + (2 * $bearing);
+            }
+
+            $totalArea = round($area * $quantity, 4);
+            $totalPerimeter = round($perimeter * $quantity, 4);
+            $totalHeaderLength = round($headerLength * $quantity, 4);
+
+            /*
+             * Son dos materiales distintos:
+             *
+             * 1. wall_material es siempre el material principal del takeoff
+             *    al que se le descuenta internamente el área del opening.
+             * 2. deduction_material es el material del opening que se muestra
+             *    en positivo como renglón informativo dentro del reporte.
+             *
+             * No se debe usar deduction_material como objetivo de la resta,
+             * porque puede ser distinto al material principal del wall.
+             */
+            $mainTakeoffMaterial = $data->wall_material ?? null;
+
+            $openingReportMaterial = $opening->deduction_material
+                ?? $opening->deductionMaterial
+                ?? $opening->main_material
+                ?? $opening->mainMaterial
+                ?? $opening->material
+                ?? $mainTakeoffMaterial;
+
+            $openingName = trim((string) ($opening->name ?? 'Opening'));
+            $openingName = $openingName !== '' ? $openingName : 'Opening';
+
+            $deducted = $this->descontarOpeningDelMaterialPrincipal(
+                $data,
+                $mainTakeoffMaterial,
+                $totalArea
+            );
+
+            /*
+             * La fila positiva pertenece al material configurado en el
+             * opening y es sólo informativa. Debe mostrarse aunque la resta
+             * no haya encontrado una fila compatible; esto permite detectar
+             * claramente qué material y qué opening originaron la deducción.
+             */
+            if (!empty($openingReportMaterial) && $totalArea > 0) {
+                $this->addOpeningMaterial(
+                    $data,
+                    $openingReportMaterial,
+                    $totalArea,
+                    'sqft',
+                    'Opening: ' . $openingName,
+                    true,
+                    $openingName,
+                    'Deduction'
+                );
+            }
+
+            $headerMaterials = $this->obtenerReglasMaterialOpening(
+                $opening,
+                [
+                    'header_materials',
+                    'headerMaterials',
+                    'header_material',
+                    'headerMaterial',
+                    'materials_header',
+                ]
+            );
+
+            foreach ($headerMaterials as $ruleData) {
+                $rule = is_object($ruleData)
+                    ? $ruleData
+                    : (object) $ruleData;
+                $factor = max(0, (float) ($rule->factor ?? 1));
+                $material = $rule->material
+                    ?? (isset($rule->material_id)
+                        ? (object) ['id' => $rule->material_id]
+                        : null);
+
+                $this->addOpeningMaterial(
+                    $data,
+                    $material,
+                    $totalHeaderLength * $factor,
+                    'lf',
+                    $rule->description ?? 'Opening header',
+                    false,
+                    $openingName,
+                    'Header'
+                );
+            }
+
+            $perimeterMaterials = $this->obtenerReglasMaterialOpening(
+                $opening,
+                [
+                    'perimeter_materials',
+                    'perimeterMaterials',
+                    'perimeter_material',
+                    'perimeterMaterial',
+                    'materials_perimeter',
+                ]
+            );
+
+            foreach ($perimeterMaterials as $ruleData) {
+                $rule = is_object($ruleData)
+                    ? $ruleData
+                    : (object) $ruleData;
+                $factor = max(0, (float) ($rule->factor ?? 1));
+                $material = $rule->material
+                    ?? (isset($rule->material_id)
+                        ? (object) ['id' => $rule->material_id]
+                        : null);
+
+                $this->addOpeningMaterial(
+                    $data,
+                    $material,
+                    $totalPerimeter * $factor,
+                    'lf',
+                    $rule->description ?? 'Opening perimeter',
+                    false,
+                    $openingName,
+                    'Perimeter'
+                );
+            }
+
+            $applied[] = (object) [
+                'name' => $opening->name ?? 'Opening',
+                'shape' => $shape,
+                'quantity' => $quantity,
+                'deducted_area' => $totalArea,
+                'header_length' => $totalHeaderLength,
+                'perimeter' => $totalPerimeter,
+                'affected_takeoff_id_unique' =>
+                    $opening->affected_takeoff_id_unique
+                    ?? $opening->affectedTakeoffIdUnique
+                    ?? '',
+            ];
+        }
+
+        $data->openings_applied = $applied;
+    }
+
     function processPerimeter($data)
     {
         $project = $data->project;
@@ -180,8 +680,11 @@ class WallController extends Controller
         }
         $data->perimeterFields = $perimeterFieldsFinal;
 
+        $this->handleChangeadjustmentDatas($data);
+        $this->aplicarOpeningsVinculados($data);
 
         if (isset($data->totalsDatas)) {
+            $this->regenerarProductosAsociados($data);
             $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
             //$materialesAgrupados = $this->recalcularUnidadesAgrupadas($materialesAgrupados);
 
@@ -208,7 +711,6 @@ class WallController extends Controller
             $data->totales_html = "";
         }
 
-        $this->handleChangeadjustmentDatas($data);
         return $data;
     }
 
@@ -462,8 +964,11 @@ class WallController extends Controller
         }
         $data->material_per_sq_ft = $additionalDatasFinal;
 
+        $this->handleChangeadjustmentDatas($data);
+        $this->aplicarOpeningsVinculados($data);
 
         if (isset($data->totalsDatas)) {
+            $this->regenerarProductosAsociados($data);
             $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
             //$materialesAgrupados = $this->recalcularUnidadesAgrupadas($materialesAgrupados);
 
@@ -488,9 +993,6 @@ class WallController extends Controller
             ]);
         }
 
-
-
-        $this->handleChangeadjustmentDatas($data);
         //dd($data);
         return $data;
     }
@@ -514,6 +1016,8 @@ class WallController extends Controller
         $this->handleChangeAdditionalDatas($data);
         $this->handleChangeadjustmentDatas($data);
         $this->ajustarMeasuringWallMaterial($data);
+        $this->aplicarOpeningsVinculados($data);
+        $this->regenerarProductosAsociados($data);
 
         $this->Calcula_totalDatas($data);
         $materialesAgrupados = $this->agruparMaterialesPorId($data->totalsDatas);
@@ -545,7 +1049,61 @@ class WallController extends Controller
         return $data;
     }
 
-    #region calcula material   
+    #region calcula material  
+    
+    private function cargarCatalogoMateriales($project_id)
+    {
+        if (isset($this->catalogoMateriales[$project_id])) {
+            return;
+        }
+
+        $materiales = DB::table('materials')
+            ->select([
+                'id',
+                'user_id',
+                'project_id',
+                'name',
+                'unique_id',
+                'default_unit',
+                'material_type_id',
+                'height',
+                'width',
+                'length',
+                'prices',
+                'waste',
+                'production_rate',
+                'unit_measure_value',
+                'shortton_wlf',
+                'weight_lf',
+                'sq_ft_per_cy',
+                'associated_products',
+            ])
+            ->where('project_id', $project_id)
+            ->where('user_id', $this->current_user_id)
+            ->orderBy('id')
+            ->get();
+
+        $this->catalogoMateriales[$project_id] = [
+            'por_id' => [],
+            'por_unique_id' => [],
+            'por_id_unique_id' => [],
+        ];
+
+        foreach ($materiales as $material) {
+            if (!empty($material->id)) {
+                $this->catalogoMateriales[$project_id]['por_id'][$material->id] = $material;
+            }
+
+            if (!empty($material->unique_id)) {
+                $this->catalogoMateriales[$project_id]['por_unique_id'][$material->unique_id] = $material;
+            }
+
+            if (!empty($material->id) && !empty($material->unique_id)) {
+                $key = $material->id . '|' . $material->unique_id;
+                $this->catalogoMateriales[$project_id]['por_id_unique_id'][$key] = $material;
+            }
+        }
+    }
 
     private function resolve_measuring_unit(string $type): string
     {
@@ -653,76 +1211,29 @@ class WallController extends Controller
 
     private function buscarMaterialActualizadoEnBd($id_material = null, $unique_id_material = null, $project_id = null)
     {
-        $consulta_material = DB::table('materials');
+        if (empty($project_id)) {
+            return null;
+        }
 
-        // 1. Prioridad: Buscar en el proyecto actual
-        if (!empty($project_id)) {
-            if (!empty($id_material) && !empty($unique_id_material)) {
-                $material_encontrado = (clone $consulta_material)
-                    ->where('id', $id_material)
-                    ->where('unique_id', $unique_id_material)
-                    ->where('project_id', $project_id)
-                    ->first();
+        $this->cargarCatalogoMateriales($project_id);
 
-                if ($material_encontrado != null) {
-                    return $material_encontrado;
-                }
-            }
+        $catalogo = $this->catalogoMateriales[$project_id];
 
-            if (!empty($id_material)) {
-                $material_encontrado = (clone $consulta_material)
-                    ->where('id', $id_material)
-                    ->where('project_id', $project_id)
-                    ->first();
+        if (!empty($id_material) && !empty($unique_id_material)) {
+            $key = $id_material . '|' . $unique_id_material;
 
-                if ($material_encontrado != null) {
-                    return $material_encontrado;
-                }
-            }
-
-            if (!empty($unique_id_material)) {
-                $material_encontrado = (clone $consulta_material)
-                    ->where('unique_id', $unique_id_material)
-                    ->where('project_id', $project_id)
-                    ->first();
-
-                if ($material_encontrado != null) {
-                    return $material_encontrado;
-                }
+            if (isset($catalogo['por_id_unique_id'][$key])) {
+                return $catalogo['por_id_unique_id'][$key];
             }
         }
 
-        // 2. Fallback: Búsqueda global original (sin project_id o si no se encontró en el proyecto)
-        /*if (!empty($id_material) && !empty($unique_id_material)) {
-            $material_encontrado = (clone $consulta_material)
-                ->where('id', $id_material)
-                ->where('unique_id', $unique_id_material)
-                ->first();
-
-            if ($material_encontrado != null) {
-                return $material_encontrado;
-            }
+        if (!empty($id_material) && isset($catalogo['por_id'][$id_material])) {
+            return $catalogo['por_id'][$id_material];
         }
 
-        if (!empty($id_material)) {
-            $material_encontrado = (clone $consulta_material)
-                ->where('id', $id_material)
-                ->first();
-
-            if ($material_encontrado != null) {
-                return $material_encontrado;
-            }
+        if (!empty($unique_id_material) && isset($catalogo['por_unique_id'][$unique_id_material])) {
+            return $catalogo['por_unique_id'][$unique_id_material];
         }
-
-        if (!empty($unique_id_material)) {
-            $material_encontrado = (clone $consulta_material)
-                ->where('unique_id', $unique_id_material)
-                ->first();
-
-            if ($material_encontrado != null) {
-                return $material_encontrado;
-            }
-        }*/
 
         return null;
     }
@@ -1608,7 +2119,7 @@ class WallController extends Controller
     {
         // echo "calculateTotalSpacesFilled<br>";
         try {
-            if ($data->rebar_spacing > 0 && $data->additional_spacing > 0) {
+            if ($data->rebar_spacing > 0) {
                 return $data->wall_length / $data->rebar_spacing + $data->additional_spacing;
             }
             return 0;
@@ -2779,15 +3290,433 @@ class WallController extends Controller
 
     #region total datas
 
-    public function addtotalDatas($Total_Material, $updatedFormData)
+    private function regenerarProductosAsociados(
+        &$updatedFormData
+    ): void {
+        $totales_actuales = $updatedFormData->totalsDatas ?? [];
+
+        if (is_object($totales_actuales)) {
+            $totales_actuales = array_values(
+                (array) $totales_actuales
+            );
+        }
+
+        if (!is_array($totales_actuales)) {
+            $totales_actuales = [];
+        }
+
+        /*
+        * Conservamos únicamente los materiales originales.
+        * Los asociados se volverán a calcular con las cantidades finales.
+        */
+        $materiales_originales = array_values(array_filter(
+            $totales_actuales,
+            function ($material) {
+                $material = (object) $material;
+
+                return empty(
+                    $material->es_material_asociado
+                );
+            }
+        ));
+
+        $this->totalsDatasFinal = $materiales_originales;
+
+        $updatedFormData->totalsDatas =
+            $this->totalsDatasFinal;
+
+        /*
+        * Recorremos todos los materiales originales.
+        * Cada uno puede tener cero, uno o cualquier cantidad
+        * de productos asociados.
+        */
+        foreach ($materiales_originales as $material_original) {
+            $material_original = (object) $material_original;
+
+            $this->agregarProductosAsociados(
+                $material_original,
+                $updatedFormData
+            );
+        }
+
+        $updatedFormData->totalsDatas =
+            $this->totalsDatasFinal;
+    }
+
+    private function decodificarProductosAsociados($associated_products): array
     {
-        //  $totalsDatasFinal = (array)$updatedFormData->totalsDatas;
+        if (empty($associated_products)) {
+            return [];
+        }
+
+        if (is_string($associated_products)) {
+            $associated_products = json_decode(
+                $associated_products,
+                true
+            );
+        }
+
+        if (is_object($associated_products)) {
+            $associated_products = json_decode(
+                json_encode($associated_products),
+                true
+            );
+        }
+
+        if (!is_array($associated_products)) {
+            return [];
+        }
+
+        return $associated_products;
+    }
+
+    private function obtenerMaterialCatalogoPorId($material_id)
+    {
+        $material_id = (int) $material_id;
+
+        if ($material_id <= 0) {
+            return null;
+        }
+
+        /*
+        * Primero busca dentro de los materiales agregados
+        * al proyecto actual.
+        */
+        if (!empty($this->current_project_id)) {
+            $this->cargarCatalogoMateriales(
+                $this->current_project_id
+            );
+
+            $material_catalogo =
+                $this->catalogoMateriales[
+                    $this->current_project_id
+                ]['por_id'][$material_id] ?? null;
+
+            if ($material_catalogo) {
+                return $material_catalogo;
+            }
+        }
+
+        /*
+        * Si el material asociado todavía no fue agregado
+        * al proyecto, se busca directamente en materials.
+        *
+        * Se limita al mismo usuario para no usar materiales
+        * pertenecientes a otra cuenta.
+        */
+        $query = DB::table('materials')
+            ->where('id', $material_id);
+
+        if (!empty($this->current_user_id)) {
+            $query->where(
+                'user_id',
+                $this->current_user_id
+            );
+        }
+
+        $material_asociado = $query->first();
+
+        if (!$material_asociado) {
+            \Log::warning(
+                'Material asociado no localizado',
+                [
+                    'material_id' => $material_id,
+                    'project_id' => $this->current_project_id,
+                    'user_id' => $this->current_user_id,
+                ]
+            );
+
+            return null;
+        }
+
+        /*
+        * Si no trae unit_measure_value válido,
+        * lo calculamos de la misma manera que el resto.
+        */
+        if (
+            !isset($material_asociado->unit_measure_value) ||
+            (float) $material_asociado->unit_measure_value <= 0
+        ) {
+            $material_asociado->unit_measure_value =
+                $this->calcularUnitMeasureValueMaterial(
+                    $material_asociado
+                );
+        }
+
+        /*
+        * Se agrega al catálogo en memoria para que, si vuelve
+        * a aparecer en otro material, no consulte otra vez la BD.
+        */
+        if (!empty($this->current_project_id)) {
+            $project_id = $this->current_project_id;
+
+            $this->catalogoMateriales[
+                $project_id
+            ]['por_id'][$material_id] = $material_asociado;
+
+            if (!empty($material_asociado->unique_id)) {
+                $this->catalogoMateriales[
+                    $project_id
+                ]['por_unique_id'][
+                    $material_asociado->unique_id
+                ] = $material_asociado;
+
+                $key =
+                    $material_asociado->id .
+                    '|' .
+                    $material_asociado->unique_id;
+
+                $this->catalogoMateriales[
+                    $project_id
+                ]['por_id_unique_id'][$key] =
+                    $material_asociado;
+            }
+        }
+
+        return $material_asociado;
+    }
+    private function agregarProductosAsociados(
+    $material_original_total,
+    &$updatedFormData
+    ): void {
+        if (
+            !isset($material_original_total->material) ||
+            !is_object($material_original_total->material)
+        ) {
+            return;
+        }
+
+        /*
+        * El asociado no vuelve a generar sus propios asociados.
+        * Evita ciclos infinitos:
+        * cemento -> grava -> cemento.
+        */
+        if (
+            isset($material_original_total->es_material_asociado) &&
+            $material_original_total->es_material_asociado === true
+        ) {
+            return;
+        }
+
+        /*
+         * La fila positiva del opening sólo documenta la deducción en el
+         * reporte; no debe generar productos asociados adicionales.
+         */
+        if (!empty($material_original_total->opening_report_only)) {
+            return;
+        }
+
+        $material_original = $material_original_total->material;
+
+        $productos_asociados = $this->decodificarProductosAsociados(
+            $material_original->associated_products ?? null
+        );
+
+        /*
+        * Puede tener cualquier cantidad de asociados.
+        */
+        if (empty($productos_asociados)) {
+            return;
+        }
+
+        $cantidad_material_original = isset(
+            $material_original_total->units
+        )
+            ? (float) $material_original_total->units
+            : 0;
+
+        if ($cantidad_material_original <= 0) {
+            return;
+        }
+
+        $nombre_takeoff = trim((string) (
+            $updatedFormData->name ??
+            $updatedFormData->template_name ??
+            'Takeoff'
+        ));
+
+        foreach ($productos_asociados as $producto_asociado) {
+            if (is_object($producto_asociado)) {
+                $producto_asociado = (array) $producto_asociado;
+            }
+
+            if (!is_array($producto_asociado)) {
+                continue;
+            }
+
+            $material_id = (int) (
+                $producto_asociado['material_id'] ?? 0
+            );
+
+            /*
+            * La columna de la BD se llama required.
+            */
+            $required = (float) (
+                $producto_asociado['required'] ?? 0
+            );
+
+            $for = (float) (
+                $producto_asociado['for'] ?? 0
+            );
+
+            $unit = trim((string) (
+                $producto_asociado['unit'] ?? ''
+            ));
+
+            if (
+                $material_id <= 0 ||
+                $required <= 0 ||
+                $for <= 0
+            ) {
+                continue;
+            }
+
+            $material_asociado = $this->obtenerMaterialCatalogoPorId(
+                $material_id
+            );
+
+            if (!$material_asociado) {
+                continue;
+            }
+
+            /*
+            * Ejemplo:
+            *
+            * 90 piezas de cemento
+            * required = 36
+            * for = 1
+            *
+            * 90 / 36 * 1 = 2.5
+            */
+            $cantidad_asociada = round(
+                ($cantidad_material_original / $required) * $for,
+                6
+            );
+
+            if ($cantidad_asociada <= 0) {
+                continue;
+            }
+
+            $nombre_material_original = trim((string) (
+                $material_original->name ?? 'Material'
+            ));
+
+            $nombre_material_asociado = trim((string) (
+                $material_asociado->name ?? 'Associated material'
+            ));
+
+            $nombre_fila =
+                $nombre_material_original .
+                ' - ' .
+                $nombre_material_asociado .
+                ' - ' .
+                $nombre_takeoff;
+
+            $total_asociado = new Total_Material();
+
+            /*
+            * El material usado para costos, precio, desperdicio,
+            * producción y demás columnas es el asociado.
+            */
+            $total_asociado->id_material =
+                $material_asociado->id;
+
+            $total_asociado->material =
+                $material_asociado;
+
+            $total_asociado->measuring =
+                $cantidad_asociada;
+
+            $total_asociado->units =
+                $cantidad_asociada;
+
+            $total_asociado->op_unit =
+                $unit !== ''
+                    ? $unit
+                    : (
+                        $material_asociado->default_unit ??
+                        ''
+                    );
+
+            $total_asociado->principal = false;
+            $total_asociado->es_material_asociado = true;
+
+            /*
+            * Información para identificar la relación.
+            */
+            $total_asociado->material_original_id =
+                $material_original->id ?? null;
+
+            $total_asociado->material_original_nombre =
+                $nombre_material_original;
+
+            $total_asociado->material_asociado_id =
+                $material_asociado->id;
+
+            $total_asociado->material_asociado_nombre =
+                $nombre_material_asociado;
+
+            $total_asociado->takeoff =
+                $nombre_takeoff;
+
+            $total_asociado->associated_required =
+                $required;
+
+            $total_asociado->associated_for =
+                $for;
+
+            $total_asociado->associated_unit =
+                $unit;
+
+            /*
+            * Esta será la descripción visible:
+            * Cemento - Grava - Pared izquierda
+            */
+            $total_asociado->unitario_row_label =
+                $nombre_fila;
+
+            $total_asociado->global_takeoff_suffix =
+                $nombre_fila;
+
+            $total_asociado->source_type =
+                'associated_product';
+
+            /*
+            * Se agrega como un material normal.
+            * Después Calcula_totalDatas1 calculará el resto
+            * de las columnas usando los datos de Grava.
+            */
+            $this->totalsDatasFinal[] =
+                $total_asociado;
+        }
+
+        $updatedFormData->totalsDatas =
+            $this->totalsDatasFinal;
+    }
+
+    public function addtotalDatas(
+        $Total_Material,
+        $updatedFormData
+    ) {
         try {
-            $this->totalsDatasFinal[] = $Total_Material;
-            $updatedFormData->totalsDatas = $this->totalsDatasFinal;
+            /*
+            * Aquí solo guardamos el material original.
+            * Los asociados se generan al finalizar todos
+            * los cálculos del takeoff.
+            */
+            $this->totalsDatasFinal[] =
+                $Total_Material;
+
+            $updatedFormData->totalsDatas =
+                $this->totalsDatasFinal;
+
             return $updatedFormData;
         } catch (\Throwable $th) {
-            //throw $th;
+            \Log::error(
+                'Error agregando material al cálculo: ' .
+                $th->getMessage()
+            );
+
             return $updatedFormData;
         }
     }
@@ -2894,6 +3823,7 @@ class WallController extends Controller
 
             // Blindaje campos base
             $additionalData['measuring'] = isset($additionalData['measuring']) ? (float) $additionalData['measuring'] : 0;
+            $opening_report_only = !empty($additionalData['opening_report_only']);
 
             // Defaults para evitar undefined index
             $additionalData['cost2'] = isset($additionalData['cost2']) ? (float) $additionalData['cost2'] : 0;
@@ -3011,13 +3941,65 @@ class WallController extends Controller
 
             $additionalData['total'] = $additionalData['sub_total'] + $additionalData['oh'] + $additionalData['profit'];
 
+            /*
+             * La fila del opening es informativa: muestra en positivo el
+             * material descontado, sin volver a sumarlo al costo del takeoff.
+             */
+            if ($opening_report_only) {
+                foreach ([
+                    'cost',
+                    'tax',
+                    'cost1',
+                    'cost_day',
+                    'burden',
+                    'lab_cost',
+                    'days',
+                    'cost2',
+                    'sub_total',
+                    'oh',
+                    'profit',
+                    'weather',
+                    'total',
+                ] as $zeroField) {
+                    $additionalData[$zeroField] = 0;
+                }
+            }
+
             // =========================================================
             // 7) Extras para reporte global (sin pisar conversion)
             // =========================================================
             $takeoff_name_final = $takeoff_name;
 
-            if (isset($additionalData['unitario_row_label']) && trim((string) $additionalData['unitario_row_label']) !== '') {
-                $takeoff_name_final = trim($takeoff_name . ' - ' . $additionalData['unitario_row_label']);
+            $es_material_asociado = !empty(
+                $additionalData['es_material_asociado']
+            );
+
+            $etiqueta_unitaria = trim((string) (
+                $additionalData['unitario_row_label'] ?? ''
+            ));
+
+            if ($etiqueta_unitaria !== '') {
+                if (
+                    $es_material_asociado
+                    || stripos($etiqueta_unitaria, ' - Opening - ') !== false
+                ) {
+                    /*
+                    * Los asociados y openings ya contienen una etiqueta
+                    * completa. No se antepone el takeoff para conservar:
+                    * Material - Opening - Nombre - Origen.
+                    */
+                    $takeoff_name_final = $etiqueta_unitaria;
+                } else {
+                    /*
+                    * Courses y otras filas especiales conservan
+                    * el comportamiento anterior.
+                    */
+                    $takeoff_name_final = trim(
+                        $takeoff_name .
+                        ' - ' .
+                        $etiqueta_unitaria
+                    );
+                }
             }
 
             $additionalData['takeoff_name'] = $takeoff_name_final;
@@ -3048,6 +4030,7 @@ class WallController extends Controller
         $crews = DB::table('crews')
             ->where('project_id', $projectId)
             ->select(['id', 'name', 'labor_info'])
+            ->orderBy('id')
             ->get();
 
         // 2) Recolectar labor_type_id desde todos los labor_info
@@ -3079,6 +4062,7 @@ class WallController extends Controller
                 ->where('labor_class_id', $laborClassId)
                 ->whereIn('id', $laborIds)
                 ->select(['id', 'cost_per_hour', 'burdens', 'total_cost'])
+                ->orderBy('id')
                 ->get();
 
             $laborsById = $labors->keyBy('id');
@@ -3531,6 +4515,16 @@ class WallController extends Controller
                 $resultadosAgrupados[$clave_agrupacion] = [
                     'display_id' => $id_material_real,
                     'unitario_row_label' => $etiqueta_unitaria,
+                    'opening_report_only' => (bool) ($material->opening_report_only ?? false),
+                    'es_material_asociado' => (bool) ($material->es_material_asociado ?? false),
+                    'material_original_id' => $material->material_original_id ?? null,
+                    'material_original_nombre' => $material->material_original_nombre ?? '',
+                    'material_asociado_id' => $material->material_asociado_id ?? null,
+                    'material_asociado_nombre' => $material->material_asociado_nombre ?? '',
+                    'takeoff' => $material->takeoff ?? '',
+                    'associated_required' => (float) ($material->associated_required ?? 0),
+                    'associated_for' => (float) ($material->associated_for ?? 0),
+                    'associated_unit' => $material->associated_unit ?? '',
                     'material' => $material->material,
                     'measuring' => 0,
                     'op_unit' => '',
@@ -3924,9 +4918,25 @@ class WallController extends Controller
             $display_id = isset($datos['display_id']) ? $datos['display_id'] : $idMaterial;
             $html .= '<td class="col-id">' . htmlspecialchars((string) $display_id, ENT_QUOTES, 'UTF-8') . '</td>';
 
-            $matName = trim(($material->name ?? '') . ' ' . ($material->unique_id ?? ''));
-            if (isset($datos['unitario_row_label']) && trim((string) $datos['unitario_row_label']) !== '') {
-                $matName = trim((string) $matName . ' - ' . (string) $datos['unitario_row_label']);
+            $etiqueta_asociada = trim((string) (
+                $datos['unitario_row_label'] ?? ''
+            ));
+
+            if ($etiqueta_asociada !== '') {
+                /*
+                * Para materiales asociados ya tenemos el nombre completo:
+                * Cemento - Grava - Pared izquierda
+                */
+                $matName = $etiqueta_asociada;
+            } else {
+                /*
+                * Para materiales normales se conserva el formato actual.
+                */
+                $matName = trim(
+                    ($material->name ?? '') .
+                    ' ' .
+                    ($material->unique_id ?? '')
+                );
             }
             $html .= '<td class="material-cell">
                         <span class="material-name-ellipsis">' . htmlspecialchars($matName, ENT_QUOTES, 'UTF-8') . '</span>
@@ -4019,6 +5029,17 @@ class Total_Material
     public $oh;
     public $profit;
     public $weather;
+    public $units;
+    public $es_material_asociado = false;
+    public $material_original_id;
+    public $material_original_nombre;
+    public $material_asociado_id;
+    public $material_asociado_nombre;
+    public $takeoff;
+    public $associated_required;
+    public $associated_for;
+    public $associated_unit;
+    public $unitario_row_label;
 }
 
 // class Material

@@ -3,54 +3,34 @@
 @section('title', 'Edit Opening')
 
 @section('content')
-    <div class="page-content-tab">
-        <div class="container-fluid">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-self-center">
-                                <h4 class="page-title pb-md-0">Opening</h4>
+    <div class="page-content-tab d-flex flex-column"
+    style="background-color:#f8f9fa;height:calc(100vh - 65px);min-height:0;overflow:hidden;padding:15px 12px;">
 
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Openings</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0"
+            style="max-width:100%;height:100%;min-height:0;">
             <!-- end page title end breadcrumb -->
             <div class="row">
                 <div class="col-md-6 col-lg-4 order-lg-1 order-md-1 mx-auto">
-                    <div class="card">
-                        <div class="card-body">
+                    <div class="card me3co-form-card border-0 shadow-sm">
+                        <div class="card-body p-4">
                             <div class="pt-3 new-project">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Edit Opening</h3>
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">
+                                        Update Opening
+                                    </h3>
                                 </div>
                                 <form method="post" action="{{ route('opening.update', ['id' => $opening->id]) }}">
                                     @csrf()
-                                    <div class="row">
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                                    <div class="row g-3">
+                                        <div class="col-lg-8 col-md-10 mx-auto">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Description:</label>
+                                                <label class="form-label fw-bold text-14">Description:</label>
                                                 <textarea name="description" rows="3" class="form-control" placeholder="Opening Description" required>{{ $opening->description }}</textarea>
                                             </div>
                                         </div>
                                         <div class="col-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Project:</label>
+                                                <label class="form-label fw-bold text-14">Project:</label>
                                                 <select name="project_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -67,7 +47,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Labor Type:</label>
+                                                <label class="form-label fw-bold text-14">Labor Type:</label>
                                                 <select name="labor_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -85,7 +65,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Labor Class:</label>
+                                                <label class="form-label fw-bold text-14">Labor Class:</label>
                                                 <select name="labor_class_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -103,7 +83,7 @@
                                         </div>
                                         <div class="col-lg-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Opening Shape:</label>
+                                                <label class="form-label fw-bold text-14">Opening Shape:</label>
                                                 <select name="opening_shape_id" class="form-control" required>
                                                     <option value="" hidden>Select</option>
                                                     @php
@@ -125,21 +105,21 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Length:</label>
+                                                <label class="form-label fw-bold text-14">Length:</label>
                                                 <input type="number" step="0.001" value="{{ $opening->length }}" name="length"
                                                     class="form-control measurement" placeholder="" required>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">height:</label>
+                                                <label class="form-label fw-bold text-14">height:</label>
                                                 <input type="number" step="0.001" name="height" class="form-control measurement"
                                                     placeholder="" value="{{ $opening->height }}" required>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Elevation:</label>
+                                                <label class="form-label fw-bold text-14">Elevation:</label>
                                                 <input type="number" step="0.001" value="{{ $opening->elevation }}" name="elevation"
                                                     class="form-control measurement" placeholder="" required>
                                             </div>
@@ -150,7 +130,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group d-flex align-items-center">
-                                                <label class="text-14">Inside:</label>
+                                                <label class="form-label fw-bold text-14">Inside:</label>
                                                 <input type="radio" class="form-radio ms-4" name="header"
                                                     placeholder="Inside" value="0"
                                                     @if ($opening->header == 0) checked @endif() required>
@@ -158,7 +138,7 @@
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group d-flex align-items-center">
-                                                <label class="text-14">Outside:</label>
+                                                <label class="form-label fw-bold text-14">Outside:</label>
                                                 <input type="radio" class="form-radio ms-4" name="header" value="1"
                                                     @if ($opening->header == 1) checked @endif() required>
                                             </div>
@@ -169,7 +149,7 @@
                                         </div>
                                         <div class="col-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Bearing each End</label>
+                                                <label class="form-label fw-bold text-14">Bearing each End</label>
                                                 <input type="number" step="0.001" class="form-control measurement" placeholder=""
                                                     name="bearing" value="{{ $opening->bearing }}" required>
                                             </div>
@@ -187,7 +167,7 @@
                                                 <div class="row my-3">
                                                     <div class="col-md-12">
                                                         <div class="form-group input-project">
-                                                            <label class="text-14">Material</label>
+                                                            <label class="form-label fw-bold text-14">Material</label>
                                                             <select class="form-control"
                                                                 name="materials[{{ $i }}][name]"
                                                                 id="">
@@ -206,7 +186,7 @@
                                                     </div>
                                                     <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                                         <div class="form-group input-project">
-                                                            <label class="text-14">Length:</label>
+                                                            <label class="form-label fw-bold text-14">Length:</label>
                                                             <input type="number" step="0.001"
                                                                 class="form-control mat_length_{{ $i }} measurement"
                                                                 data-disable=".mat_quantity_{{ $i }}"
@@ -216,7 +196,7 @@
                                                     </div>
                                                     <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                                         <div class="form-group input-project">
-                                                            <label class="text-14">Quantity:</label>
+                                                            <label class="form-label fw-bold text-14">Quantity:</label>
                                                             <input type="number" step="0.001"
                                                                 class="form-control mat_quantity_{{ $i }}"
                                                                 data-disable=".mat_length_{{ $i }}"
@@ -248,24 +228,40 @@
                                         @endphp
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Length:</label>
+                                                <label class="form-label fw-bold text-14">Length:</label>
                                                 <input type="number" step="0.001" class="form-control caulking_length measurement"
                                                     name="caulking[length]" value="{{ $caulking->length }}">
                                             </div>
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Perimeter Around:</label>
+                                                <label class="form-label fw-bold text-14">Perimeter Around:</label>
                                                 <input type="number" step="0.001" class="form-control caulking_perimeter measurement"
                                                     name="caulking[perimeter_around]"
                                                     value="{{ $caulking->perimeter_around }}" readonly>
                                             </div>
                                         </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <div class="form-group text-center">
-                                                <a href="javascript:void(0);" class="btn back-btn text-black"
-                                                    onclick="history.back()">Back</a>
-                                                <button class="btn save-btn text-white">Save Changes</button>
+                                        <div class="col-lg-8 col-md-10 mx-auto">
+                                            <hr class="my-4">
+
+                                            <div class="d-flex justify-content-end gap-2">
+
+                                                <a href="javascript:void(0);"
+                                                    onclick="history.back()"
+                                                    class="btn me3co-secondary-btn">
+
+                                                    Back
+
+                                                </a>
+
+                                                <button class="btn me3co-primary-btn">
+
+                                                    <i class="fa fa-save me-1"></i>
+
+                                                    Save Opening
+
+                                                </button>
+
                                             </div>
                                         </div>
                                     </div>

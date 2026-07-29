@@ -4,51 +4,25 @@
 
 @section('content')
 
-    <div class="page-content-tab" data-select2-id="11">
-        <div class="container-fluid" data-select2-id="10">
-            <!-- Page-Title -->
-            <div class="row">
-                <div class="col-sm-12">
-                    <div class="page-title-box">
-                        <div class="row">
-                            <div class="col align-self-center">
-                                <h4 class="page-title pb-md-0">Materials</h4>
-
-                            </div>
-                            <!--end col-->
-                            <div class="col-auto align-self-center">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="javascript:void(0);">Me3Co.com</a></li>
-                                    <li class="breadcrumb-item active">Materials</li>
-                                </ol>
-                            </div>
-                            <!--end col-->
-                        </div>
-                        <!--end row-->
-                    </div>
-                    <!--end page-title-box-->
-                </div>
-                <!--end col-->
-            </div>
-            <!--end row-->
+    <div class="page-content-tab d-flex flex-column" style="background-color: #f8f9fa; height: calc(100vh - 65px); min-height: 0; overflow: hidden; padding: 15px 12px;">
+        <div class="container-fluid d-flex flex-column flex-grow-1 p-0" style="max-width: 100%; height: 100%; min-height: 0;">
             <!-- end page title end breadcrumb -->
-            <div class="row">
-                <div class="col-md-10 mx-auto">
-                    <div class="card">
+            <div class="card me3co-form-card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="new-project">
                         <div class="card-body">
                             <div class="pt-3 new-project">
-                                <div class="text-center">
-                                    <h3 class="text-dark text-center font-24 fw-bold line-height-lg">Edit Material
-                                    </h3>
+                                <div class="mb-4">
+                                    <h3 class="me3co-form-title mb-1">Edit Material</h3>
                                 </div>
                                 <form method="post" action="{{ route('material.update', ['id' => $material->id]) }}">
                                     @csrf()
                                     <input type="hidden" name="return_url" value="{{ request('return_url') }}">
 
-                                    <div class="row">
+                                    <div class="row g-3">
                                         <div class="col-lg4 col-md-4 col-sm-12 col-xs-12">
                                             <div class="form-group input-project">
-                                                <label class="text-14">Type: <span class="text-danger">*</span></label>
+                                                <label class="form-label fw-bold text-14">Type: <span class="text-danger">*</span></label>
                                                 <select class="form-control" name="material_type_id"
                                                     id="material_type_id">
                                                     <option value="{{ $material->material_type_id }}" hidden selected>
@@ -328,7 +302,13 @@
                                             </div>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                                            <h3 class="fringe_area text-center">Other Material Associated</h3>
+                                            <div class="col-12">
+                                                <hr class="my-4">
+
+                                                <h6 class="fw-bold text-primary mb-3">
+                                                    Other Material Associated
+                                                </h6>
+                                            </div>
                                         </div>
                                         <div class="more-material">
                                             @php
@@ -391,38 +371,34 @@
                                                     </div>
                                                     @if ($key > 1)
                                                         <div class="col-2 mt-2">
-                                                            <button type="button" class="btn btn-sm back-btn text-black remove">
-                                                                Remove <i class="fa fa-trash"></i>
-                                                            </button>
+                                                            <button type="button" class="btn btn-outline-danger btn-sm remove">
+                                                                <i class="fa fa-trash me-1"></i>
+                                                                Remove
+                                                            </button>   
                                                         </div>
                                                     @endif()
                                                 </div>
                                             @endforeach
                                         </div>
                                         <div class="col-md-3 mt-2">
-                                            <button type="button" class="btn btn-sm back-btn text-black add-more">Add
-                                                More</button>
+                                            <button type="button" class="btn me3co-outline-btn add-more">
+                                                <i class="fa fa-plus me-1"></i>
+                                                Add More
+                                            </button>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
                                             <!--div class="form-group text-center"-->
-                                            <div class="form-group d-flex justify-content-center align-items-center gap-3 flex-wrap">
-                                                <a href="#" onclick="history.back()"
-                                                    class="btn back-btn text-black">Back</a>
-                                                <button class="btn save-btn text-white">Save Changes</button>
-                                                <!--@if(auth()->user()->role == 1)
-                                                <div class="form-check form-switch mt-3">
-                                                    <input 
-                                                        class="form-check-input" 
-                                                        type="checkbox" 
-                                                        id="is_global" 
-                                                        name="is_global"
-                                                        {{ $material->is_global ? 'checked' : '' }}
-                                                    >
-                                                    <label class="form-check-label" for="is_global">
-                                                        Checked: visible to all users
-                                                    </label>
-                                                </div>
-                                                @endif-->
+                                            <hr class="my-4">
+
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <a href="javascript:void(0);" onclick="history.back()" class="btn me3co-secondary-btn">
+                                                    Back
+                                                </a>
+
+                                                <button class="btn me3co-primary-btn">
+                                                    <i class="fa fa-save me-1"></i>
+                                                    Save Changes
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -531,7 +507,8 @@
             document.dispatchEvent(new Event('DOMContentLoaded'))
         });
         $('.more-material').on('click', '.remove', function() {
-            $(this).parents('.mat-field').remove();
+            //$(this).parents('.mat-field').remove();
+            $(this).closest('.mat-field').remove();
             x--;
         });
 

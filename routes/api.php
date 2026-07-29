@@ -143,6 +143,13 @@ Route::middleware('auth.token')->group(function() {
     Route::get('/get-line-template-by-id/{id}', [ApiController::class, 'getLineTemplateById']);
     Route::get('/get-area-template-by-id/{id}', [ApiController::class, 'getAreaTemplateById']);
     Route::get('/get-perimeter-template-by-id/{id}', [ApiController::class, 'getPerimeterTemplateById']);
+    Route::get('/get-opening-template-by-id/{id}', [ApiController::class, 'getOpeningTemplateById']);
+    Route::post('/save-opening-template', [ApiController::class, 'saveOpeningTemplate']);
     Route::get('/templates-lite', [ApiController::class, 'templatesLite']);
+
+    Route::get(
+        '/workspace/{projectId}',
+        [ApiController::class, 'workspace']
+    );
 
 });

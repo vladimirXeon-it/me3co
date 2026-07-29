@@ -12,9 +12,6 @@
                             <div class="pt-3 new-project" style="display: block;">
                                 <div class="mb-4">
                                     <h3 class="me3co-form-title mb-1">Edit Labor</h3>
-                                    <p class="me3co-form-subtitle mb-0">
-                                        Update the labor information, hourly cost and burdens.
-                                    </p>
                                 </div>
                                 <form method="post" action="{{ route('labor.update', ['id' => $labor->id]) }}">
                                     @csrf()

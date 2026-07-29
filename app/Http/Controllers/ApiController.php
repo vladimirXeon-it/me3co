@@ -41,6 +41,7 @@ use Smalot\PdfParser\Parser;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfReader\PdfReader;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;   // si validas
 use App\Models\CourseBand;
 use Illuminate\Support\Arr;
@@ -56,6 +57,8 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
+//use Illuminate\Support\Facades\Schema;
 
 class ApiController extends Controller
 {
@@ -879,6 +882,95 @@ class ApiController extends Controller
         return $project;
     }
 
+    private function normalizarIdsProyecto($value): array
+    {
+        if (is_array($value)) {
+            $ids = $value;
+        } else {
+            $ids = json_decode((string) $value, true);
+
+            if (!is_array($ids)) {
+                $ids = [];
+            }
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            function ($id) {
+                return $id > 0;
+            }
+        )));
+    }
+
+    public function workspace($projectId)
+    {
+        $userId = (int) auth()->id();
+
+        $currentProject = Project::where('id', $projectId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$currentProject) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Project not found',
+                'current_project' => null,
+                'projects' => [],
+                'equipments' => [],
+                'materials' => [],
+                'crews' => [],
+            ], 404);
+        }
+
+        $equipmentIds = $this->normalizarIdsProyecto(
+            $currentProject->equipments
+        );
+
+        $crewIds = $this->normalizarIdsProyecto(
+            $currentProject->crews
+        );
+
+        $projects = Project::where('user_id', $userId)
+            ->select(
+                'id',
+                'name',
+                'bid_date',
+                'created_at',
+                'updated_at'
+            )
+            ->orderByDesc('created_at')
+            ->get();
+
+        $equipments = Equipment::where('user_id', $userId)
+            ->where('project_id', $currentProject->id)
+            ->orderBy('name')
+            ->get();
+
+        $materials = Material::where('user_id', $userId)
+            ->where('project_id', $currentProject->id)
+            ->orderBy('name')
+            ->get();
+
+        $crews = Crew::where('user_id', $userId)
+            ->where('project_id', $currentProject->id)
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'status' => 200,
+
+            'current_project' => [
+                'id' => $currentProject->id,
+                'name' => $currentProject->name,
+            ],
+
+            'projects' => $projects,
+            'equipments' => $equipments,
+            'materials' => $materials,
+            'crews' => $crews,
+        ]);
+    }
+
     public function projectName($id)
     {
         $project = Project::where('id', $id)->select('name', 'bid_number', 'bid_date', 'bid_time')->first();
@@ -1605,10 +1697,14 @@ class ApiController extends Controller
             return null;
         }
 
-        $wall = Wall::where('user_id', $userId)
-            ->where('project_id', $projectId)
-            ->where('idUnique', $idUnique)
-            ->first();
+        $wall = Wall::select(
+                    'id',
+                    'idUnique'
+                )
+                ->where('user_id', $userId)
+                ->where('project_id', $projectId)
+                ->where('idUnique', $idUnique)
+                ->first();
 
         if ($wall) {
             return $this->asegurarIdUniqueWall($wall);
@@ -1742,6 +1838,150 @@ class ApiController extends Controller
         return $formData;
     }
 
+    private function filtrarColumnasWall(array $data): array
+    {
+        static $columnasWall = null;
+
+        if ($columnasWall === null) {
+            $columnasWall = array_flip(Schema::getColumnListing('walls'));
+        }
+
+        return array_intersect_key($data, $columnasWall);
+    }
+
+    private function obtenerOpeningsVinculados(
+        int $projectId,
+        int $userId,
+        string $affectedTakeoffIdUnique
+    ): array {
+        $affectedTakeoffIdUnique = trim($affectedTakeoffIdUnique);
+
+        if ($projectId <= 0 || $affectedTakeoffIdUnique === '') {
+            return [];
+        }
+
+        $drawings = DB::table('drawings')
+            ->where('path', 'like', '%projects/project' . $projectId . '/%')
+            ->select('id', 'counts')
+            ->get();
+
+        $openings = [];
+        $seen = [];
+
+        foreach ($drawings as $drawing) {
+            $counts = $this->safeJson($drawing->counts ?? null, []);
+
+            if (is_object($counts)) {
+                $counts = (array) $counts;
+            }
+
+            if (is_array($counts)) {
+                $this->buscarOpeningsEnCounts(
+                    $counts,
+                    $affectedTakeoffIdUnique,
+                    (int) $drawing->id,
+                    $openings,
+                    $seen
+                );
+            }
+        }
+
+        return array_values($openings);
+    }
+
+    private function buscarOpeningsEnCounts(
+        array $node,
+        string $affectedTakeoffIdUnique,
+        int $drawingId,
+        array &$openings,
+        array &$seen
+    ): void {
+        $opening = $this->normalizarOpeningDeCount($node);
+        $linkedId = $this->extraerAffectedTakeoffIdUnique($opening);
+
+        if ($linkedId !== '') {
+            if ($linkedId === $affectedTakeoffIdUnique) {
+                $opening['_drawing_id'] = $drawingId;
+                $openingKey = trim((string) (
+                    $opening['id_unique']
+                    ?? $opening['idUnique']
+                    ?? $opening['opening_id']
+                    ?? $opening['id']
+                    ?? ''
+                ));
+
+                if ($openingKey === '') {
+                    $openingKey = md5(json_encode(
+                        [$drawingId, $opening],
+                        JSON_UNESCAPED_UNICODE
+                    ));
+                }
+
+                $uniqueKey = $drawingId . '|' . $openingKey;
+
+                if (!isset($seen[$uniqueKey])) {
+                    $seen[$uniqueKey] = true;
+                    $openings[] = $opening;
+                }
+            }
+
+            return;
+        }
+
+        foreach ($node as $child) {
+            if (is_object($child)) {
+                $child = (array) $child;
+            }
+
+            if (is_array($child)) {
+                $this->buscarOpeningsEnCounts(
+                    $child,
+                    $affectedTakeoffIdUnique,
+                    $drawingId,
+                    $openings,
+                    $seen
+                );
+            }
+        }
+    }
+
+    private function normalizarOpeningDeCount(array $item): array
+    {
+        $opening = [];
+
+        foreach (['opening_template', 'template', 'opening', 'meta'] as $key) {
+            if (!isset($item[$key])) {
+                continue;
+            }
+
+            $value = $item[$key];
+
+            if (is_string($value)) {
+                $value = $this->safeJson($value, []);
+            }
+
+            if (is_object($value)) {
+                $value = (array) $value;
+            }
+
+            if (is_array($value)) {
+                $opening = array_replace($opening, $value);
+            }
+        }
+
+        return array_replace($opening, $item);
+    }
+
+    private function extraerAffectedTakeoffIdUnique(array $opening): string
+    {
+        return trim((string) (
+            $opening['affected_takeoff_id_unique']
+            ?? $opening['affectedTakeoffIdUnique']
+            ?? $opening['affected_takeoff_idUnique']
+            ?? ''
+        ));
+    }
+
     public function CalculateData(Request $request)
     {
         try {
@@ -1754,8 +1994,31 @@ class ApiController extends Controller
             $user = auth()->user();
             $userId = (int) $user->id;
 
-            $formDataRecibida = $data['formData'] ?? [];
-            $idUnique = trim((string) ($formDataRecibida['idUnique'] ?? ''));
+            $formDataLimpia = $data['formData'] ?? [];
+
+            if (!is_array($formDataLimpia)) {
+                $formDataLimpia = [];
+            }
+
+            /*
+            * Evita guardar nuevamente un formData dentro de otro formData.
+            */
+            unset($formDataLimpia['formData']);
+
+            /*
+            * Son resultados generados por el cálculo.
+            * No deben volver a guardarse ni enviarse al siguiente cálculo.
+            */
+            unset(
+                $formDataLimpia['totales_html'],
+                $formDataLimpia['totalsDatas'],
+                $formDataLimpia['materialesAgrupados'],
+                $formDataLimpia['project'],
+                $formDataLimpia['linked_openings'],
+                $formDataLimpia['openings_applied']
+            );
+
+            $idUnique = trim((string) ($formDataLimpia['idUnique'] ?? ''));
 
             // SOLO busca por idUnique
             $existing_wall = $this->buscarWallPorIdUnique(
@@ -1764,26 +2027,56 @@ class ApiController extends Controller
                 $idUnique
             );
 
-            $data['formData']['user_id'] = $userId;
-            $data['formData']['project_id'] = $projectId;
-            $data['formData']['type'] = $type;
-            $data['formData'] = $this->convertirMaterialesAString($data['formData']);
+            $formDataLimpia['user_id'] = $userId;
+            $formDataLimpia['project_id'] = $projectId;
+            $formDataLimpia['type'] = $type;
+
+            $formDataLimpia = $this->convertirMaterialesAString(
+                $formDataLimpia
+            );
 
             try {
-                if (!isset($existing_wall->id)) {
-                    $nuevoWall = Wall::create($data['formData']);
+                if (!$existing_wall) {
+                    /*
+                    * Primera creación.
+                    * Guardamos una sola copia limpia dentro de la columna formData.
+                    */
+                    $datosGuardar = $this->filtrarColumnasWall($formDataLimpia);
+
+                    $datosGuardar['formData'] = json_encode(
+                        $formDataLimpia,
+                        JSON_UNESCAPED_UNICODE
+                    );
+
+                    $nuevoWall = Wall::create($datosGuardar);
 
                     $nuevoWall->idUnique = $this->generarIdUniqueWall($nuevoWall);
-                    $data['formData']['idUnique'] = $nuevoWall->idUnique;
-                    $nuevoWall->formData = json_encode($data['formData']);
+
+                    /*
+                    * Ahora que existe el ID, actualizamos también el JSON.
+                    */
+                    $formDataLimpia['idUnique'] = $nuevoWall->idUnique;
+
+                    $nuevoWall->formData = json_encode(
+                        $formDataLimpia,
+                        JSON_UNESCAPED_UNICODE
+                    );
+
                     $nuevoWall->save();
 
                     $existing_wall = $nuevoWall;
                 } else {
-                    $data['formData']['idUnique'] = $existing_wall->idUnique;
-                    $data['formData']['formData'] = json_encode($data['formData']);
-                    $existing_wall->update($data['formData']);
-                    $existing_wall->refresh();
+                    $formDataLimpia['idUnique'] = $existing_wall->idUnique;
+
+                    $datosGuardar = $this->filtrarColumnasWall($formDataLimpia);
+
+                    $datosGuardar['formData'] = json_encode(
+                        $formDataLimpia,
+                        JSON_UNESCAPED_UNICODE
+                    );
+
+                    $existing_wall->update($datosGuardar);
+                    //$existing_wall->refresh();
                 }
             } catch (QueryException $e) {
                 return response()->json([
@@ -1803,9 +2096,31 @@ class ApiController extends Controller
                 ], 400);
             }
 
-            $data['formData']['formData'] = json_encode($data['formData']);
+            /*
+             * Las aberturas se agregan sólo al cálculo actual. No se guardan
+             * dentro del formData del wall para evitar copias obsoletas.
+             */
+            if ($type !== 'opening') {
+                $formDataLimpia['linked_openings'] =
+                    $this->obtenerOpeningsVinculados(
+                        $projectId,
+                        $userId,
+                        (string) $existing_wall->idUnique
+                    );
+            }
 
-            $wall_para_calculo = (object) $data['formData'];
+            $wall_para_calculo = (object) [
+                'id' => $existing_wall->id,
+                'user_id' => $userId,
+                'project_id' => $projectId,
+                'type' => $type,
+                'name' => $formDataLimpia['name'] ?? $templateName,
+                'idUnique' => $existing_wall->idUnique,
+                'formData' => json_encode(
+                    $formDataLimpia,
+                    JSON_UNESCAPED_UNICODE
+                ),
+            ];
 
             $wc = new WallController();
             $status = 200;
@@ -1821,7 +2136,7 @@ class ApiController extends Controller
                     $resultado = $th->getMessage();
                 }
             } else {
-                $resultado = (object) $data['formData'];
+                $resultado = (object) $formDataLimpia;
             }
 
             return json_encode([
@@ -2018,17 +2333,26 @@ class ApiController extends Controller
     public function pullUpdates(Request $request, $table)
     {
         $lastUpdated = $request->input('last_updated_at');
+        $projectId = $request->input('project_id');
 
-        if ($lastUpdated) {
-            $lastUpdated = date('Y-m-d H:i:s', strtotime($lastUpdated));
-            $records = \DB::table($table)
-                ->where('updated_at', '>', $lastUpdated)
-                ->get();
-        } else {
-            $records = \DB::table($table)->get();
-        }
+        $records = DB::table($table)
+            ->when($projectId && $table === 'drawings', function ($query) use ($projectId) {
+                $query->where('path', 'like', "/projects/project{$projectId}/%");
+            })
+            ->when($projectId && $table !== 'drawings', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            })
+            ->when($lastUpdated, function ($query) use ($lastUpdated) {
+                $query->where(
+                    'updated_at',
+                    '>',
+                    date('Y-m-d H:i:s', strtotime($lastUpdated))
+                );
+            })
+            ->get();
 
         return response()->json([
+            'status' => 200,
             'records' => $records,
         ]);
     }
@@ -2377,10 +2701,12 @@ class ApiController extends Controller
 
     public function searchGroutBlock()
     {
-        $groutBlock = DB::table('grout_block')
-            ->select('id', 'name', 'grout')
-            ->orderBy('id')
-            ->get();
+        $groutBlock = Cache::remember('grout_block_list', 86400, function () {
+            return DB::table('grout_block')
+                ->select('id', 'name', 'grout')
+                ->orderBy('id')
+                ->get();
+        });
 
         return response()->json([
             'status' => 200,
@@ -2388,41 +2714,125 @@ class ApiController extends Controller
         ]);
     }
 
+    private function normalizarNombrePlano(string $nombre): string
+    {
+        // Laravel ya decodifica normalmente el query,
+        // pero esto cubre valores que todavía lleguen codificados.
+        $nombre = rawurldecode($nombre);
+
+        // Espacios especiales/invisibles.
+        $nombre = str_replace(
+            ["\xC2\xA0", "\xE2\x80\x8B", "\r", "\n", "\t"],
+            ' ',
+            $nombre
+        );
+
+        // Convierte espacios, guiones y guiones bajos en un solo espacio.
+        $nombre = preg_replace('/[\s_-]+/u', ' ', $nombre);
+
+        // Elimina cualquier otro carácter separador.
+        $nombre = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $nombre);
+
+        return mb_strtolower(
+            trim(preg_replace('/\s+/u', ' ', $nombre)),
+            'UTF-8'
+        );
+    }
+
     public function listPlanImages(Request $request)
     {
-        $projectId = $request->query('project');
-        $prefix = $request->query('prefix');
+        $projectId = trim((string) $request->query('project', ''));
+        $prefixOriginal = trim((string) $request->query('prefix', ''));
 
-        if (!$projectId || !$prefix) {
+        if ($projectId === '' || $prefixOriginal === '') {
             return response()->json([
                 'error' => 'Missing parameters: project or prefix'
             ], 400);
         }
 
+        $prefixNormalizado = $this->normalizarNombrePlano(
+            $prefixOriginal
+        );
+
         $files = [];
 
         if (StorageService::useS3()) {
             $cleanDir = "projects/project{$projectId}/thumb";
+
             $allFiles = Storage::disk('s3')->files($cleanDir);
 
             foreach ($allFiles as $filePath) {
                 $filename = basename($filePath);
 
-                if (
-                    str_starts_with($filename, $prefix) &&
-                    preg_match('/\.(png|webp)$/i', $filename)
-                ) {
-                    $files[] = "projects/project{$projectId}/thumb/{$filename}";
+                if (!preg_match('/\.(png|webp)$/i', $filename)) {
+                    continue;
+                }
+
+                /*
+                * Quita la parte correspondiente a la página.
+                *
+                * Ejemplo:
+                * Cocke Cty Hwy Combined Drawings__PAGE-36__P14.webp
+                *
+                * Resultado:
+                * Cocke Cty Hwy Combined Drawings
+                */
+                $nombreSinExtension = pathinfo(
+                    $filename,
+                    PATHINFO_FILENAME
+                );
+
+                $partes = preg_split(
+                    '/__PAGE[-_]/i',
+                    $nombreSinExtension,
+                    2
+                );
+
+                $nombrePlanoArchivo = $partes[0] ?? $nombreSinExtension;
+
+                $nombreArchivoNormalizado =
+                    $this->normalizarNombrePlano($nombrePlanoArchivo);
+
+                if ($nombreArchivoNormalizado === $prefixNormalizado) {
+                    $files[] = $filePath;
                 }
             }
         } else {
-            $folderPath = public_path("uploads/projects/project{$projectId}/thumb");
+            $folderPath = public_path(
+                "uploads/projects/project{$projectId}/thumb"
+            );
+
             if (File::exists($folderPath)) {
-                $localFilesPng = glob($folderPath . '/' . $prefix . '*.png') ?: [];
-                $localFilesWebp = glob($folderPath . '/' . $prefix . '*.webp') ?: [];
-                $localFiles = array_merge($localFilesPng, $localFilesWebp);
+                $localFiles = array_merge(
+                    glob($folderPath . '/*.png') ?: [],
+                    glob($folderPath . '/*.webp') ?: []
+                );
+
                 foreach ($localFiles as $path) {
-                    $files[] = "projects/project{$projectId}/thumb/" . basename($path);
+                    $filename = basename($path);
+
+                    $nombreSinExtension = pathinfo(
+                        $filename,
+                        PATHINFO_FILENAME
+                    );
+
+                    $partes = preg_split(
+                        '/__PAGE[-_]/i',
+                        $nombreSinExtension,
+                        2
+                    );
+
+                    $nombrePlanoArchivo =
+                        $partes[0] ?? $nombreSinExtension;
+
+                    $nombreArchivoNormalizado =
+                        $this->normalizarNombrePlano($nombrePlanoArchivo);
+
+                    if ($nombreArchivoNormalizado === $prefixNormalizado) {
+                        $files[] =
+                            "projects/project{$projectId}/thumb/" .
+                            $filename;
+                    }
                 }
             }
         }
@@ -2433,8 +2843,17 @@ class ApiController extends Controller
             $base = basename($relativePath);
 
             $page = PHP_INT_MAX;
-            if (preg_match('/__P(\d+)\.(png|webp)$/i', $base, $m)) {
-                $page = (int) $m[1];
+
+            /*
+            * Tus archivos tienen formatos como:
+            * __PAGE-36__P14.webp
+            */
+            if (preg_match(
+                '/__P(\d+)\.(png|webp)$/i',
+                $base,
+                $matches
+            )) {
+                $page = (int) $matches[1];
             }
 
             $rows[] = [
@@ -2443,16 +2862,15 @@ class ApiController extends Controller
             ];
         }
 
-        // Orden numérico por página
         usort($rows, function ($a, $b) {
             return $a['page'] <=> $b['page'];
         });
 
-        // Devuelve URLs resueltas (de S3 en producción o local path en local)
         $result = array_map(function ($row) {
             if (StorageService::useS3()) {
                 return StorageService::url($row['path']);
             }
+
             return 'uploads/' . $row['path'];
         }, $rows);
 
@@ -3182,10 +3600,39 @@ class ApiController extends Controller
             return [];
         }
 
+        /*
+         * bulk() recalcula directamente el wall guardado y, a diferencia de
+         * CalculateData(), no recibe linked_openings en el request. Se agregan
+         * únicamente a una copia temporal para que WallController aplique la
+         * resta al material principal y genere las filas positivas del opening
+         * antes de consolidar el reporte global.
+         */
+        $wallParaBulk = clone $existing_wall;
+        $formDataBulk = $this->safeJson($wallParaBulk->formData ?? null, []);
+
+        if (is_object($formDataBulk)) {
+            $formDataBulk = (array) $formDataBulk;
+        }
+
+        if (!is_array($formDataBulk)) {
+            $formDataBulk = [];
+        }
+
+        $formDataBulk['linked_openings'] = $this->obtenerOpeningsVinculados(
+            (int) $existing_wall->project_id,
+            $userId,
+            $idunique
+        );
+
+        $wallParaBulk->formData = json_encode(
+            $formDataBulk,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+
         $wc = new WallController();
 
         try {
-            $resultado = $wc->recalculate($existing_wall->id);
+            $resultado = $wc->recalculate(null, $wallParaBulk);
 
             $materialesAgrupados = null;
 
@@ -4512,10 +4959,13 @@ class ApiController extends Controller
         }
     }
 
-    public function templatesLite()
+    public function templatesLite(Request $request)
     {
         try {
-            $templates = LineTemplate::select(
+            $user = auth()->user();
+            $userId = $user->id;
+
+            $query = LineTemplate::select(
                     'id',
                     'template_name',
                     'trade_name',
@@ -4523,6 +4973,12 @@ class ApiController extends Controller
                     'is_global',
                     'user_id'
                 )
+                ->where(function ($q) use ($userId) {
+                    $q->where('user_id', $userId)
+                        ->orWhere('is_global', 1);
+                });
+
+            $templates = $query
                 ->orderBy('template_type', 'asc')
                 ->orderBy('trade_name', 'asc')
                 ->orderBy('template_name', 'asc')
@@ -4537,7 +4993,7 @@ class ApiController extends Controller
                 'status' => 500,
                 'message' => $e->getMessage(),
                 'template' => [],
-            ]);
+            ], 500);
         }
     }
 
@@ -4595,6 +5051,84 @@ class ApiController extends Controller
                 'template' => null,
             ]);
         }
+    }
+
+    public function getOpeningTemplateById($id)
+    {
+        try {
+            $userId = (int) auth()->id();
+            $template = LineTemplate::where('id', $id)
+                ->where('template_type', 'opening')
+                ->where(function ($query) use ($userId) {
+                    $query->where('user_id', $userId)
+                        ->orWhere('is_global', 1);
+                })
+                ->first();
+
+            if (!$template) {
+                return response()->json([
+                    'status' => 404,
+                    'template' => null,
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'template' => $template,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'template' => null,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function saveOpeningTemplate(Request $request)
+    {
+        $validated = $request->validate([
+            'template_id' => 'nullable|integer',
+            'template_name' => 'required|string|max:255',
+            'formData' => 'required|array',
+            'is_global' => 'nullable|boolean',
+        ]);
+
+        $userId = (int) auth()->id();
+        $formData = $validated['formData'];
+        $formData['name'] = $validated['template_name'];
+        $formData['type'] = 'opening';
+
+        $template = null;
+
+        if (!empty($validated['template_id'])) {
+            $template = LineTemplate::where('id', $validated['template_id'])
+                ->where('user_id', $userId)
+                ->where('template_type', 'opening')
+                ->first();
+        }
+
+        if (!$template) {
+            $template = LineTemplate::where('user_id', $userId)
+                ->where('template_type', 'opening')
+                ->where('template_name', $validated['template_name'])
+                ->first();
+        }
+
+        $template = $template ?? new LineTemplate();
+
+        $template->user_id = $userId;
+        $template->template_name = $validated['template_name'];
+        $template->trade_name = (string) ($formData['category'] ?? 'Openings');
+        $template->template_type = 'opening';
+        $template->local_db = json_encode($formData, JSON_UNESCAPED_UNICODE);
+        $template->is_global = (int) ($validated['is_global'] ?? 0);
+        $template->save();
+
+        return response()->json([
+            'status' => 200,
+            'template' => $template,
+        ]);
     }
 
 }

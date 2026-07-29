@@ -473,11 +473,15 @@ if(!function_exists('get_user_materials_unique_id')) {
 if (!function_exists('get_master_materials')) {
     function get_master_materials()
     {
+        $idProject = $idProject
+            ?? request('project_id')
+            ?? session('idProject');
+
         $materials = DB::table('materials')->where('user_id', 0)->whereNotIn('unique_id', get_user_materials_unique_id())->get();
-        $idProject = session('idProject');
+        //$idProject = session('idProject');
         if($idProject)
         {
-            
+            session()->put('idProject', $idProject);
             $materials = DB::table('materials')->where('user_id',  Auth::id())->where('project_id',  null)->whereNotIn('unique_id', get_user_materials_unique_id())->get();
         }
         return $materials;

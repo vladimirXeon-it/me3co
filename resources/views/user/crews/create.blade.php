@@ -42,6 +42,12 @@
                                 <hr class="my-3">
 
                                 @php
+                                    if (request('project_id')) {
+                                        session()->put(
+                                            'idProject',
+                                            request('project_id')
+                                        );
+                                    }
                                     $master_labors = get_master_crews();
                                 @endphp
 

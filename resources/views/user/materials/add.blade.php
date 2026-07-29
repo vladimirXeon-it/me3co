@@ -28,6 +28,13 @@
                                 <hr class="my-3">
 
                                 @php
+                                    if (request('project_id')) {
+                                        session()->put(
+                                            'idProject',
+                                            request('project_id')
+                                        );
+                                    }
+
                                     $master_materials = get_master_materials();
                                 @endphp
 

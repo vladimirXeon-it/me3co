@@ -539,11 +539,6 @@ body.sidebar-collapsed .page-content-tab{
     margin-left:72px !important;
 }
 
-.project-table td:last-child{
-    min-width:430px;
-    white-space:nowrap;
-}
-
 .project-table .btn-teke-off{
     display:inline-flex !important;
     align-items:center;
@@ -553,7 +548,7 @@ body.sidebar-collapsed .page-content-tab{
 }
 
 .project-table td:last-child a{
-    margin-right:4px;
+    margin-right:18px;
     white-space:nowrap;
 }
 
@@ -633,6 +628,34 @@ body.sidebar-collapsed .page-content-tab{
     .toast.custom.position-fixed {
         top: 80px !important;
         right: 15px !important;
+    }
+
+    .page-content-tab {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding:
+            calc(var(--topbar-height) + 18px)
+            14px
+            24px !important;
+    }
+
+    body.sidebar-collapsed .page-content-tab {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    .project-page-header {
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .project-page-header h1 {
+        font-size: 24px;
+    }
+
+    .project-table {
+        padding: 12px;
+        border-radius: 12px;
     }
 }
 
@@ -957,4 +980,162 @@ body.sidebar-collapsed .page-content-tab{
     border-color:#0D5EFF;
     background:#f4f8ff;
     box-shadow:0 0 0 3px rgba(13,94,255,.08);
+}
+
+/* =========================================================
+   LAYOUT RESPONSIVO DE PROJECTS
+   ========================================================= */
+
+:root {
+    --topbar-height: 70px;
+    --sidebar-width: 270px;
+    --sidebar-collapsed-width: 72px;
+}
+
+/* Escritorio normal */
+.page-content-tab {
+    margin-left: var(--sidebar-width) !important;
+    width: calc(100% - var(--sidebar-width)) !important;
+    max-width: none !important;
+
+    padding:
+        calc(var(--topbar-height) + 24px)
+        clamp(16px, 2vw, 32px)
+        32px !important;
+
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+}
+
+/* Sidebar colapsado */
+body.sidebar-collapsed .page-content-tab {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    width: calc(100% - var(--sidebar-collapsed-width)) !important;
+}
+
+.project-page-header,
+.project-table,
+.me3co-list-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.project-table {
+    overflow: hidden;
+}
+
+.project-table .dataTables_wrapper {
+    width: 100%;
+    max-width: 100%;
+}
+
+.project-table th:last-child,
+.project-table td:last-child {
+    min-width: 210px;
+    width: 210px;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.project-table .btn-teke-off,
+.project-table .btn-takeoff,
+.project-table .btn-invite {
+    white-space: nowrap;
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+}
+
+.me3co-table-wrapper,
+.project-table .dataTables_scroll,
+.project-table .dataTables_scrollBody {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.project-table .dataTables_scrollBody {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+}
+
+#projectTableId {
+    width: 100% !important;
+}
+
+@media (max-width: 1440px) {
+    :root {
+        --sidebar-width: 240px;
+    }
+
+    .me3co-sidebar {
+        width: var(--sidebar-width) !important;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .page-content-tab {
+        margin-left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width)) !important;
+        padding-left: 18px !important;
+        padding-right: 18px !important;
+    }
+
+    .project-page-header h1 {
+        font-size: 27px;
+    }
+
+    .project-table {
+        padding: 14px;
+    }
+
+    .project-table table th,
+    .project-table table td {
+        font-size: 12px;
+    }
+
+    .project-table th:last-child,
+    .project-table td:last-child {
+        min-width: 195px;
+        width: 195px;
+    }
+}
+
+@media (max-width: 768px) {
+    .project-page-header {
+        flex-direction: column;
+    }
+
+    .project-page-actions {
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .creat-project-btn,
+    .creat-project-btn a,
+    .creat-project-btn button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .page-content-tab {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .project-table {
+        padding: 10px;
+    }
+
+    .dataTables_length,
+    .dataTables_filter {
+        float: none !important;
+        width: 100%;
+        text-align: left !important;
+    }
+
+    .dataTables_filter input,
+    .me3co-search {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
 }

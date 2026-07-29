@@ -85,7 +85,7 @@
   border-radius: 6px;
   border: 1px solid rgba(0, 0, 0, 0.1);
 
-  z-index: 10;
+  z-index: 999999;
 }
 
 .modal {
@@ -103,7 +103,7 @@
   border-radius: 6px;
   border: 1px solid rgba(0, 0, 0, 0.1);
 
-  z-index: 10;
+  z-index: 999999;
 }
 
 .btn {
@@ -888,4 +888,49 @@ body .canvas-container {
 
 .custom-canvas-class {
   position: inherit !important;
+}
+
+/* Clases globales para tarjetas y rejillas de popups */
+.popup-card {
+  background: #ffffff !important;
+  border: 1px solid #dbe5f0 !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04) !important;
+}
+
+.popup-card h4 {
+  margin: 0 0 14px 0 !important;
+  color: #071f3d !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding-bottom: 8px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.popup-grid-2 {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.popup-grid-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.popup-grid-4 {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+@media (max-width: 1000px) {
+  .popup-grid-2, .popup-grid-3, .popup-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
 }

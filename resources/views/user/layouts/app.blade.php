@@ -25,7 +25,9 @@
 </head>
 
 <body data-layout="horizontal" class="dark-topbar">
-    @include('components.user.topbar')
+    @if (!request()->boolean('popup'))
+        @include('components.user.topbar')
+    @endif
 
     <div class="page-wrapper">
         <!-- Page Content-->
@@ -35,7 +37,9 @@
     </div>
 
     @include('components.user.offcanvas')
-    @include('components.user.footer')
+    @if (!request()->boolean('popup'))
+        @include('components.user.footer')
+    @endif
     <!-- end Footer -->
     <!--end footer-->
     @include('components.user.toast')
